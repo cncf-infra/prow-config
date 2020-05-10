@@ -1,0 +1,35 @@
+#+TITLE: Terraform
+* Downloading
+  #+begin_src shell :dir /tmp
+    curl -LO https://releases.hashicorp.com/terraform/0.12.24/terraform_0.12.24_linux_amd64.zip
+    mkdir -p ~/bin
+    cd ~/bin
+    unzip /tmp/terraform_0.12.24_linux_amd64.zip
+    terraform -install-autocomplete
+  #+end_src
+
+  #+RESULTS:
+  | Archive:   | /tmp/terraform_0.12.24_linux_amd64.zip |
+  | inflating: | terraform                              |
+* Verify
+  #+begin_src shell
+    terraform version
+  #+end_src
+
+  #+RESULTS:
+  : Terraform v0.12.24
+* Docs
+** k8s-infra-wg
+https://github.com/kubernetes/k8s.io/tree/master/infra/gcp/clusters/kubernetes-public/prow-build-test
+*** k8s-infra-gke-cluster
+https://github.com/kubernetes/k8s.io/tree/master/infra/gcp/clusters/kubernetes-public/prow-build-test/k8s-infra-gke-cluster
+https://github.com/kubernetes/k8s.io/blob/master/infra/gcp/clusters/kubernetes-public/prow-build-test/k8s-infra-gke-cluster/main.tf#L63
+** AWS EKS
+*** API https://www.terraform.io/docs/providers/aws/r/eks_cluster.html
+*** HOWTO https://learn.hashicorp.com/terraform/kubernetes/provision-eks-cluster
+ - https://www.terraform.io/docs/providers/aws/guides/eks-getting-started.html
+ - https://github.com/terraform-providers/terraform-provider-aws/tree/master/examples/eks-getting-started
+*** How To Prod
+- https://medium.com/risertech/production-eks-with-terraform-5ad9e76db425
+** AWS Route53
+https://www.terraform.io/docs/providers/aws/r/route53_record.html

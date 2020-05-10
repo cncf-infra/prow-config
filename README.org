@@ -1,0 +1,17 @@
+* Prow deployment using terraform
+** Use TF to provision a cluster on AWS
+*** Option 1 scripted kubectl apply of standard prow YAML (@spiffxp has opted for this)
+#+BEGIN_SRC shell
+aws eks list-clusters --region us-east-2 --output text
+#+END_SRC
+
+#+RESULTS:
+| CLUSTERS | training-eks-K2q4oHvd |
+
+*** Option 2 use terraform to do the prow deployment
+[[https://www.hashicorp.com/blog/hashicorp-announces-terraform-support-aws-kubernetes/][HashiCorp Blog - Announcing Terraform Support for Kubernetes Service on AWS]]
+[[https://learn.hashicorp.com/terraform/kubernetes/deploy-nginx-kubernetes][Manage Kubernetes Resources via Terraform]]
+The terraform module is cross cloud aware and can deploy to kind aswell
+
+** Resources
+[[https://awscli.amazonaws.com/v2/documentation/api/latest/reference/eks/index.html][aws eks cli (version 2 of aws cli)]]
