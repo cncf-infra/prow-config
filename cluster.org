@@ -1,0 +1,202 @@
+* Setup a cluster
+
+Used *eksctl* though long term, maybe we use cluster-api and [[https://github.com/aws/aws-service-operator-k8s/blob/master/docs/background.md#custom-controllers-and-operators-in-aws][aws-service-operation-k8s]]
+
+#+begin_src  shell
+aws eks list-clusters
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{
+    "clusters": [
+        "prow-dev"
+    ]
+}
+#+end_example
+* loading secrets
+** github-hmac / hook
+ #+begin_src shell
+   kubectl delete secret hmac-token
+   kubectl create secret generic hmac-token --from-file=hmac=.secret-hook
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret/hmac-token created
+ #+end_example
+
+** github-oauth
+ #+begin_src shell
+   kubectl delete secret oauth-token
+   kubectl create secret generic oauth-token --from-file=oauth=.secret-oauth
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret "oauth-token" deleted
+ secret/oauth-token created
+ #+end_example
+
+* prow components manifst
+** cluster/starter.yaml
+https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#add-the-prow-components-to-the-cluster
+#+begin_src shell :dir "~/prow-config"
+  kubectl apply -f manifests/starter.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/plugins created
+configmap/config created
+customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io created
+deployment.apps/hook created
+service/hook created
+deployment.apps/plank created
+deployment.apps/sinker created
+deployment.apps/deck created
+service/deck created
+deployment.apps/horologium created
+deployment.apps/tide created
+service/tide created
+ingress.extensions/ing created
+deployment.apps/statusreconciler created
+namespace/test-pods created
+serviceaccount/deck created
+rolebinding.rbac.authorization.k8s.io/deck created
+rolebinding.rbac.authorization.k8s.io/deck created
+role.rbac.authorization.k8s.io/deck created
+role.rbac.authorization.k8s.io/deck created
+serviceaccount/horologium created
+role.rbac.authorization.k8s.io/horologium created
+rolebinding.rbac.authorization.k8s.io/horologium created
+serviceaccount/plank created
+role.rbac.authorization.k8s.io/plank created
+role.rbac.authorization.k8s.io/plank created
+rolebinding.rbac.authorization.k8s.io/plank created
+rolebinding.rbac.authorization.k8s.io/plank created
+serviceaccount/sinker created
+role.rbac.authorization.k8s.io/sinker created
+role.rbac.authorization.k8s.io/sinker created
+rolebinding.rbac.authorization.k8s.io/sinker created
+rolebinding.rbac.authorization.k8s.io/sinker created
+serviceaccount/hook created
+role.rbac.authorization.k8s.io/hook created
+rolebinding.rbac.authorization.k8s.io/hook created
+serviceaccount/tide created
+role.rbac.authorization.k8s.io/tide created
+rolebinding.rbac.authorization.k8s.io/tide created
+serviceaccount/statusreconciler created
+role.rbac.authorization.k8s.io/statusreconciler created
+rolebinding.rbac.authorization.k8s.io/statusreconciler created
+#+end_example
+
+* components
+** deployment
+#+begin_src shell
+  kubectl get deployments
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+deck               2/2     2            2           31m
+hook               2/2     2            2           31m
+horologium         1/1     1            1           31m
+plank              1/1     1            1           31m
+sinker             1/1     1            1           31m
+statusreconciler   1/1     1            1           31m
+tide               1/1     1            1           31m
+#+end_example
+
+** TODO ingress
+#+begin_src shell
+  kubectl get ingress
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME   HOSTS   ADDRESS   PORTS   AGE
+ing    *                 80      38m
+#+end_example
+
+#+begin_src shell
+  kubectl get ingress ing -o yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"extensions/v1beta1","kind":"Ingress","metadata":{"annotations":{},"name":"ing","namespace":"default"},"spec":{"backend":{"serviceName":"deck","servicePort":80},"rules":[{"http":{"paths":[{"backend":{"serviceName":"deck","servicePort":80},"path":"/"},{"backend":{"serviceName":"hook","servicePort":8888},"path":"/hook"}]}}]}}
+  creationTimestamp: "2020-05-11T03:11:56Z"
+  generation: 1
+  name: ing
+  namespace: default
+  resourceVersion: "1436"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/ingresses/ing
+  uid: 861040ad-0371-4aa8-9960-e7cb3dd69840
+spec:
+  backend:
+    serviceName: deck
+    servicePort: 80
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: deck
+          servicePort: 80
+        path: /
+      - backend:
+          serviceName: hook
+          servicePort: 8888
+        path: /hook
+status:
+  loadBalancer: {}
+#+end_example
+
+* Footnotes
+** software
+*** direnv
+*** aws-iam-authenticator
+https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
+** gotchas
+*** documentation seems to call it the oauth secret.... when in fact it's a github personal access tokens
+*** cluster authentication / iam
+ https://github.com/kubernetes-sigs/aws-iam-authenticator/issues/174#issuecomment-450651720
+
+*** cluster-admin role
+ #+BEGIN_SRC sh
+   kubectl get clusterrolebinding cluster-admin -o yaml
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_src sh
+ apiVersion: rbac.authorization.k8s.io/v1
+ kind: ClusterRoleBinding
+ metadata:
+   annotations:
+     rbac.authorization.kubernetes.io/autoupdate: "true"
+   creationTimestamp: "2020-04-06T04:19:41Z"
+   labels:
+     kubernetes.io/bootstrapping: rbac-defaults
+   name: cluster-admin
+   resourceVersion: "95"
+   selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/cluster-admin
+   uid: c8c1eb3a-72a4-45d3-8ae2-c7d8abda71ee
+ roleRef:
+   apiGroup: rbac.authorization.k8s.io
+   kind: ClusterRole
+   name: cluster-admin
+ subjects:
+ - apiGroup: rbac.authorization.k8s.io
+   kind: Group
+   name: system:masters
+ #+end_src
+** ENV for aws cli
+ https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+
+ **AWS_PROFILE**
