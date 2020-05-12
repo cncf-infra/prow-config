@@ -1,0 +1,9 @@
+postsubmits:
+  cncf-infra/prow-config:
+  - name: merged-prow-config
+    # cluster: prow-build-test
+    decorate: true
+    spec:
+      containers:
+      - image: alpine
+        command: ["/bin/printenv"]

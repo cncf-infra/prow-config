@@ -1,0 +1,23 @@
+presubmits:
+  cncf-infra/prow-config:
+  - name: pull-prow-config-checkconfig
+    cluster: prow-build-test
+    decorate: true
+    run_if_changed: '^((config|plugins).yaml$|jobs/.*.yaml$)'
+    optional: true
+    spec:
+      containers:
+      - image: gcr.io/k8s-prow/checkconfig:v20200423-af610499d
+        command:
+        - /checkconfig
+        args:
+        - --config-path=config.yaml
+        - --plugin-config=plugins.yaml
+        - --strict
+        - --warnings=mismatched-tide-lenient
+        - --warnings=tide-strict-branch
+        - --warnings=needs-ok-to-test
+        - --warnings=validate-owners
+        - --warnings=missing-trigger
+        - --warnings=validate-urls
+        - --warnings=unknown-fields
