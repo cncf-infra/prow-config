@@ -92,7 +92,41 @@ rolebinding.rbac.authorization.k8s.io/statusreconciler created
 #+end_example
 
 * components
+** services
+#+begin_src shell
+  kubectl get services
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+deck         NodePort    10.100.33.217    <none>        80:32096/TCP     12h
+hook         NodePort    10.100.156.63    <none>        8888:31025/TCP   12h
+kubernetes   ClusterIP   10.100.0.1       <none>        443/TCP          13h
+tide         NodePort    10.100.132.246   <none>        80:31081/TCP     12h
+#+end_example
+
+** pods
+#+begin_src shell
+  kubectl get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                               READY   STATUS    RESTARTS   AGE
+deck-7c6d46b4f7-8nj26              1/1     Running   0          12h
+deck-7c6d46b4f7-p7lws              1/1     Running   0          12h
+hook-5f4db6758f-g7dzs              1/1     Running   0          12h
+hook-5f4db6758f-rcg87              1/1     Running   0          12h
+horologium-54f95c4dc4-5km7m        1/1     Running   0          12h
+plank-7cf6bf5cb6-9njpm             1/1     Running   0          12h
+sinker-ddf8cbcb6-fxbzb             1/1     Running   0          12h
+statusreconciler-b946855cf-jt89w   1/1     Running   0          12h
+tide-66b57f5ccf-wsns5              1/1     Running   0          12h
+#+end_example
+
 ** deployment
+
 #+begin_src shell
   kubectl get deployments
 #+end_src
@@ -100,16 +134,17 @@ rolebinding.rbac.authorization.k8s.io/statusreconciler created
 #+RESULTS:
 #+begin_example
 NAME               READY   UP-TO-DATE   AVAILABLE   AGE
-deck               2/2     2            2           31m
-hook               2/2     2            2           31m
-horologium         1/1     1            1           31m
-plank              1/1     1            1           31m
-sinker             1/1     1            1           31m
-statusreconciler   1/1     1            1           31m
-tide               1/1     1            1           31m
+deck               0/2     2            0           12h
+hook               0/2     2            0           12h
+horologium         0/1     1            0           12h
+plank              0/1     1            0           12h
+sinker             0/1     1            0           12h
+statusreconciler   0/1     1            0           12h
+tide               0/1     1            0           12h
 #+end_example
 
 ** TODO ingress
+
 #+begin_src shell
   kubectl get ingress
 #+end_src
@@ -156,6 +191,215 @@ spec:
         path: /hook
 status:
   loadBalancer: {}
+#+end_example
+
+* Rob -> ALB Ingress => other ingress
+[[https://aws.amazon.com/blogs/opensource/network-load-balancer-nginx-ingress-controller-eks/][AWS Blog - NLB Nginx Ingress Controller on EKS]]
+[[https://kubernetes.github.io/ingress-nginx/deploy/][NGINX Ingress Controller - Install Guide]]
+** Network Load Balancer with the NGINX Ingress resource
+
+#+begin_src shell :dir "~/prow-config"
+  #  curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/aws/deploy.yaml
+  # curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-0.32.0/deploy/static/provider/aws/deploy.yaml
+  kubectl apply -f manifests/ingress/deploy.yaml  # 404s / docs may have moved
+  # curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+  curl -LO https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/nlb-service.yaml
+  curl -LO https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/apple.yaml
+  curl -LO  https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/banana.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/nlb-service.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/apple.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/banana.yaml
+#+end_src
+
+** Troubleshooting resources
+
+[[https://eksctl.io/usage/eks-managed-nodes/][EKS Managed Nodes]]
+So in AWS Console land in order to grok the nodes you need to
+look at EC2 . Do not bother with the EKS Clusters page for reason?
+
+When you logon to the nodes with the unknown state and run the following
+#+begin_src shell
+[ec2-user@ip-192-168-45-255 ~]$ systemctl status kubelet
+● kubelet.service - Kubernetes Kubelet
+   Loaded: loaded (/etc/systemd/system/kubelet.service; enabled; vendor preset: disabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-eksclt.al2.conf
+   Active: active (running) since Mon 2020-05-11 03:07:19 UTC; 16h ago
+     Docs: https://github.com/kubernetes/kubernetes
+ Main PID: 7983 (kubelet)
+    Tasks: 83
+   Memory: 222.9M
+   CGroup: /system.slice/kubelet.service
+           ├─ 7983 /usr/bin/kubelet --node-ip=192.168.45.255 --node-labels=role=prow,alpha.eksctl.io/cluster-name=prow-dev,alpha.eksctl.io/nodegroup-name=prow-1,alpha.eksctl.io/instance-id=i-063c273807d19a3...
+           └─24396 /usr/bin/python2 -s /usr/bin/aws eks get-token --cluster-name prow-dev --region ap-southeast-2
+
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.711930    7983 reflector.go:125] k8s.io/kubernetes/pkg/kubelet/kubelet.go:445: Failed to list *v1.Se...authorized
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.712010    7983 controller.go:125] failed to ensure node lease exists, will retry in 7s, error: Unauthorized
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.712078    7983 reflector.go:125] object-"default"/"deck-token-g5pc5": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.018466    7983 reflector.go:125] object-"kube-system"/"kube-proxy": Failed to list *v1.ConfigMap: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.326603    7983 reflector.go:125] k8s.io/kubernetes/pkg/kubelet/kubelet.go:454: Failed to list *v1.No...authorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.326665    7983 reflector.go:125] object-"default"/"sinker-token-8pgvp": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.634835    7983 reflector.go:125] object-"default"/"tide-token-9fqsp": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.943901    7983 reflector.go:125] object-"default"/"hook-token-dz222": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.944074    7983 reflector.go:125] object-"default"/"plugins": Failed to list *v1.ConfigMap: Unauthorized
+May 11 19:15:00 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:15:00.254296    7983 reflector.go:125] object-"default"/"hmac-token": Failed to list *v1.Secret: Unauthorized
+Hint: Some lines were ellipsized, use -l to show in full.
+[ec2-user@ip-192-168-45-255 ~]$ date
+Mon May 11 19:15:41 UTC 2020
+[ec2-user@ip-192-168-45-255 ~]$
+#+end_src
+
+#+begin_src shell
+ eksctl get --cluster prow-dev nodegroup
+#+end_src
+
+#+RESULTS:
+#+begin_example
+CLUSTER		NODEGROUP	CREATED			MIN SIZE	MAX SIZE	DESIRED CAPACITY	INSTANCE TYPE	IMAGE ID
+prow-dev	prow-1		2020-05-11T03:03:02Z	2		4		2			m5d.24xlarge	ami-0bb0c6e35bd291d68
+#+end_example
+#+begin_src shell
+# need to check this
+ eksctl delete --cluster prow-dev nodegroup
+# pasted result
+ii@ip-172-31-4-91:~$ eksctl delete nodegroup --cluster prow-dev prow-1
+[ℹ]  eksctl version 0.19.0-rc.1
+[ℹ]  using region ap-southeast-2
+[ℹ]  combined include rules: prow-1
+[ℹ]  1 nodegroup (prow-1) was included (based on the include/exclude rules)
+[ℹ]  will delete 1 nodegroups from auth ConfigMap in cluster "prow-dev"
+[!]  removing nodegroup from auth ConfigMap: instance identity ARN "arn:aws:iam::928655657136:role/eksctl-prow-dev-nodegroup-prow-1-NodeInstanceRole-1UFBFQ9Q5BFN1" not found in auth ConfigMap
+[ℹ]  will drain 1 nodegroup(s) in cluster "prow-dev"
+[ℹ]  cordon node "ip-192-168-4-247.ap-southeast-2.compute.internal"
+[ℹ]  cordon node "ip-192-168-45-255.ap-southeast-2.compute.internal"
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-t9mrd, kube-system/kube-proxy-tggtw
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-lc6f5, kube-system/kube-proxy-kxmzh
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-t9mrd, kube-system/kube-proxy-tggtw
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-lc6f5, kube-system/kube-proxy-kxmzh
+[✔]  drained nodes: [ip-192-168-4-247.ap-southeast-2.compute.internal ip-192-168-45-255.ap-southeast-2.compute.internal]
+[ℹ]  will delete 1 nodegroups from cluster "prow-dev"
+[ℹ]  1 task: { delete nodegroup "prow-1" [async] }
+[ℹ]  will delete stack "eksctl-prow-dev-nodegroup-prow-1"
+[✔]  deleted 1 nodegroup(s) from cluster "prow-dev"
+
+#+end_src
+* Creating a managed nodegroup
+[[https://eksctl.io/usage/eks-managed-nodes/][EKS - Creating a cluster]]
+#+begin_src shell
+eksctl create nodegroup -f eksctl.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* go get go
+#+begin_src shell
+  curl -L https://dl.google.com/go/go1.14.2.linux-amd64.tar.gz | sudo tar -C /usr/local -xzf -
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* hook up
+
+#+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
+  echo $PATH
+  go get -u k8s.io/test-infra/experiment/add-hook
+  add-hook
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
+  add-hook
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell :dir "~/test-infra"
+  (
+  bazel run //experiment/add-hook -- \
+    --hmac-path=../prow-config/.secret-hook \
+    --github-token-path=../prow-config/.secret-oauth \
+    --hook-url http://prow.cncf.io/hook \
+    --repo cncf/k8s-conformance \
+    --repo cncf/apisnoop \
+    --repo cncf-infra \
+    --confirm=false  # Remove =false to actually add hook
+  ) 2>&1
+  :
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Starting local Bazel server and connecting to it...
+Loading:
+Loading: 0 packages loaded
+Loading: 0 packages loaded
+Analyzing: target //experiment/add-hook:add-hook (1 packages loaded, 0 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 1517 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 6391 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (148 packages loaded, 6873 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (351 packages loaded, 8402 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (571 packages loaded, 10116 targets configured)
+INFO: Analyzed target //experiment/add-hook:add-hook (597 packages loaded, 10309 targets configured).
+INFO: Found 1 target...
+INFO: Deleting stale sandbox base /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734ffda8c8c7e2d452a8/sandbox
+[2 / 580] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (2 actions, 0 running)
+[45 / 945] Compiling external/com_google_protobuf/src/google/protobuf/parse_context.cc; 1s linux-sandbox ... (8 actions, 7 running)
+[97 / 945] Compiling external/com_google_protobuf/src/google/protobuf/repeated_field.cc; 2s linux-sandbox ... (8 actions, 7 running)
+[103 / 945] Compiling external/com_google_protobuf/src/google/protobuf/util/internal/protostream_objectwriter.cc; 2s linux-sandbox ... (8 actions, 7 running)
+[110 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 3s linux-sandbox ... (8 actions, 7 running)
+[121 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 6s linux-sandbox ... (8 actions, 7 running)
+[138 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 9s linux-sandbox ... (8 actions, 7 running)
+[146 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 12s linux-sandbox ... (8 actions, 7 running)
+[157 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 8s linux-sandbox ... (8 actions, 7 running)
+[170 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_string_field.cc; 1s linux-sandbox ... (8 actions, 7 running)
+[188 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_helpers.cc; 2s linux-sandbox ... (7 actions, 6 running)
+[204 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_message.cc; 3s linux-sandbox ... (8 actions, 7 running)
+[224 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc; 7s linux-sandbox ... (8 actions, 7 running)
+[248 / 945] Compiling external/com_google_protobuf/src/google/protobuf/struct.pb.cc; 3s linux-sandbox ... (8 actions, 7 running)
+[279 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_extension.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
+[306 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/parser.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
+[344 / 946] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 14s linux-sandbox ... (8 actions, 7 running)
+[386 / 946] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
+INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
+google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
+google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
+Target //experiment/add-hook:add-hook up-to-date:
+  bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
+INFO: Elapsed time: 118.048s, Critical Path: 15.09s
+INFO: 373 processes: 373 linux-sandbox.
+INFO: Build completed successfully, 376 total actions
+INFO: Running command line: bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--hmac-path=../prow-config/.secret-hook' '--github-token-path=../prow-config/.secret-oauth' --hook-url http://prow.cncf.io/hook --repo cncf/k8s-conformance --repo cncf/apisnoop --repo cncf-infra '--confirm=false'
+INFO: Build completed successfully, 376 total actions
+time="2020-05-11T21:36:26Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+time="2020-05-11T21:36:26Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
+#+end_example
+* ghproxy
+#+begin_src shell
+  kubectl apply -f manifests/ghproxy.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+persistentvolumeclaim/ghproxy created
+deployment.apps/ghproxy created
+service/ghproxy created
 #+end_example
 
 * Footnotes

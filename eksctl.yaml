@@ -2,18 +2,17 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: prow-managed
+  name: prow-dev
   region: ap-southeast-2
-  version: 1.16
 
 managedNodeGroups:
   - name: prow-managed
     labels: { role: prow }
     instanceType: m5d.24xlarge
-    ScalingConfig:
-      minSize: 2
-      maxSize: 4
-      desiredCapacity: 2
+#    ScalingConfig:
+#      minSize: 2
+#      maxSize: 4
+#      desiredCapacity: 2
     volumeSize: 200
     ssh:
       # publicKeyPath: ~/.ssh/OTHER.pub
