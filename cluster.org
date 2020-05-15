@@ -1,3 +1,28 @@
+* BOARD
+** [[https://github.com/cncf/apisnoop/projects/29#column-8865828][prow.cncf.io-TODO]]
+*** TODO ghproxy
+*** TODO plank
+    [[https://github.com/kubernetes/test-infra/tree/0bde37ecf717799c2953131192c997373ffe976d/prow/cmd/plank][Plank]]
+    [[https://github.com/kubernetes/test-infra/blob/0bde37ecf717799c2953131192c997373ffe976d/prow/pod-utilities.md][Pod Utilities]]
+*** DONE tide
+    CLOSED: [2020-05-14 Thu 03:21]
+    -  https://prow.k8s.io/tide
+    So here we see Merge Requirements and repos that have incoming PRs
+    - cf. http://prow.cncf.io/tide
+    - [[https://github.com/kubernetes/test-infra/blob/0bde37ecf717799c2953131192c997373ffe976d/config/prow/config.yaml#L351][Tide Config for test-infra]]
+
+** [[https://github.com/cncf/apisnoop/projects/29#column-8865858][cncf/k8s-conformance-TODO]]
+*** TODO confirm version of k8s being tested matched foldera
+*** TODO generate list of tests required for a specific version
+*** TODO generate list of tests submitted as run by a PR
+*** TODO add blocking tag if any requeired tests not run
+*** TODO comment with list of missing tests
+* strat
+** get presubmits job results showing up as comments
+** optional
+** required
+** simple presubmit job (cat/dog) counts something [[https://github.com/cncf/k8s-conformance][cncf/k8s-conformance]]
+
 * Setup a cluster
 
 Used *eksctl* though long term, maybe we use cluster-api and [[https://github.com/aws/aws-service-operator-k8s/blob/master/docs/background.md#custom-controllers-and-operators-in-aws][aws-service-operation-k8s]]
@@ -338,7 +363,7 @@ eksctl create nodegroup -f eksctl.yaml
     --hook-url http://prow.cncf.io/hook \
     --repo cncf/k8s-conformance \
     --repo cncf/apisnoop \
-    --repo cncf-infra \
+#    --repo cncf-infra \
     --confirm=false  # Remove =false to actually add hook
   ) 2>&1
   :
@@ -351,44 +376,45 @@ Loading:
 Loading: 0 packages loaded
 Loading: 0 packages loaded
 Analyzing: target //experiment/add-hook:add-hook (1 packages loaded, 0 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 1517 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 6391 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (148 packages loaded, 6873 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (351 packages loaded, 8402 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (571 packages loaded, 10116 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 776 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 6493 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (229 packages loaded, 7259 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (352 packages loaded, 8692 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (591 packages loaded, 10132 targets configured)
 INFO: Analyzed target //experiment/add-hook:add-hook (597 packages loaded, 10309 targets configured).
 INFO: Found 1 target...
 INFO: Deleting stale sandbox base /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734ffda8c8c7e2d452a8/sandbox
-[2 / 580] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (2 actions, 0 running)
-[45 / 945] Compiling external/com_google_protobuf/src/google/protobuf/parse_context.cc; 1s linux-sandbox ... (8 actions, 7 running)
-[97 / 945] Compiling external/com_google_protobuf/src/google/protobuf/repeated_field.cc; 2s linux-sandbox ... (8 actions, 7 running)
-[103 / 945] Compiling external/com_google_protobuf/src/google/protobuf/util/internal/protostream_objectwriter.cc; 2s linux-sandbox ... (8 actions, 7 running)
-[110 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 3s linux-sandbox ... (8 actions, 7 running)
-[121 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 6s linux-sandbox ... (8 actions, 7 running)
-[138 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 9s linux-sandbox ... (8 actions, 7 running)
-[146 / 945] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 12s linux-sandbox ... (8 actions, 7 running)
-[157 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 8s linux-sandbox ... (8 actions, 7 running)
-[170 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_string_field.cc; 1s linux-sandbox ... (8 actions, 7 running)
-[188 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_helpers.cc; 2s linux-sandbox ... (7 actions, 6 running)
-[204 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_message.cc; 3s linux-sandbox ... (8 actions, 7 running)
-[224 / 945] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc; 7s linux-sandbox ... (8 actions, 7 running)
-[248 / 945] Compiling external/com_google_protobuf/src/google/protobuf/struct.pb.cc; 3s linux-sandbox ... (8 actions, 7 running)
-[279 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_extension.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
-[306 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/parser.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
-[344 / 946] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 14s linux-sandbox ... (8 actions, 7 running)
-[386 / 946] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
+[1 / 547] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[19 / 768] Compiling external/com_google_protobuf/src/google/protobuf/stubs/strutil.cc [for host]; 1s linux-sandbox ... (8 actions running)
+[28 / 768] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 2s linux-sandbox ... (8 actions running)
+[81 / 768] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions running)
+[87 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum.cc [for host]; 2s linux-sandbox ... (8 actions running)
+[93 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 4s linux-sandbox ... (8 actions running)
+[101 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 8s linux-sandbox ... (8 actions running)
+[109 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 11s linux-sandbox ... (8 actions running)
+[126 / 768] Compiling external/com_google_protobuf/src/google/protobuf/type.pb.cc [for host]; 3s linux-sandbox ... (8 actions running)
+[155 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/parser.cc [for host]; 4s linux-sandbox ... (8 actions running)
+[166 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc [for host]; 7s linux-sandbox ... (8 actions, 7 running)
+[187 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_file.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
+[203 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc [for host]; 8s linux-sandbox ... (8 actions, 7 running)
+[228 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_string_field.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
+[264 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc; 7s linux-sandbox ... (8 actions, 7 running)
+[295 / 946] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 12s linux-sandbox ... (8 actions, 7 running)
+[341 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_oneof.cc; 2s linux-sandbox ... (8 actions, 7 running)
+[385 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 9s linux-sandbox ... (8 actions, 7 running)
 INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
 google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
 google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
 Target //experiment/add-hook:add-hook up-to-date:
   bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
-INFO: Elapsed time: 118.048s, Critical Path: 15.09s
+INFO: Elapsed time: 134.738s, Critical Path: 17.46s
 INFO: 373 processes: 373 linux-sandbox.
 INFO: Build completed successfully, 376 total actions
-INFO: Running command line: bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--hmac-path=../prow-config/.secret-hook' '--github-token-path=../prow-config/.secret-oauth' --hook-url http://prow.cncf.io/hook --repo cncf/k8s-conformance --repo cncf/apisnoop --repo cncf-infra '--confirm=false'
+INFO: Running command line: bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--hmac-path=../prow-config/.secret-hook' '--github-token-path=../prow-config/.secret-oauth' --hook-url http://prow.cncf.io/hook --repo cncf/k8s-conformance --repo cncf/apisnoop
 INFO: Build completed successfully, 376 total actions
-time="2020-05-11T21:36:26Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
-time="2020-05-11T21:36:26Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
+time="2020-05-13T16:56:19Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+time="2020-05-13T16:56:19Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
+/bin/bash: line 9: --confirm=false: command not found
 #+end_example
 * ghproxy
 #+begin_src shell
