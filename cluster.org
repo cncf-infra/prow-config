@@ -72,48 +72,48 @@ https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy
 
 #+RESULTS:
 #+begin_example
-configmap/plugins created
-configmap/config created
-customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io created
-deployment.apps/hook created
-service/hook created
-deployment.apps/plank created
-deployment.apps/sinker created
-deployment.apps/deck created
-service/deck created
-deployment.apps/horologium created
-deployment.apps/tide created
-service/tide created
-ingress.extensions/ing created
-deployment.apps/statusreconciler created
-namespace/test-pods created
-serviceaccount/deck created
-rolebinding.rbac.authorization.k8s.io/deck created
-rolebinding.rbac.authorization.k8s.io/deck created
-role.rbac.authorization.k8s.io/deck created
-role.rbac.authorization.k8s.io/deck created
-serviceaccount/horologium created
-role.rbac.authorization.k8s.io/horologium created
-rolebinding.rbac.authorization.k8s.io/horologium created
-serviceaccount/plank created
-role.rbac.authorization.k8s.io/plank created
-role.rbac.authorization.k8s.io/plank created
-rolebinding.rbac.authorization.k8s.io/plank created
-rolebinding.rbac.authorization.k8s.io/plank created
-serviceaccount/sinker created
-role.rbac.authorization.k8s.io/sinker created
-role.rbac.authorization.k8s.io/sinker created
-rolebinding.rbac.authorization.k8s.io/sinker created
-rolebinding.rbac.authorization.k8s.io/sinker created
-serviceaccount/hook created
-role.rbac.authorization.k8s.io/hook created
-rolebinding.rbac.authorization.k8s.io/hook created
-serviceaccount/tide created
-role.rbac.authorization.k8s.io/tide created
-rolebinding.rbac.authorization.k8s.io/tide created
-serviceaccount/statusreconciler created
-role.rbac.authorization.k8s.io/statusreconciler created
-rolebinding.rbac.authorization.k8s.io/statusreconciler created
+configmap/plugins unchanged
+configmap/config unchanged
+customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io unchanged
+deployment.apps/hook configured
+service/hook unchanged
+deployment.apps/plank unchanged
+deployment.apps/sinker unchanged
+deployment.apps/deck unchanged
+service/deck unchanged
+deployment.apps/horologium unchanged
+deployment.apps/tide unchanged
+service/tide unchanged
+ingress.extensions/ing unchanged
+deployment.apps/statusreconciler unchanged
+namespace/test-pods unchanged
+serviceaccount/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+serviceaccount/horologium unchanged
+role.rbac.authorization.k8s.io/horologium unchanged
+rolebinding.rbac.authorization.k8s.io/horologium unchanged
+serviceaccount/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+serviceaccount/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+serviceaccount/hook unchanged
+role.rbac.authorization.k8s.io/hook unchanged
+rolebinding.rbac.authorization.k8s.io/hook unchanged
+serviceaccount/tide unchanged
+role.rbac.authorization.k8s.io/tide unchanged
+rolebinding.rbac.authorization.k8s.io/tide unchanged
+serviceaccount/statusreconciler unchanged
+role.rbac.authorization.k8s.io/statusreconciler unchanged
+rolebinding.rbac.authorization.k8s.io/statusreconciler unchanged
 #+end_example
 
 * components
@@ -336,6 +336,45 @@ eksctl create nodegroup -f eksctl.yaml
 #+end_example
 
 * hook up
+Setting up repo with a hook ...
+Source coude for the add-hook below.
+[[https://github.com/kubernetes/test-infra/blob/dbbeb4216756c3e2bdffa7da6ac0bd97ead001e4/experiment/add-hook/main.go][hook main.go]]
+
+Bazel separates flags ro the command being run using --
+Here for example, bazel refuses to parse --help (no wonder nobody understands it!) so in order to have --help interpred by the add-hook code prepend -- first
+~
+ii@ip-172-31-4-91 ~/test-infra $ bazel run //experiment/add-hook -- --help
+INFO: Analyzed target //experiment/add-hook:add-hook (1 packages loaded, 556 targets configured).
+INFO: Found 1 target...
+INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
+google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
+google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
+Target //experiment/add-hook:add-hook up-to-date:
+  bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
+INFO: Elapsed time: 76.356s, Critical Path: 17.69s
+INFO: 213 processes: 213 linux-sandbox.
+INFO: Build completed successfully, 215 total actions
+INFO: Build completed successfully, 215 total actions
+Usage of /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734f8c8c7e2d452a8/execroot/io_k8s_test_infra/bazel-out/k8-fastbuild/bin/experiment/add-hook/linux_amd64_stripped/add-hook:
+  -confirm
+        Apply changes to github
+  -event value
+        Receive hooks for the following events, defaults to ["*"] (all events) (default *)
+  -github-endpoint value
+        GitHub's API endpoint (may differ for enterprise). (default https://api.github.com)
+  -github-graphql-endpoint string
+        GitHub GraphQL API endpoint (may differ for enterprise). (default "https://api.github.com/graphql")
+  -github-host string
+        GitHub's default host (may differ for enterprise) (default "github.com")
+  -github-token-path string
+        Path to the file containing the GitHub OAuth secret.
+  -hmac-path string
+        Path to hmac secret
+  -hook-url string
+        URL to send hooks
+  -repo value
+        Add hooks for this org or org/repo
+~
 
 #+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
   echo $PATH
@@ -358,14 +397,15 @@ eksctl create nodegroup -f eksctl.yaml
 #+begin_src shell :dir "~/test-infra"
   (
   bazel run //experiment/add-hook -- \
-    --hmac-path=../prow-config/.secret-hook \
+    --github-endpoint=http://ghproxy/
     --github-token-path=../prow-config/.secret-oauth \
+    --hmac-path=../prow-config/.secret-hook \
     --hook-url http://prow.cncf.io/hook \
     --repo cncf/k8s-conformance \
     --repo cncf/apisnoop \
-#    --repo cncf-infra \
-    --confirm=false  # Remove =false to actually add hook
+    --repo cncf-infra/prow-config \
   ) 2>&1
+# --confirm=false  # Remove =false to actually add hook
   :
 #+end_src
 
@@ -375,45 +415,48 @@ Starting local Bazel server and connecting to it...
 Loading:
 Loading: 0 packages loaded
 Loading: 0 packages loaded
+Loading: 0 packages loaded
+    currently loading: experiment/add-hook
 Analyzing: target //experiment/add-hook:add-hook (1 packages loaded, 0 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 776 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 6493 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (229 packages loaded, 7259 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (352 packages loaded, 8692 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (591 packages loaded, 10132 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 5708 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (71 packages loaded, 6593 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (225 packages loaded, 7260 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (390 packages loaded, 8922 targets configured)
+Analyzing: target //experiment/add-hook:add-hook (597 packages loaded, 10308 targets configured)
 INFO: Analyzed target //experiment/add-hook:add-hook (597 packages loaded, 10309 targets configured).
 INFO: Found 1 target...
 INFO: Deleting stale sandbox base /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734ffda8c8c7e2d452a8/sandbox
-[1 / 547] [Prepa] BazelWorkspaceStatusAction stable-status.txt
-[19 / 768] Compiling external/com_google_protobuf/src/google/protobuf/stubs/strutil.cc [for host]; 1s linux-sandbox ... (8 actions running)
-[28 / 768] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 2s linux-sandbox ... (8 actions running)
-[81 / 768] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions running)
-[87 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_enum.cc [for host]; 2s linux-sandbox ... (8 actions running)
-[93 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 4s linux-sandbox ... (8 actions running)
-[101 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 8s linux-sandbox ... (8 actions running)
-[109 / 768] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 11s linux-sandbox ... (8 actions running)
-[126 / 768] Compiling external/com_google_protobuf/src/google/protobuf/type.pb.cc [for host]; 3s linux-sandbox ... (8 actions running)
-[155 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/parser.cc [for host]; 4s linux-sandbox ... (8 actions running)
-[166 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc [for host]; 7s linux-sandbox ... (8 actions, 7 running)
-[187 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_file.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
-[203 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc [for host]; 8s linux-sandbox ... (8 actions, 7 running)
-[228 / 768] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_string_field.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
-[264 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/js/js_generator.cc; 7s linux-sandbox ... (8 actions, 7 running)
-[295 / 946] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc; 12s linux-sandbox ... (8 actions, 7 running)
-[341 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/objectivec/objectivec_oneof.cc; 2s linux-sandbox ... (8 actions, 7 running)
-[385 / 946] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 9s linux-sandbox ... (8 actions, 7 running)
+[0 / 29] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[24 / 765] Compiling external/com_google_protobuf/src/google/protobuf/any_lite.cc [for host]; 0s linux-sandbox ... (8 actions, 7 running)
+[42 / 765] Compiling external/com_google_protobuf/src/google/protobuf/extension_set.cc [for host]; 1s linux-sandbox ... (8 actions, 7 running)
+[54 / 765] Compiling external/com_google_protobuf/src/google/protobuf/extension_set.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
+[71 / 765] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
+[79 / 765] Compiling external/com_google_protobuf/src/google/protobuf/text_format.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
+[88 / 765] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_reflection.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
+[104 / 765] Compiling external/com_google_protobuf/src/google/protobuf/map_field.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
+[123 / 765] Compiling external/com_google_protobuf/src/google/protobuf/wire_format.cc [for host]; 4s linux-sandbox ... (7 actions, 6 running)
+[134 / 765] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 6s linux-sandbox ... (8 actions running)
+[144 / 765] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 11s linux-sandbox ... (8 actions running)
+[157 / 765] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_file.cc [for host]; 5s linux-sandbox ... (8 actions running)
+[175 / 765] Compiling external/com_google_protobuf/src/google/protobuf/struct.pb.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
+[194 / 765] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_primitive_field_lite.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
+[243 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/command_line_interface.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
+[272 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 8s linux-sandbox ... (8 actions, 7 running)
+[305 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_primitive_field.cc; 2s linux-sandbox ... (8 actions, 7 running)
+[340 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/python/python_generator.cc; 4s linux-sandbox ... (8 actions, 7 running)
+[389 / 953] Compiling external/com_google_protobuf/src/google/protobuf/wire_format.cc; 3s linux-sandbox ... (8 actions, 7 running)
 INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
 google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
 google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
 Target //experiment/add-hook:add-hook up-to-date:
   bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
-INFO: Elapsed time: 134.738s, Critical Path: 17.46s
+INFO: Elapsed time: 121.350s, Critical Path: 15.54s
 INFO: 373 processes: 373 linux-sandbox.
 INFO: Build completed successfully, 376 total actions
 INFO: Running command line: bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--hmac-path=../prow-config/.secret-hook' '--github-token-path=../prow-config/.secret-oauth' --hook-url http://prow.cncf.io/hook --repo cncf/k8s-conformance --repo cncf/apisnoop
 INFO: Build completed successfully, 376 total actions
-time="2020-05-13T16:56:19Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
-time="2020-05-13T16:56:19Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
+time="2020-05-18T18:54:07Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+time="2020-05-18T18:54:07Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
 /bin/bash: line 9: --confirm=false: command not found
 #+end_example
 * Adding more repos to prow
@@ -490,7 +533,6 @@ plugins:
 #+begin_example
 configmap/plugins replaced
 #+end_example
-
 
 * ghproxy
 #+begin_src shell
