@@ -34,7 +34,7 @@ plugins:
   cncf-infra/prow-config:
   - config-updater
 
-  cncf/k8s-conformance:
+  cncf-infra/k8s-conformance:
   # - approve
   - assign
   - cat
