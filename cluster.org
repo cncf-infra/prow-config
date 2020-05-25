@@ -535,6 +535,7 @@ configmap/plugins replaced
 #+end_example
 
 * ghproxy
+
 #+begin_src shell
   kubectl apply -f manifests/ghproxy.yaml
 #+end_src
@@ -545,6 +546,46 @@ persistentvolumeclaim/ghproxy created
 deployment.apps/ghproxy created
 service/ghproxy created
 #+end_example
+* Verifying Conformance Certification Requests
+Live Repo : https://github.com/cncf/k8s-conformance
+Test Repo : https://github.com/cncf-infra/k8s-conformance a fork of the cncf repo
+
+https://github.com/cncf/apisnoop/projects/29
+https://github.com/cncf/apisnoop/issues/342
+** Requirements
+Check the consistencey of the PR to the above repos
+Ensure that the versoin referenced in the PR Title corresponds to the version of k8s referenced
+in the supplied logs
+
+** Design
+Implement as a [[https://github.com/kubernetes/test-infra/tree/master/prow/plugins#external-plugins][External Plugin]] that interacts but is no linked into the Hook component of Prow
+
+** Implementation
+*** Plugin
+name verify-conformance-request
+desc Checks a k8s-conformance PR to see if it is internally consitent.
+*** Development setup
+Code location
+/home/ii/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
+*** Building Code
+go build
+*** Building Container
+[[https://github.com/kubernetes/test-infra/blob/master/prow/build_test_update.md#how-to-test-a-plugin][How to test a plugin]]
+*** Deployment
+Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
+This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
+*** Configuration
+#+BEGIN_SRC lang=yaml
+plugins:
+  cncf-infra/k8s-conformance:
+  # - approve
+  - verify-conf-request
+  - assign
+#+END_SRC
+
+
+
+
 
 * Footnotes
 ** software
