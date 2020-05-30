@@ -568,64 +568,80 @@ desc Checks a k8s-conformance PR to see if it is internally consitent.
 Code location
 /home/ii/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
 *** Building Code
+So we are developing the plugin in test-infra while we figure out how to vendor k8s/test-infra/prow dependancies.
+In the mean time following the steps below
+#+BEGIN_SRC lang=shell
+# Workaround for above is to place the cncf plugin in to the the k8s/infra code base
+cd ~/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
+# make changes
 go build
-*** Building Container
-[[https://github.com/kubernetes/test-infra/blob/master/prow/build_test_update.md#how-to-test-a-plugin][How to test a plugin]]
-*** Deployment
-Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
-This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
-*** Configuration
-#+BEGIN_SRC lang=yaml
-plugins:
-  cncf-infra/k8s-conformance:
-  # - approve
-  - verify-conf-request
-  - assign
+cp verify-conformance-request /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
+# build image
+cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
+docker build . -t vcr:latest
+# run
+docker run
 #+END_SRC
 
+# to run locally
+$ ./verify-conformance-request --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=/home/ii/prow-config/plugins.yaml
+  *** Building Container
+  [[https://github.com/kubernetes/test-infra/blob/master/prow/build_test_update.md#how-to-test-a-plugin][How to test a plugin]]
+  *** Deployment
+  Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
+  This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
+  *** Configuration
+  #+BEGIN_SRC lang=yaml
+  plugins:
+    cncf-infra/k8s-conformance:
+    # - approve
+    - verify-conf-request
+    - assign
+  #+END_SRC
 
 
 
 
-* Footnotes
-** software
-*** direnv
-*** aws-iam-authenticator
-https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
-** gotchas
-*** documentation seems to call it the oauth secret.... when in fact it's a github personal access tokens
-*** cluster authentication / iam
- https://github.com/kubernetes-sigs/aws-iam-authenticator/issues/174#issuecomment-450651720
 
-*** cluster-admin role
- #+BEGIN_SRC sh
-   kubectl get clusterrolebinding cluster-admin -o yaml
- #+END_SRC
+  * Footnotes
+  ** software
+  *** direnv
+  *** aws-iam-authenticator
+  https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
+  ** gotchas
+  *** documentation seems to call it the oauth secret.... when in fact it's a github personal access tokens
+  *** cluster authentication / iam
+  https://github.com/kubernetes-sigs/aws-iam-authenticator/issues/174#issuecomment-450651720
 
- #+RESULTS:
- #+begin_src sh
- apiVersion: rbac.authorization.k8s.io/v1
- kind: ClusterRoleBinding
- metadata:
-   annotations:
-     rbac.authorization.kubernetes.io/autoupdate: "true"
-   creationTimestamp: "2020-04-06T04:19:41Z"
-   labels:
-     kubernetes.io/bootstrapping: rbac-defaults
-   name: cluster-admin
-   resourceVersion: "95"
-   selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/cluster-admin
-   uid: c8c1eb3a-72a4-45d3-8ae2-c7d8abda71ee
- roleRef:
-   apiGroup: rbac.authorization.k8s.io
-   kind: ClusterRole
-   name: cluster-admin
- subjects:
- - apiGroup: rbac.authorization.k8s.io
-   kind: Group
-   name: system:masters
- #+end_src
-** ENV for aws cli
- https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+  *** cluster-admin role
+  #+BEGIN_SRC sh
+    kubectl get clusterrolebinding cluster-admin -o yaml
+  #+END_SRC
 
- **AWS_PROFILE**
+  #+RESULTS:
+  #+begin_src sh
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    annotations:
+      rbac.authorization.kubernetes.io/autoupdate: "true"
+    creationTimestamp: "2020-04-06T04:19:41Z"
+    labels:
+      kubernetes.io/bootstrapping: rbac-defaults
+    name: cluster-admin
+    resourceVersion: "95"
+    selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/cluster-admin
+    uid: c8c1eb3a-72a4-45d3-8ae2-c7d8abda71ee
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: cluster-admin
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:masters
+  #+end_src
+  ** ENV for aws cli
+  https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+
+  **AWS_PROFILE**
