@@ -554,8 +554,7 @@ https://github.com/cncf/apisnoop/projects/29
 https://github.com/cncf/apisnoop/issues/342
 ** Requirements
 Check the consistencey of the PR to the above repos
-Ensure that the versoin referenced in the PR Title corresponds to the version of k8s referenced
-in the supplied logs
+Ensure that the versoin referenced in the PR Title corresponds to the version of k8s referenced in the supplied logs
 
 ** Design
 Implement as a [[https://github.com/kubernetes/test-infra/tree/master/prow/plugins#external-plugins][External Plugin]] that interacts but is no linked into the Hook component of Prow
@@ -568,8 +567,10 @@ desc Checks a k8s-conformance PR to see if it is internally consitent.
 Code location
 /home/ii/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
 *** Building Code
-So we are developing the plugin in test-infra while we figure out how to vendor k8s/test-infra/prow dependancies.
+Developing the plugin in test-infra while we figure out how to vendor k8s/test-infra/prow dependancies.
+
 In the mean time following the steps below
+
 #+BEGIN_SRC lang=shell
 # Workaround for above is to place the cncf plugin in to the the k8s/infra code base
 cd ~/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
@@ -583,13 +584,127 @@ docker build . -t vcr:latest
 docker run
 #+END_SRC
 
-# to run locally
+*** Running the external plugin locally
+
+#+BEGIN_SRC lang=shell
 $ ./verify-conformance-request --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=/home/ii/prow-config/plugins.yaml
+#+END_SRC
+
   *** Building Container
   [[https://github.com/kubernetes/test-infra/blob/master/prow/build_test_update.md#how-to-test-a-plugin][How to test a plugin]]
-  *** Deployment
-  Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
+  Test data has been placeid in /home/ii/prow-config/prow/external-plugins/verify-conformance-request/test-data/open-pr.json
+  You can send a test webhook using phony as follows:
+#+BEGIN_SRC shell
+ bazel run //prow/cmd/phony -- \
+  --address=http://localhost:8888/hook \
+  --hmac="secret_text_does_here" --event=pull_request \
+  --payload=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/test-data/open-pr.json
+#+END_SRC
+N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
+
+* Build and push the container
+** Make sure that the Building code step above is done and that you have the binary copied into the prow-config repo
+** build the container and tag
+- Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
+- The link above will also provide you with a list of commands to run if you get stuck
+
+  #+BEGIN_SRC bash
+  cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 928655657136.dkr.ecr.us-east-1.amazonaws.com
+  docker build -t cncf-infra .
+  docker tag cncf-infra:latest 928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra:v1.4
+  docker push 928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra:v1.4
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_src bash
+  Login Succeeded
+  Sending build context to Docker daemon  52.66MB
+  Step 1/4 : FROM golang:1.13.4
+   ---> a2e245db8bd3
+  Step 2/4 : WORKDIR /plugin
+   ---> Using cache
+   ---> bd6fcd52b2eb
+  Step 3/4 : COPY verify-conformance-request .
+   ---> Using cache
+   ---> cdb319129b89
+  Step 4/4 : ENTRYPOINT ["/plugin/verify-conformance-request"]
+   ---> Using cache
+   ---> 847cf1d2cf02
+  Successfully built 847cf1d2cf02
+  Successfully tagged cncf-infra:latest
+  The push refers to repository [928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra]
+  59984c831a71: Preparing
+  c52a2bd34fd7: Preparing
+  5a92b57a5aac: Preparing
+  5835b741b51f: Preparing
+  02c991ab8711: Preparing
+  bee1c15bf7e8: Preparing
+  423d63eb4a27: Preparing
+  7f9bf938b053: Preparing
+  f2b4f0674ba3: Preparing
+  423d63eb4a27: Waiting
+  bee1c15bf7e8: Waiting
+  7f9bf938b053: Waiting
+  f2b4f0674ba3: Waiting
+  02c991ab8711: Layer already exists
+  c52a2bd34fd7: Layer already exists
+  5835b741b51f: Layer already exists
+  59984c831a71: Layer already exists
+  5a92b57a5aac: Layer already exists
+  423d63eb4a27: Layer already exists
+  bee1c15bf7e8: Layer already exists
+  f2b4f0674ba3: Layer already exists
+  7f9bf938b053: Layer already exists
+  v1.4: digest: sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5 size: 2214
+  #+end_src
+
+** Run the container to make sure it is working (optional step that can be used for troubleshooting)
+#+begin_src bash
+  docker run  -v /home/ii/.secret-hook:/etc/webhook/hmac -v /home/ii/.secret-oauth:/etc/github/oauth -v /home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml:/plugin/vcr.yaml -v /home/ii/prow-config/plugins.yaml:/etc/plugins/plugins.yaml 847cf1d2cf02  /bin/bash -c "/plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m"
+#+end_src
+
+  #+RESULTS:
+  #+begin_src bash
+time="2020-06-10T07:03:37Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+time="2020-06-10T07:03:37Z" level=warning msg="missing required flag: please set to --github-token-path=/etc/github/oauth before June 2020"
+time="2020-06-10T07:03:37Z" level=info msg="Throttle(360, 360)" client=github
+time="2020-06-10T07:03:37Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+time="2020-06-10T07:03:37Z" level=warning msg="HandleAll : No repos have been configured for the verify-conformance-request plugin" plugin=verify-conformance-request
+time="2020-06-10T07:03:37Z" level=info msg="Periodic update complete." duration="89.344µs" plugin=verify-conformance-request
+#+end_src
+
+*** I do not understand why the above docker run is not seeing the repo
+    - I did notice if I exec into that container and run the command in -c it works as expected
+#+begin_src bash
+docker exec -i -t f39470700e75 bash
+root@f39470700e75:/plugin# cat /plugin/vcr.yaml
+external_plugins:
+  cncf-infra/k8s-conformance:
+  - name: verify-conformance-request
+    events:
+      - issue_comment
+      - pull_request
+root@f39470700e75:/plugin# /plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m
+WARN[0000] It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy
+WARN[0000] no plugins specified-- check syntax?
+INFO[0000] Throttle(360, 360)                            client=github
+INFO[0000] verify-conformance-request : HandleAll : Checking all PRs for handling  plugin=verify-conformance-request
+INFO[0000] Server exited.                                error="listen tcp :8888: bind: address already in use"
+INFO[0000] Search for query "archived:false is:pr is:open repo:"cncf-infra/k8s-conformance"" cost 1 point(s). 4991 remaining.  plugin=verify-conformance-request
+INFO[0000] Considering 1 PRs.                            plugin=verify-conformance-request
+INFO[0000] IsVerifiable: title of PR is "NOT A REAL CONFORMANCE REQ for  v1.18"  plugin=verify-conformance-request
+INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
+#+end_src
+
+    - For now I am going to call this good and use the above flags to build out the verify-conformance-deploy.yaml
+
+
+* Next steps update verify-conformance-deployment.yaml to emulate the docker run
+   - HH added a few notes to the Docker file, first suggestion is to not mount secrects in docker, but call the mount from k8-secrets
+
   This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
+
   *** Configuration
   #+BEGIN_SRC lang=yaml
   plugins:
