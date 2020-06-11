@@ -77,11 +77,12 @@ jobs:
           # check to see if we are on master
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           if [ "$VERSION" == "master" ]; then
-            docker tag $VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:latest
+            docker tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:latest
+            docker push $IMAGE_ID:latest
+          elif
+            docker tag $VERIFY_RELEASE_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+            docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
           fi
-
-          docker tag $VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY
 
       - name: Logout of Amazon ECR
         if: always()
@@ -127,11 +128,12 @@ jobs:
           # check to see if we are on master
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           if [ "$VERSION" == "master" ]; then
-            docker tag $VERIFY_TESTS_IMAGE_NAME $IMAGE_ID:latest
+            docker tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME $IMAGE_ID:latest
+            docker push $IMAGE_ID:latest
+          elif
+            docker tag $VERIFY_TESTS_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+            docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
           fi
-
-          docker tag $VERIFY_TESTS_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY
 
       - name: Logout of Amazon ECR
         if: always()
