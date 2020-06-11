@@ -18,7 +18,7 @@ defaults:
     working-directory: prow/external-plugins/verify-conformance-request
 
 env:
-  VERIFY_RELEASE_IMAGE_NAME: verify-conformance-tests
+  VERIFY_RELEASE_IMAGE_NAME: verify-conformance-release
   VERIFY_TESTS_IMAGE_NAME: verify-conformance-tests
 
 jobs:
@@ -48,9 +48,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build verify-conformance-release image
-        env:
-          IMAGE_ID: $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
-        run: docker build prow/external-plugins/verify-conformance-release --tag $IMAGE_ID
+        run: docker build prow/external-plugins/verify-conformance-release --tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME
 
       - name: Get short SHA
         id: slug
@@ -97,9 +95,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build verify-conformance-tests image
-        env:
-          IMAGE_ID: $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
-        run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_ID
+        run: docker build prow/external-plugins/verify-conformance-tests --tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
 
       - name: Get short SHA
         id: slug
