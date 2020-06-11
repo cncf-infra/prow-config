@@ -1,0 +1,83 @@
+name: Docker
+
+on:
+  push:
+    # Publish `master` as Docker `latest` image.
+    branches:
+      - master
+
+    tags:
+      - $ {{ github.sha }}
+
+  # Run tests for any PRs.
+  pull_request:
+
+env:
+  IMAGE_NAME: verify-conformance-request
+
+jobs:
+  # Run tests.
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run tests
+        run: |
+          docker build . --file prow/external-plugins/verify-conformance-request/Dockerfile
+          
+  # Push image to AWS ECR.
+  push:
+    # Ensure test job passes before pushing image.
+    needs: test
+
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Build image
+        env:
+          IMAGE_ID: $ECR_REGISTRY/$ECR_REPOSITORY
+        run: docker build . --file prow/external-plugins/verify-conformance-request/Dockerfile --tag $IMAGE_NAME
+        
+      - name: Get short SHA
+        id: slug
+        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: verify-conformance-request
+        run: |
+          IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
+          
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          
+          # check to see if we are on master
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          if [ "$VERSION" == "master" ]; then
+            docker tag $IMAGE_NAME $IMAGE_ID:latest
+          fi
+          
+          docker tag $IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY
+          
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
