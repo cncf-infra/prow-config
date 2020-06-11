@@ -79,7 +79,7 @@ jobs:
           if [ "$VERSION" == "master" ]; then
             docker tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:latest
             docker push $IMAGE_ID:latest
-          elif
+          else
             docker tag $VERIFY_RELEASE_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
             docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
           fi
@@ -130,7 +130,7 @@ jobs:
           if [ "$VERSION" == "master" ]; then
             docker tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME $IMAGE_ID:latest
             docker push $IMAGE_ID:latest
-          elif
+          else
             docker tag $VERIFY_TESTS_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
             docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
           fi
