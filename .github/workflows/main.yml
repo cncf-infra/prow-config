@@ -46,7 +46,7 @@ jobs:
       - name: Build image
         env:
           IMAGE_ID: $ECR_REGISTRY/$ECR_REPOSITORY
-        run: docker build prow/external-plugins/verify-conformance-tests/Dockerfile --tag $IMAGE_NAME
+        run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_NAME
 
       - name: Get short SHA
         id: slug
