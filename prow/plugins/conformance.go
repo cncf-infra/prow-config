@@ -94,6 +94,8 @@ func handleStatusEvent(pc plugins.Agent, se github.StatusEvent) error {
 //    was received. This is because we only care about the status associated with the last (latest) commit in a PR.
 // 4. Set the corresponding CLA label if needed.
 func handle(gc gitHubClient, log *logrus.Entry, se github.StatusEvent) error {
+
+	log.Info("Status event is %s",se.State)
 	if se.State == "" || se.Context == "" {
 		return fmt.Errorf("invalid status event delivered with empty state/context")
 	}
@@ -110,8 +112,10 @@ func handle(gc gitHubClient, log *logrus.Entry, se github.StatusEvent) error {
 
 	org := se.Repo.Owner.Login
 	repo := se.Repo.Name
-	log.Info("Searching for PRs matching the commit.")
-
+	log.Info("%s/%s Searching for PRs matching the commit.", org,repo)
+	// hunting for issues  feels like overkil for our use case
+	// we only really want to check PR contents
+	// We may have put on the wrong trousers
 	var issues []github.Issue
 	var err error
 	for i := 0; i < maxRetries; i++ {
@@ -126,65 +130,6 @@ func handle(gc gitHubClient, log *logrus.Entry, se github.StatusEvent) error {
 	}
 	log.Infof("Found %d PRs matching commit.", len(issues))
 
-	for _, issue := range issues {
-		l := log.WithField("pr", issue.Number)
-		// Here we need to find the title of the issue
-		// Then we need to log the title
-		// then we get out RegEx working to extract the version
-		version := issue.Title()
-		hasCncfYes := issue.HasLabel(labels.ClaYes)
-		hasCncfNo := issue.HasLabel(labels.ClaNo)
-		if hasCncfYes && se.State == github.StatusSuccess {
-			// Nothing to update.
-			l.Infof("PR has up-to-date %s label.", labels.ClaYes)
-			continue
-		}
-
-		if hasCncfNo && (se.State == github.StatusFailure || se.State == github.StatusError) {
-			// Nothing to update.
-			l.Infof("PR has up-to-date %s label.", labels.ClaNo)
-			continue
-		}
-
-		l.Info("PR labels may be out of date. Getting pull request info.")
-		pr, err := gc.GetPullRequest(org, repo, issue.Number)
-		if err != nil {
-			l.WithError(err).Warningf("Unable to fetch PR-%d from %s/%s.", issue.Number, org, repo)
-			continue
-		}
-
-		// Check if this is the latest commit in the PR.
-		if pr.Head.SHA != se.SHA {
-			l.Info("Event is not for PR HEAD, skipping.")
-			continue
-		}
-
-		number := pr.Number
-		if se.State == github.StatusSuccess {
-			if hasCncfNo {
-				if err := gc.RemoveLabel(org, repo, number, labels.ClaNo); err != nil {
-					l.WithError(err).Warningf("Could not remove %s label.", labels.ClaNo)
-				}
-			}
-			if err := gc.AddLabel(org, repo, number, labels.ClaYes); err != nil {
-				l.WithError(err).Warningf("Could not add %s label.", labels.ClaYes)
-			}
-			continue
-		}
-
-		// If we end up here, the status is a failure/error.
-		if hasCncfYes {
-			if err := gc.RemoveLabel(org, repo, number, labels.ClaYes); err != nil {
-				l.WithError(err).Warningf("Could not remove %s label.", labels.ClaYes)
-			}
-		}
-		if err := gc.CreateComment(org, repo, number, fmt.Sprintf(cncfclaNotFoundMessage, plugins.AboutThisBot)); err != nil {
-			l.WithError(err).Warning("Could not create CLA not found comment.")
-		}
-		if err := gc.AddLabel(org, repo, number, labels.ClaNo); err != nil {
-			l.WithError(err).Warningf("Could not add %s label.", labels.ClaNo)
-		}
-	}
 	return nil
 }
 
@@ -193,18 +138,21 @@ func handleCommentEvent(pc plugins.Agent, ce github.GenericCommentEvent) error {
 }
 
 func handleComment(gc gitHubClient, log *logrus.Entry, e *github.GenericCommentEvent) error {
+	var org, repo string
+	var number int
 	// Only consider open PRs and new comments.
 	if e.IssueState != "open" || e.Action != github.GenericCommentActionCreated {
 		return nil
 	}
+	org = e.Repo.Owner.Login
+	repo = e.Repo.Name
+	number = e.Number
 	// Only consider "/check-cla" comments.
-	if !checkCLARe.MatchString(e.Body) {
+	pr = gc.GetPullRequest(owner , repo , number)
+	if !checkVersionRe.MatchString(pr) {
 		return nil
 	}
 
-	org := e.Repo.Owner.Login
-	repo := e.Repo.Name
-	number := e.Number
 	hasCLAYes := false
 	hasCLANo := false
 
@@ -235,49 +183,5 @@ func handleComment(gc gitHubClient, log *logrus.Entry, e *github.GenericCommentE
 		log.WithError(err).Errorf("Failed to get statuses on %s/%s#%d", org, repo, number)
 	}
 
-	for _, status := range combined.Statuses {
-
-		// Only consider "cla/linuxfoundation" status.
-		if status.Context == claContextName {
-
-			// Success state implies that the cla exists, so label should be cncf-cla:yes.
-			if status.State == github.StatusSuccess {
-
-				// Remove cncf-cla:no (if label exists).
-				if hasCLANo {
-					if err := gc.RemoveLabel(org, repo, number, labels.ClaNo); err != nil {
-						log.WithError(err).Warningf("Could not remove %s label.", labels.ClaNo)
-					}
-				}
-
-				// Add cncf-cla:yes (if label doesn't exist).
-				if !hasCLAYes {
-					if err := gc.AddLabel(org, repo, number, labels.ClaYes); err != nil {
-						log.WithError(err).Warningf("Could not add %s label.", labels.ClaYes)
-					}
-				}
-
-				// Failure state implies that the cla does not exist, so label should be cncf-cla:no.
-			} else if status.State == github.StatusFailure {
-
-				// Remove cncf-cla:yes (if label exists).
-				if hasCLAYes {
-					if err := gc.RemoveLabel(org, repo, number, labels.ClaYes); err != nil {
-						log.WithError(err).Warningf("Could not remove %s label.", labels.ClaYes)
-					}
-				}
-
-				// Add cncf-cla:no (if label doesn't exist).
-				if !hasCLANo {
-					if err := gc.AddLabel(org, repo, number, labels.ClaNo); err != nil {
-						log.WithError(err).Warningf("Could not add %s label.", labels.ClaNo)
-					}
-				}
-			}
-
-			// No need to consider other contexts once you find the one you need.
-			break
-		}
-	}
 	return nil
 }

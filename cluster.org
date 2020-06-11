@@ -567,9 +567,12 @@ desc Checks a k8s-conformance PR to see if it is internally consitent.
 Code location
 /home/ii/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
 *** Building Code
-Developing the plugin in test-infra while we figure out how to vendor k8s/test-infra/prow dependancies.
 
 In the mean time following the steps below
+** Literate Build of the go code
+Execute the block below using ,,
+So note here that we are bulding locally on the host
+And developing the plugin in the k8s/test-infra clone while we figure out how to vendor k8s/test-infra/prow dependancies.
 
 #+BEGIN_SRC shell
 # Workaround for above is to place the cncf plugin in to the the k8s/infra code base
@@ -582,7 +585,7 @@ ls -al /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
 
 #+RESULTS:
 #+begin_example
-total 51408
+total 51412
 drwxrwxr-x 4 ii ii     4096 Jun 10 21:50 .
 drwxrwxr-x 3 ii ii     4096 May 26 16:34 ..
 -rw-rw-r-- 1 ii ii       40 May 26 17:02 .secret-hook
@@ -592,7 +595,7 @@ drwxrwxr-x 3 ii ii     4096 May 26 16:34 ..
 drwxrwxr-x 2 ii ii     4096 May 24 17:38 plugin
 drwxrwxr-x 2 ii ii     4096 Jun  3 19:19 test-data
 -rw-rw-r-- 1 ii ii      140 Jun  6 11:05 vcr.yaml
--rwxrwxr-x 1 ii ii 52599421 Jun 11 07:58 verify-conformance-request
+-rwxrwxr-x 1 ii ii 52603642 Jun 11 18:02 verify-conformance-request
 #+end_example
 
 *** Running the external plugin locally
@@ -618,34 +621,37 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
 ** build the container and tag
 - Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
 - The link above will also provide you with a list of commands to run if you get stuck
+- TODO: Bryan is updating repo to be the plugin name instead of cncf-prow, once it is up change this push to go to verify-conformance-request (rememver to update verify-conformance-deploy.yaml
 
+Remember to change the version
+Bryan is doing work on this so this will as he rolls out new procedures. Thanks Bryan!
   #+BEGIN_SRC bash
     cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request
     aws ecr get-login-password --region ap-southeast-2  | docker login --username AWS --password-stdin 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com
     docker build -t cncf-prow .
-    docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
-    docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
+    docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.3
+    docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.3
   #+END_SRC
 
   #+RESULTS:
   #+begin_src bash
   Login Succeeded
-  Sending build context to Docker daemon  52.66MB
+  Sending build context to Docker daemon  52.67MB
   Step 1/4 : FROM golang:1.13.4
    ---> a2e245db8bd3
   Step 2/4 : WORKDIR /plugin
    ---> Using cache
    ---> bd6fcd52b2eb
   Step 3/4 : COPY verify-conformance-request .
-   ---> Using cache
-   ---> cdb319129b89
+   ---> 228ad3e79ab4
   Step 4/4 : ENTRYPOINT ["/plugin/verify-conformance-request"]
-   ---> Using cache
-   ---> 847cf1d2cf02
-  Successfully built 847cf1d2cf02
+   ---> Running in e46d611ee704
+  Removing intermediate container e46d611ee704
+   ---> a4929793b071
+  Successfully built a4929793b071
   Successfully tagged cncf-prow:latest
   The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow]
-  59984c831a71: Preparing
+  e8dcdc465683: Preparing
   c52a2bd34fd7: Preparing
   5a92b57a5aac: Preparing
   5835b741b51f: Preparing
@@ -654,19 +660,20 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
   423d63eb4a27: Preparing
   7f9bf938b053: Preparing
   f2b4f0674ba3: Preparing
-  f2b4f0674ba3: Waiting
-  7f9bf938b053: Waiting
+  423d63eb4a27: Waiting
   bee1c15bf7e8: Waiting
-  c52a2bd34fd7: Pushed
-  5a92b57a5aac: Pushed
-  423d63eb4a27: Pushed
-  59984c831a71: Pushed
-  bee1c15bf7e8: Pushed
-  02c991ab8711: Pushed
-  f2b4f0674ba3: Pushed
-  7f9bf938b053: Pushed
-  5835b741b51f: Pushed
-  v1.2: digest: sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5 size: 2214
+  7f9bf938b053: Waiting
+  f2b4f0674ba3: Waiting
+  02c991ab8711: Layer already exists
+  5a92b57a5aac: Layer already exists
+  5835b741b51f: Layer already exists
+  c52a2bd34fd7: Layer already exists
+  bee1c15bf7e8: Layer already exists
+  423d63eb4a27: Layer already exists
+  7f9bf938b053: Layer already exists
+  f2b4f0674ba3: Layer already exists
+  e8dcdc465683: Pushed
+  v1.3: digest: sha256:ed6402db6f8458e08bd6b9cf334d99fbdfc749d69473f006069010ccca149fc7 size: 2214
   #+end_src
 
 
@@ -711,6 +718,7 @@ INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
     - For now I am going to call this good and use the above flags to build out the verify-conformance-deploy.yaml
 
 * Next steps update verify-conformance-deployment.yaml to emulate the docker run
+Also, ensure that you are referencing the tag of the image that you just built
 ** loading config map for vcr.yaml
  #+begin_src shell
    kubectl delete configmap vcr-config
@@ -749,7 +757,7 @@ plank-7cf6bf5cb6-979ph                        1/1     Running   0          30d
 sinker-ddf8cbcb6-8tl7f                        1/1     Running   1          30d
 statusreconciler-b946855cf-l5x7g              1/1     Running   0          30d
 tide-66b57f5ccf-x6j67                         1/1     Running   0          30d
-verify-conformance-request-5b7647499f-lr49f   1/1     Running   0          160m
+verify-conformance-request-5798fc7694-sbjn8   1/1     Running   0          15s
 #+end_example
 
 *** Initially we crashed without logs, this helped me get a meaningful error
@@ -838,26 +846,6 @@ Events:          <none>
 
 #+RESULTS:
 #+begin_example
-time="2020-06-11T07:00:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
-time="2020-06-11T07:00:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4959 remaining." plugin=verify-conformance-request
-time="2020-06-11T07:00:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
-time="2020-06-11T07:00:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
-time="2020-06-11T07:00:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
-time="2020-06-11T07:00:33Z" level=info msg="Periodic update complete." duration=967.59399ms plugin=verify-conformance-request
-time="2020-06-11T07:01:32Z" level=warning msg="no plugins specified-- check syntax?"
-time="2020-06-11T07:01:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
-time="2020-06-11T07:01:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4958 remaining." plugin=verify-conformance-request
-time="2020-06-11T07:01:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
-time="2020-06-11T07:01:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
-time="2020-06-11T07:01:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
-time="2020-06-11T07:01:33Z" level=info msg="Periodic update complete." duration=1.092055951s plugin=verify-conformance-request
-time="2020-06-11T07:02:32Z" level=warning msg="no plugins specified-- check syntax?"
-time="2020-06-11T07:02:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
-time="2020-06-11T07:02:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4957 remaining." plugin=verify-conformance-request
-time="2020-06-11T07:02:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
-time="2020-06-11T07:02:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
-time="2020-06-11T07:02:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
-time="2020-06-11T07:02:33Z" level=info msg="Periodic update complete." duration=892.882162ms plugin=verify-conformance-request
 #+end_example
 
 

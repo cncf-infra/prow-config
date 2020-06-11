@@ -35,19 +35,4 @@ plugins:
   - config-updater
 
   cncf-infra/k8s-conformance:
-  # - approve
-  - assign
-  - cat
-  - dog
-  - hold
-  - label
-  - lgtm
-  # - owners-label
-  - pony
-  - shrug
-  - size
-  - skip
-  - trigger
-  - wip
-  # - verify-owners
-  - yuks
+  - verify-conformance-request
