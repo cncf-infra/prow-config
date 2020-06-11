@@ -67,7 +67,7 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: verify-conformance-request
+          ECR_REPOSITORY: verify-conformance-tests
         run: |
           IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
