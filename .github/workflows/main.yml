@@ -50,7 +50,7 @@ jobs:
       - name: Build verify-conformance-release image
         env:
           IMAGE_ID: $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
-        run: docker build prow/external-plugins/verify-conformance-release --tag $IMAGE_NAME
+        run: docker build prow/external-plugins/verify-conformance-release --tag $IMAGE_ID
 
       - name: Get short SHA
         id: slug
@@ -99,7 +99,7 @@ jobs:
       - name: Build verify-conformance-tests image
         env:
           IMAGE_ID: $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
-        run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_NAME
+        run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_ID
 
       - name: Get short SHA
         id: slug
