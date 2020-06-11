@@ -18,7 +18,8 @@ defaults:
     working-directory: prow/external-plugins/verify-conformance-request
 
 env:
-  IMAGE_NAME: verify-conformance-tests
+  VERIFY_RELEASE_IMAGE_NAME: verify-conformance-tests
+  VERIFY_TESTS_IMAGE_NAME: verify-conformance-tests
 
 jobs:
   # Run tests.
@@ -28,10 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Run tests
+      - name: Ensure verify-conformance-tests image builds
         run: |
           docker build prow/external-plugins/verify-conformance-tests
 
+      - name: Ensure verify-conformance-request image builds
+        run: |
+          docker build prow/external-plugins/verify-conformance-request
   # Push image to AWS ECR.
   push:
     # Ensure test job passes before pushing image.
@@ -43,9 +47,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Build image
+      - name: Build verify-conformance-request image
         env:
-          IMAGE_ID: $ECR_REGISTRY/$ECR_REPOSITORY
+          IMAGE_ID: $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME
+        run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_NAME
+
+      - name: Build verify-conformance-tests image
+        env:
+          IMAGE_ID: $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
         run: docker build prow/external-plugins/verify-conformance-tests --tag $IMAGE_NAME
 
       - name: Get short SHA
@@ -64,10 +73,28 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push verify-conformance-tests image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-tests
+        run: |
+          IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          # check to see if we are on master
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          if [ "$VERSION" == "master" ]; then
+            docker tag $IMAGE_NAME $IMAGE_ID:latest
+          fi
+
+          docker tag $IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY
+      - name: Build, tag, and push verify-conformance-request image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: verify-conformance-request
         run: |
           IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
