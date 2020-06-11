@@ -67,7 +67,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: docker build prow/external-plugins/verify-conformance-release --tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME
 
-      - name: Build, tag, and push verify-conformance-release image to Amazon ECR
+      - name: Tag, and push verify-conformance-release image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-release
@@ -114,7 +114,7 @@ jobs:
       - name: Build verify-conformance-tests image
         run: docker build prow/external-plugins/verify-conformance-tests --tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
 
-      - name: Build, tag, and push verify-conformance-tests image to Amazon ECR
+      - name: Tag, and push verify-conformance-tests image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-tests
