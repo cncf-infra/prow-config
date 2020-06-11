@@ -571,18 +571,29 @@ Developing the plugin in test-infra while we figure out how to vendor k8s/test-i
 
 In the mean time following the steps below
 
-#+BEGIN_SRC lang=shell
+#+BEGIN_SRC shell
 # Workaround for above is to place the cncf plugin in to the the k8s/infra code base
 cd ~/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
 # make changes
 go build
 cp verify-conformance-request /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
-# build image
-cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
-docker build . -t vcr:latest
-# run
-docker run
+ls -al /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 51408
+drwxrwxr-x 4 ii ii     4096 Jun 10 21:50 .
+drwxrwxr-x 3 ii ii     4096 May 26 16:34 ..
+-rw-rw-r-- 1 ii ii       40 May 26 17:02 .secret-hook
+-rw-rw-r-- 1 ii ii       40 May 26 17:02 .secret-oauth
+-rw-rw-r-- 1 ii ii      807 Jun 10 21:50 Dockerfile
+-rw-rw-r-- 1 ii ii     5603 May 26 18:33 main.go
+drwxrwxr-x 2 ii ii     4096 May 24 17:38 plugin
+drwxrwxr-x 2 ii ii     4096 Jun  3 19:19 test-data
+-rw-rw-r-- 1 ii ii      140 Jun  6 11:05 vcr.yaml
+-rwxrwxr-x 1 ii ii 52599421 Jun 11 07:58 verify-conformance-request
+#+end_example
 
 *** Running the external plugin locally
 
@@ -609,11 +620,11 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
 - The link above will also provide you with a list of commands to run if you get stuck
 
   #+BEGIN_SRC bash
-  cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 928655657136.dkr.ecr.us-east-1.amazonaws.com
-  docker build -t cncf-infra .
-  docker tag cncf-infra:latest 928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra:v1.4
-  docker push 928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra:v1.4
+    cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request
+    aws ecr get-login-password --region ap-southeast-2  | docker login --username AWS --password-stdin 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com
+    docker build -t cncf-prow .
+    docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
+    docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
   #+END_SRC
 
   #+RESULTS:
@@ -632,8 +643,8 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
    ---> Using cache
    ---> 847cf1d2cf02
   Successfully built 847cf1d2cf02
-  Successfully tagged cncf-infra:latest
-  The push refers to repository [928655657136.dkr.ecr.us-east-1.amazonaws.com/cncf-infra]
+  Successfully tagged cncf-prow:latest
+  The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow]
   59984c831a71: Preparing
   c52a2bd34fd7: Preparing
   5a92b57a5aac: Preparing
@@ -643,21 +654,21 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
   423d63eb4a27: Preparing
   7f9bf938b053: Preparing
   f2b4f0674ba3: Preparing
-  423d63eb4a27: Waiting
-  bee1c15bf7e8: Waiting
-  7f9bf938b053: Waiting
   f2b4f0674ba3: Waiting
-  02c991ab8711: Layer already exists
-  c52a2bd34fd7: Layer already exists
-  5835b741b51f: Layer already exists
-  59984c831a71: Layer already exists
-  5a92b57a5aac: Layer already exists
-  423d63eb4a27: Layer already exists
-  bee1c15bf7e8: Layer already exists
-  f2b4f0674ba3: Layer already exists
-  7f9bf938b053: Layer already exists
-  v1.4: digest: sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5 size: 2214
+  7f9bf938b053: Waiting
+  bee1c15bf7e8: Waiting
+  c52a2bd34fd7: Pushed
+  5a92b57a5aac: Pushed
+  423d63eb4a27: Pushed
+  59984c831a71: Pushed
+  bee1c15bf7e8: Pushed
+  02c991ab8711: Pushed
+  f2b4f0674ba3: Pushed
+  7f9bf938b053: Pushed
+  5835b741b51f: Pushed
+  v1.2: digest: sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5 size: 2214
   #+end_src
+
 
 ** Run the container to make sure it is working (optional step that can be used for troubleshooting)
 #+begin_src bash
@@ -684,7 +695,7 @@ external_plugins:
   - name: verify-conformance-request
     events:
       - issue_comment
-      - pull_request
+     - pull_request
 root@f39470700e75:/plugin# /plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m
 WARN[0000] It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy
 WARN[0000] no plugins specified-- check syntax?
@@ -699,9 +710,158 @@ INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
 
     - For now I am going to call this good and use the above flags to build out the verify-conformance-deploy.yaml
 
-
 * Next steps update verify-conformance-deployment.yaml to emulate the docker run
-   - HH added a few notes to the Docker file, first suggestion is to not mount secrects in docker, but call the mount from k8-secrets
+** loading config map for vcr.yaml
+ #+begin_src shell
+   kubectl delete configmap vcr-config
+   kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml
+ #+end_src
+
+ #+RESULTS:
+ configmap/vcr-config created
+ #+end_example
+
+** apply verify-conformance-deployment.yaml
+#+begin_src shell :dir "~/prow-config"
+  kubectl apply -f manifests/verify-conformance-deployment.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+deployment.apps/verify-conformance-request configured
+#+end_example
+
+*** Lets look at the pods.
+#+begin_src shell
+  kubectl get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                          READY   STATUS    RESTARTS   AGE
+deck-7c6d46b4f7-dp68c                         1/1     Running   0          30d
+deck-7c6d46b4f7-n8x5q                         1/1     Running   0          30d
+ghproxy-75ddf48577-g9bbs                      1/1     Running   0          30d
+hook-59bb5f886d-24sw2                         1/1     Running   0          23d
+hook-59bb5f886d-d29vb                         1/1     Running   0          23d
+horologium-54f95c4dc4-z58sb                   1/1     Running   0          30d
+plank-7cf6bf5cb6-979ph                        1/1     Running   0          30d
+sinker-ddf8cbcb6-8tl7f                        1/1     Running   1          30d
+statusreconciler-b946855cf-l5x7g              1/1     Running   0          30d
+tide-66b57f5ccf-x6j67                         1/1     Running   0          30d
+verify-conformance-request-5b7647499f-lr49f   1/1     Running   0          160m
+#+end_example
+
+*** Initially we crashed without logs, this helped me get a meaningful error
+#+begin_src shell
+kubectl describe pod verify-conformance-request-5b7647499f-lr49f
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Name:           verify-conformance-request-5b7647499f-lr49f
+Namespace:      default
+Priority:       0
+Node:           ip-192-168-18-143.ap-southeast-2.compute.internal/192.168.18.143
+Start Time:     Thu, 11 Jun 2020 04:18:30 +0000
+Labels:         app=verify-conformance-request
+                pod-template-hash=5b7647499f
+Annotations:    kubernetes.io/psp: eks.privileged
+Status:         Running
+IP:             192.168.31.154
+IPs:            <none>
+Controlled By:  ReplicaSet/verify-conformance-request-5b7647499f
+Containers:
+  verify-conformance-request:
+    Container ID:  docker://2b3be86482ef64fae7981029d847534e8f6e2197b0812db0df6229ecf4bef58c
+    Image:         928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
+    Image ID:      docker-pullable://928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow@sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5
+    Port:          8888/TCP
+    Host Port:     0/TCP
+    Args:
+      --dry-run=false
+      --github-endpoint=http://ghproxy
+      --github-endpoint=https://api.github.com
+      --hmac-secret-file=/etc/webhook/hmac
+      --github-token-path=/etc/github/oauth
+      --plugin-config=/plugin/vcr.yaml
+      --update-period=1m
+    State:          Running
+      Started:      Thu, 11 Jun 2020 04:18:32 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /etc/github from oauth (ro)
+      /etc/plugins from plugins (ro)
+      /etc/webhook from hmac (ro)
+      /plugin/vcr.yaml from vcr-config (ro,path="vcr.yaml")
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-lsxfc (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  hmac:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  hmac-token
+    Optional:    false
+  oauth:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  oauth-token
+    Optional:    false
+  plugins:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      plugins
+    Optional:  false
+  vcr-config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      vcr-config
+    Optional:  false
+  default-token-lsxfc:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-lsxfc
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:          <none>
+#+end_example
+
+*** See if the logs will tell us anything.
+#+begin_src shell
+  kubectl logs verify-conformance-request-5b7647499f-lr49f | tail -20
+#+end_src
+
+#+RESULTS:
+#+begin_example
+time="2020-06-11T07:00:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+time="2020-06-11T07:00:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4959 remaining." plugin=verify-conformance-request
+time="2020-06-11T07:00:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
+time="2020-06-11T07:00:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
+time="2020-06-11T07:00:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
+time="2020-06-11T07:00:33Z" level=info msg="Periodic update complete." duration=967.59399ms plugin=verify-conformance-request
+time="2020-06-11T07:01:32Z" level=warning msg="no plugins specified-- check syntax?"
+time="2020-06-11T07:01:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+time="2020-06-11T07:01:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4958 remaining." plugin=verify-conformance-request
+time="2020-06-11T07:01:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
+time="2020-06-11T07:01:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
+time="2020-06-11T07:01:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
+time="2020-06-11T07:01:33Z" level=info msg="Periodic update complete." duration=1.092055951s plugin=verify-conformance-request
+time="2020-06-11T07:02:32Z" level=warning msg="no plugins specified-- check syntax?"
+time="2020-06-11T07:02:32Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+time="2020-06-11T07:02:32Z" level=info msg="Search for query \"archived:false is:pr is:open repo:\"cncf-infra/k8s-conformance\"\" cost 1 point(s). 4957 remaining." plugin=verify-conformance-request
+time="2020-06-11T07:02:32Z" level=info msg="Considering 1 PRs." plugin=verify-conformance-request
+time="2020-06-11T07:02:32Z" level=info msg="IsVerifiable: title of PR is \"NOT A REAL CONFORMANCE REQ for  v1.18\"" plugin=verify-conformance-request
+time="2020-06-11T07:02:32Z" level=info msg="AddLabel(cncf-infra, k8s-conformance, 1, verifiable)" client=github
+time="2020-06-11T07:02:33Z" level=info msg="Periodic update complete." duration=892.882162ms plugin=verify-conformance-request
+#+end_example
+
+
+*  Random header to stop the content below accidentally getting collapsed with another header
 
   This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
 
@@ -735,7 +895,7 @@ INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
 
   #+RESULTS:
   #+begin_src sh
-  apiVersion: rbac.authorization.k8s.io/v1
+  apiVersion: rbac.authorization.k8s.io/v1verify-conformance-deployment.yaml
   kind: ClusterRoleBinding
   metadata:
     annotations:
