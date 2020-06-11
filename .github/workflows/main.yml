@@ -112,6 +112,8 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build verify-conformance-tests image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: docker build prow/external-plugins/verify-conformance-tests --tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
 
       - name: Tag, and push verify-conformance-tests image to Amazon ECR
