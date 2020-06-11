@@ -11,7 +11,7 @@ on:
       - $ {{ github.sha }}
 
   # Run tests for any PRs.
-  pull_request:
+  # pull_request:
 
 env:
   VERIFY_RELEASE_IMAGE_NAME: verify-conformance-release
@@ -68,6 +68,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-release
         run: |
+          set -x
           IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
           # Change all uppercase to lowercase
@@ -79,7 +80,7 @@ jobs:
             docker tag $IMAGE_NAME $IMAGE_ID:latest
           fi
 
-          docker tag $IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+          docker tag $VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
           docker push $ECR_REGISTRY/$ECR_REPOSITORY
 
       - name: Logout of Amazon ECR
@@ -117,6 +118,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-tests
         run: |
+          set -x
           IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
           # Change all uppercase to lowercase
@@ -125,7 +127,7 @@ jobs:
           # check to see if we are on master
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           if [ "$VERSION" == "master" ]; then
-            docker tag $IMAGE_NAME $IMAGE_ID:latest
+            docker tag $VERIFY_TESTS_IMAGE_NAME $IMAGE_ID:latest
           fi
 
           docker tag $IMAGE_NAME $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
