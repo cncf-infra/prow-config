@@ -11,6 +11,10 @@ on:
 
   # Run tests for any PRs.
   pull_request:
+  
+defaults:
+  run:
+    working-directory: prow/external-plugins/verify-conformance-request
 
 env:
   IMAGE_NAME: verify-conformance-request
@@ -25,7 +29,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker build . --file prow/external-plugins/verify-conformance-request/Dockerfile
+          docker build . --file Dockerfile
           
   # Push image to AWS ECR.
   push:
@@ -41,7 +45,7 @@ jobs:
       - name: Build image
         env:
           IMAGE_ID: $ECR_REGISTRY/$ECR_REPOSITORY
-        run: docker build . --file prow/external-plugins/verify-conformance-request/Dockerfile --tag $IMAGE_NAME
+        run: docker build . --file Dockerfile --tag $IMAGE_NAME
         
       - name: Get short SHA
         id: slug
