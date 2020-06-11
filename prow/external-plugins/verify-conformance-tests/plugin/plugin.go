@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	PluginName      = verify.ConformanceRequest
+	PluginName      = verify.ConformanceTests
 	verMismatchMsg  = "Conformance request is for %s but logs refer to version %s. Please ensure that the logs provided correspond to the version referenced in the title of this PR "
 )
 
