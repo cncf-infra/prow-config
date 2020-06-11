@@ -6,7 +6,7 @@ FROM golang:1.13.4
 # Build binary and copy into place
 COPY ./ /tmp/build
 WORKDIR /tmp/build
-RUN go get && go build . && cp verify-conformance-tests /plugin
+RUN go get && go build . && mkdir -p /plugin && cp verify-conformance-tests /plugin
 
 WORKDIR /plugin
 
