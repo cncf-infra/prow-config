@@ -13,10 +13,6 @@ on:
   # Run tests for any PRs.
   pull_request:
 
-defaults:
-  run:
-    working-directory: prow/external-plugins/verify-conformance-request
-
 env:
   VERIFY_RELEASE_IMAGE_NAME: verify-conformance-release
   VERIFY_TESTS_IMAGE_NAME: verify-conformance-tests
