@@ -31,8 +31,8 @@ spec:
     spec:
       terminationGracePeriodSeconds: 180
       containers:
-      - name: verify-conformance-request
-        image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
+      - name: verify-conformance-release
+        image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release:latest
         imagePullPolicy: Always
         args:
         - --dry-run=false
@@ -41,7 +41,7 @@ spec:
         - --hmac-secret-file=/etc/webhook/hmac
         - --github-token-path=/etc/github/oauth
         - --plugin-config=/plugin/vcr.yaml
-        - --update-period=1m
+        - --update-period=5m
         ## Nice trick for keeping a crashing container running so you can exec in
         # command:
         #   r /bin/sleep
