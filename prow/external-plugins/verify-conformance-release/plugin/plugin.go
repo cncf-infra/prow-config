@@ -51,6 +51,7 @@ type githubClient interface {
 	Query(context.Context, interface{}, map[string]interface{}) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
+	GetPullRequestFileChanges(org, repo string, number int) ([]github.PullRequestChangedFile, error)
 }
 
 type commentPruner interface {
@@ -166,6 +167,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                 hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log,ghc,string(pr.Title))
 
                 hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
+		checkFolderMatchesK8sRelease, err := checkLogsForK8sRelease(log, ghc, org, repo, prNumber, sha, releaseVersion)
 
 		prLogger := log.WithFields(logrus.Fields{
 			"org":  org,
@@ -228,6 +230,8 @@ func HasNotVerifiableLabel(prLogger *logrus.Entry, org,repo string, prNumber int
         }
 
         return hasNotVerifiableLabel, err
+
+
 }
 func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, releaseLabel string ) (bool,error) {
         hasReleaseLabel := false
@@ -294,8 +298,41 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 	return nil
 }
 
-// Checks changes associated with the supplied sha to see if the contain a reference to k8sRelease
+// Checks that PR only adds files within a folder + single sub folder matching k8sRelease
+// returns true if k8sRelease + sub folder are the only filder added, false otherwise
+// TODO: Understand why sha is passed and not used... currently we just need the prNumber to grab the changes
+func checkFolderMatchesK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo string, prNumber int, sha, k8sRelease string ) (bool,error) {
+	changes, err := ghc.GetPullRequestFileChanges(org, repo, prNumber)
+	if err != nil {
+		return checkFolderMatchesK8sRelease, err
+	}
+
+	prLogger.Infof("checkFolderMatchesK8sRelease: %+v", changes)
+	// The thought is to see if blob_url contains any files that does not match the release version
+	for _ , change := range changes {
+		// https://developer.github.com/v3/pulls/#list-pull-requests-files
+		patchContainsFolderOutsideVersion, err := regexp.MatchString(`v[0-9]\.[0-9][0-9]*`, change.path)
+		// If there is an error, return false
+		if err != nil {
+			return false, err
+		        log.WithError(err).Errorf("It seems we failed the first match for regex  %q ", "")
+
+		}
+
+		// If there is file outside the version path return false
+		if (patchContainsFolderOutsideVersion){
+			return false, err
+			log.WithError(err).Errorf("There are files that is not in the folder %q ", "")
+		}
+
+	}
+	log.WithError(err).Errorf("Aparently all files are in the folder %q ", "")
+	return true, err
+}
+
+// Checks changes associated with the supplied sha to see if they contain a reference to k8sRelease
 // returns true if k8sRelease found , false otherwise
+// TODO: Understand why sha is passed and not used... currently we just need the prNumber to grab the changes
 func checkLogsForK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo string, prNumber int, sha, k8sRelease string ) (bool,error) {
 	logsHaveStatedRelease := false
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
