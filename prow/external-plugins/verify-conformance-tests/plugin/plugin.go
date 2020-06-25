@@ -17,11 +17,13 @@ limitations under the License.
 package plugin
 
 import (
-	"bytes"
 	"context"
-	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
@@ -34,8 +36,8 @@ import (
 )
 
 const (
-	PluginName      = verify.ConformanceTests
-	verMismatchMsg  = "Conformance request is for %s but logs refer to version %s. Please ensure that the logs provided correspond to the version referenced in the title of this PR "
+	PluginName     = verify.ConformanceTests
+	verMismatchMsg = "Conformance request is for %s but logs refer to version %s. Please ensure that the logs provided correspond to the version referenced in the title of this PR "
 )
 
 var sleep = time.Sleep
@@ -60,8 +62,8 @@ type commentPruner interface {
 // HelpProvider defines the type for the function that constructs the PluginHelp for plugins.
 func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 	return &pluginhelp.PluginHelp{
-		Description: `The Conformance Request plugin inspects the contents of PRs that request Conformance Certification for Kubernetes.`,
-	},
+			Description: `The Conformance Request plugin inspects the contents of PRs that request Conformance Certification for Kubernetes.`,
+		},
 		nil
 }
 
@@ -204,6 +206,35 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 	return nil
 }
 
+// https://github.com/kubernetes/kubernetes/blob/master/test/conformance/testdata/conformance.yaml
+func getConformanceTests() ConformanceTests {
+
+	var c ConformanceTests
+
+	// TODO - pull the conf yaml file from GH
+	confYamlFilePath, _ := filepath.Abs("./test-data/conformance.yaml")
+	confYaml, err := ioutil.ReadFile(confYamlFilePath)
+
+	if err != nil {
+		logrus.WithError(err).Error("failed to read conformance yaml file")
+	}
+
+	err = yaml.Unmarshal(confYaml, &c)
+
+	if err != nil {
+		logrus.WithError(err).Error("Failed to parse conformance yaml")
+	}
+
+	conformanceTestsList := make([]string, len(c))
+
+	for k, v := range c {
+		conformanceTestsList[k] = v.Codename + "\n"
+	}
+
+	return conformanceTestsList
+
+}
+
 func shouldPrune(botName string) func(github.IssueComment) bool {
 	return func(ic github.IssueComment) bool {
 		return github.NormLogin(botName) == github.NormLogin(ic.User.Login) &&
@@ -236,6 +267,15 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	}
 	log.Infof("Search for query \"%s\" cost %d point(s). %d remaining.", q, totalCost, remaining)
 	return ret, nil
+}
+
+// https://github.com/kubernetes/kubernetes/blob/master/test/conformance/testdata/conformance.yaml
+type ConformanceTests []struct {
+	Testname    string `yaml:"testname"`
+	Codename    string `yaml:"codename"`
+	Description string `yaml:"description"`
+	Release     string `yaml:"release"`
+	File        string `yaml:"file"`
 }
 
 // TODO(spxtr): Add useful information for frontend stuff such as links.
