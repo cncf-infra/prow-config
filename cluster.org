@@ -636,20 +636,6 @@ Bryan is doing work on this so this will as he rolls out new procedures. Thanks 
   #+RESULTS:
   #+begin_src bash
   Login Succeeded
-  Sending build context to Docker daemon  52.67MB
-  Step 1/4 : FROM golang:1.13.4
-   ---> a2e245db8bd3
-  Step 2/4 : WORKDIR /plugin
-   ---> Using cache
-   ---> bd6fcd52b2eb
-  Step 3/4 : COPY verify-conformance-request .
-   ---> 228ad3e79ab4
-  Step 4/4 : ENTRYPOINT ["/plugin/verify-conformance-request"]
-   ---> Running in e46d611ee704
-  Removing intermediate container e46d611ee704
-   ---> a4929793b071
-  Successfully built a4929793b071
-  Successfully tagged cncf-prow:latest
   The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow]
   e8dcdc465683: Preparing
   c52a2bd34fd7: Preparing
@@ -660,19 +646,19 @@ Bryan is doing work on this so this will as he rolls out new procedures. Thanks 
   423d63eb4a27: Preparing
   7f9bf938b053: Preparing
   f2b4f0674ba3: Preparing
-  423d63eb4a27: Waiting
-  bee1c15bf7e8: Waiting
   7f9bf938b053: Waiting
+  423d63eb4a27: Waiting
   f2b4f0674ba3: Waiting
-  02c991ab8711: Layer already exists
-  5a92b57a5aac: Layer already exists
+  bee1c15bf7e8: Waiting
   5835b741b51f: Layer already exists
   c52a2bd34fd7: Layer already exists
+  02c991ab8711: Layer already exists
+  e8dcdc465683: Layer already exists
+  5a92b57a5aac: Layer already exists
   bee1c15bf7e8: Layer already exists
-  423d63eb4a27: Layer already exists
   7f9bf938b053: Layer already exists
   f2b4f0674ba3: Layer already exists
-  e8dcdc465683: Pushed
+  423d63eb4a27: Layer already exists
   v1.3: digest: sha256:ed6402db6f8458e08bd6b9cf334d99fbdfc749d69473f006069010ccca149fc7 size: 2214
   #+end_src
 
