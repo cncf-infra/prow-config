@@ -33,12 +33,21 @@ import (
 	"k8s.io/test-infra/prow/plugins"
 	"net/http"
 	"io/ioutil"
+	"gopkg.in/yaml.v2"
 	// 	"github.com/golang-collections/collections/set"
 )
 
 const (
 	PluginName     = "verify-conformance-tests"
 )
+
+type ConformanceTestMetaData struct {
+        Testname string `yaml:"testname"`
+        Codename string `yaml:"codename"`
+        Description string `yaml:"description"`
+        Release string `yaml:"release"`
+        File string `yaml:"file"`
+}
 
 var sleep = time.Sleep
 
@@ -67,31 +76,39 @@ func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 		nil
 }
 
-func getRequiredTests(log *logrus.Entry, k8sRelease string) [] string {
+func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMetaData {
 	// TODO we are effectively hardcoding this and we may layer this out
 	// Key'd by k8s release map that points to URLs containing the required conformance tests for that release
 	var conformanceTests = map[string]string {
-		"v1.15": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.15/test/conformance/testdata/conformance.txt",
+		"release-v1.15": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.15/test/conformance/testdata/conformance.txt",
 			"v1.16": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.16/test/conformance/testdata/conformance.txt",
 			"v1.17": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.17/test/conformance/testdata/conformance.txt",
-			"v1.18": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.18/test/conformance/testdata/conformance.yaml",
-			"master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
+			"v1.18": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.18/test/conformance/testdata/conformance.yaml",
+                        "master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
 		}
 
-	var requiredTests []string ;
-        fileUrl := conformanceTests[k8sRelease]
-	resp, err := http.Get(fileUrl)
-	if err != nil {
-		log.Errorf("getRequiredTests : %+v",err)
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body) // TODO Handle err
+	var requiredConformanceSuite []ConformanceTestMetaData
+        confTestSuiteUrl := conformanceTests[k8sRelease]
 
-        // TODO How do we get a list of tests returned.
-        // TODO Assume YAML all the way for now
-	// Unmarshall the YAML ref https://godoc.org/gopkg.in/yaml.v2#example-Unmarshal--Embedded
-	log.Info(body)
-	return requiredTests
+	resp, err := http.Get(confTestSuiteUrl)
+        if resp.StatusCode > 199 && resp.StatusCode < 300 {
+                // TODO check body for 404
+                if err != nil {
+                        log.Errorf("Error retrieving conformance tests metadata from : %s", confTestSuiteUrl)
+                        log.Errorf("HTTP Reponse was: %+v", resp)
+                        log.Errorf("getRequiredTests : %+v",err)
+                }
+                defer resp.Body.Close()
+                body, _ := ioutil.ReadAll(resp.Body) // TODO Handle err
+
+
+                err = yaml.Unmarshal(body, &requiredConformanceSuite)
+                if err != nil{
+                        log.Errorf("Cannot unmarshal data. Reason:  %v\n",err)
+                }
+        }
+
+	return requiredConformanceSuite
 }
 
 // HandleAll is called periodically and the period is setup in main.go
@@ -132,6 +149,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		return err
 	}
 	log.Infof("Considering %d verifiable PRs.", len(prs))
+	log.Infof("PRS[0] %+v verifiable PRs.", prs[0])
 
 	for _, pr := range prs {
 		org := string(pr.Repository.Owner.Login)
@@ -141,20 +159,13 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
                 releaseVersion := getReleaseFromLabel(log, org, repo, prNumber, ghc)
 
-		prLogger := log.WithFields(logrus.Fields{
-			//"org":  org,
-			//"repo": repo,
-			"pr":   prNumber,
-                        "title": pr.Title,
-                        "release": releaseVersion ,
-		})
+                prLogger := log.WithFields(logrus.Fields{"pr": prNumber, "title": pr.Title, "release": releaseVersion })
 
-		// githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request" )
-		requiredTests := getRequiredTestsForRelease(releaseVersion)
-		submittedTests := getSubmittedTestsFromPullReq(prLogger, ghc, org, repo, prNumber, sha)
-		submittedTestsPresentInJUnit := checkAllSubmittedTestsArePresent(requiredTests, submittedTests)
+		requiredTests := getRequiredTests(prLogger, releaseVersion)
+		submittedTests := getSubmittedTestsThatPassed(prLogger, ghc, org, repo, prNumber, sha)
+		submittedTestsPresentInJUnit, missingTests := checkAllSubmittedTestsArePresent(requiredTests, submittedTests)
 		if submittedTestsPresentInJUnit {
-                        testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, requiredTests)
+                        testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, submittedTests)
 
                         if err != nil {
                                 prLogger.WithError(err)
@@ -170,23 +181,27 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			}
                 } else {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
-                        githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request failed to include all of the required tests for " +releaseVersion)
+                        githubClient.CreateComment(ghc, org, repo, prNumber,
+                                "This conformance request failed to include all of the required tests for " +releaseVersion)
+                        githubClient.CreateComment(ghc, org, repo, prNumber,
+                                "The missing tests were " + missingTests)
 		}
         }
 	return nil
 }
 
-func getRequiredTestsForRelease(release string) []string{
-	requiredTests := []string {"itest"}
-	return requiredTests
-}
-func getSubmittedTestsFromPullReq(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) []string{
+// TODO Need to think about handling submitted tests that did not PASS - It should be easy to check this
+// No point in granting certification if they did not pass.
+func getSubmittedTestsThatPassed(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) []string {
 	submittedTests := []string {"itest"}
+
 	return submittedTests
 }
-func checkAllSubmittedTestsArePresent(required,submitted []string) bool {
+func checkAllSubmittedTestsArePresent(required[] ConformanceTestMetaData, submitted []string) ( bool, []string ) {
 	allTestsPresent := false
-	return allTestsPresent
+        var missingTests[] string
+
+	return allTestsPresent, missingTests
 }
 func checkE2eLogHasEvidenceOfTestRuns (prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string, requiredTests []string) (bool,error) {
 	allEvidencePresent := false
