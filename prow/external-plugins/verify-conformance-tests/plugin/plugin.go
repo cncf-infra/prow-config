@@ -17,9 +17,7 @@ limitations under the License.
 package plugin
 
 import (
-	"bytes"
 	"context"
-	"fmt"
         "regexp"
         "strings"
 	"time"
@@ -111,47 +109,18 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMe
 	return requiredConformanceSuite
 }
 
-// HandleAll is called periodically and the period is setup in main.go
-// It runs a Github Query to get all open PRs for this repo which contains k8s conformance requests
-//
-// Each PR is checked in turn, we check
-//   - for the presence of a Release Version in the PR title
-//- then we take that version and verify that the e2e test logs refer to that same release version.
-//
-// if all is in order then we add the verifiable label and a release-Vx.y label
-// if there is an inconsistency we add a comment that explains the problem
-// and tells the PR submitter to review the documentation
+// HandleAll checks verifiable certification pull requests to insure that all required
+// tests for the stated k8s release (e.g. release-1.19) have been executed and have passed.
+// the following labels will be added depending on the outcome of checking the tests
+// TODO add labels
 func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuration) error {
-	log.Infof("%v : HandleAll : Checking all PRs for handling", PluginName)
+	var queryString = "archived:false is:pr is:open label:verifiable repo:\"cncf-infra/k8s-conformance\""
+	pullRequests, err := getPullRequests(log, ghc, queryString)
+        if err != nil {
+                log.Error(err)
+        }
+	for _, pr := range pullRequests {
 
-	orgs, repos := config.EnabledReposForExternalPlugin(PluginName) // TODO : Overkill see below
-
-	if len(orgs) == 0 && len(repos) == 0 {
-		log.Warnf("HandleAll : No repos have been configured for the %s plugin", PluginName)
-		return nil
-	}
-
-        // TODO simplify queryOpenPRs
-        //      - more general than required
-        //      - we deal with a single org and repo
-        //      - we target k8s conformance requests sent to the cncf
-	var queryOpenPRs bytes.Buffer
-	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open label:verifiable")
-	for _, org := range orgs {
-		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
-	}
-	for _, repo := range repos {
-		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
-	}
-	prs, err := search(context.Background(), log, ghc, queryOpenPRs.String())
-
-	if err != nil {
-		return err
-	}
-	log.Infof("Considering %d verifiable PRs.", len(prs))
-	log.Infof("PRS[0] %+v verifiable PRs.", prs[0])
-
-	for _, pr := range prs {
 		org := string(pr.Repository.Owner.Login)
 		repo := string(pr.Repository.Name)
 		prNumber := int(pr.Number)
@@ -159,21 +128,22 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
                 releaseVersion := getReleaseFromLabel(log, org, repo, prNumber, ghc)
 
+                // Add fields from this PR to logger
                 prLogger := log.WithFields(logrus.Fields{"pr": prNumber, "title": pr.Title, "release": releaseVersion })
 
 		requiredTests := getRequiredTests(prLogger, releaseVersion)
 		submittedTests := getSubmittedTestsThatPassed(prLogger, ghc, org, repo, prNumber, sha)
-		submittedTestsPresentInJUnit, missingTests := checkAllSubmittedTestsArePresent(requiredTests, submittedTests)
-		if submittedTestsPresentInJUnit {
-                        testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, submittedTests)
+		submittedTestsPresent, missingTests := checkAllSubmittedTestsArePresent(requiredTests, submittedTests)
 
+		if submittedTestsPresent {
+                        testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, submittedTests)
                         if err != nil {
                                 prLogger.WithError(err)
                         }
 
                         if testRunEvidenceCorrect {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verified-"+releaseVersion)
-                                githubClient.CreateComment(ghc, org, repo, prNumber, "Well done you! You no slouch! VERIFIED!"  )
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed"  )
                         } else { // specifiedRelease not present in logs
 				githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
 				githubClient.CreateComment(ghc, org, repo, prNumber,
@@ -184,12 +154,24 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         githubClient.CreateComment(ghc, org, repo, prNumber,
                                 "This conformance request failed to include all of the required tests for " +releaseVersion)
                         githubClient.CreateComment(ghc, org, repo, prNumber,
-                                "The missing tests were " + missingTests)
+                                "The missing tests were " + missingTests[0])
 		}
         }
 	return nil
 }
+// getPullRequests sends github query to retrieve an array of PullRequest
+func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([]PullRequest , error ){
 
+	pullRequests, err := prSearch(context.Background(), log, ghc, queryString)
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Considering %d verifiable PRs.", len(pullRequests))
+
+	return pullRequests, nil
+}
 // TODO Need to think about handling submitted tests that did not PASS - It should be easy to check this
 // No point in granting certification if they did not pass.
 func getSubmittedTestsThatPassed(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) []string {
@@ -308,8 +290,9 @@ func createMapOfRequirements(log *logrus.Entry,  k8sRelease string) (bool){
 
 }
 
-// Executes the search query contained in q using the GitHub client ghc
-func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) ([]PullRequest, error) {
+// prSearch executes a search query q using GitHub client ghc to find PullRequests that match the query in q
+// return array of PullRequests found and err is set if there is a problem
+func prSearch(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) ([]PullRequest, error) {
 	var ret []PullRequest
 	vars := map[string]interface{}{
 		"query":        githubql.String(q),
@@ -318,13 +301,17 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	var totalCost int
 	var remaining int
 	for {
+                log.Infof("vars %#v", vars)
 		sq := SearchQuery{}
 		if err := ghc.Query(ctx, &sq, vars); err != nil {
 			return nil, err
 		}
+                log.Infof("sq %#v", sq)
 		totalCost += int(sq.RateLimit.Cost)
 		remaining = int(sq.RateLimit.Remaining)
+                log.Infof("sq.Search.Nodes %#v", sq.Search.Nodes)
 		for _, n := range sq.Search.Nodes {
+                        log.Infof("n %#v", n)
 			ret = append(ret, n.PullRequest)
 		}
 		if !sq.Search.PageInfo.HasNextPage {
@@ -332,7 +319,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 		}
 		vars["searchCursor"] = githubql.NewString(sq.Search.PageInfo.EndCursor)
 	}
-	log.Infof("Search for query \"%s\" cost %d point(s). %d remaining.", q, totalCost, remaining)
+	log.Infof("Search for query \"%s\" cost %d point(s). %d remaining. ", q, totalCost, remaining)
 	return ret, nil
 }
 
