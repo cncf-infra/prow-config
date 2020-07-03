@@ -33,6 +33,8 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	// 	"github.com/golang-collections/collections/set"
+	"path"
+	"encoding/xml"
 )
 
 const (
@@ -78,12 +80,12 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMe
 	// TODO we are effectively hardcoding this and we may layer this out
 	// Key'd by k8s release map that points to URLs containing the required conformance tests for that release
 	var conformanceTests = map[string]string {
-		"release-v1.15": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.15/test/conformance/testdata/conformance.txt",
-			"v1.16": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.16/test/conformance/testdata/conformance.txt",
-			"v1.17": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.17/test/conformance/testdata/conformance.txt",
-			"v1.18": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.18/test/conformance/testdata/conformance.yaml",
+                "release-v1.15": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.15/test/conformance/testdata/conformance.txt",
+                        "v1.16": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.16/test/conformance/testdata/conformance.txt",
+                        "v1.17": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.17/test/conformance/testdata/conformance.txt",
+                        "v1.18": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.18/test/conformance/testdata/conformance.yaml",
                         "master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
-		}
+                }
 
 	var requiredConformanceSuite []ConformanceTestMetaData
         confTestSuiteUrl := conformanceTests[k8sRelease]
@@ -132,8 +134,11 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                 prLogger := log.WithFields(logrus.Fields{"pr": prNumber, "title": pr.Title, "release": releaseVersion })
 
 		requiredTests := getRequiredTests(prLogger, releaseVersion)
-		submittedTests := getSubmittedTestsThatPassed(prLogger, ghc, org, repo, prNumber, sha)
-		submittedTestsPresent, missingTests := checkAllSubmittedTestsArePresent(requiredTests, submittedTests)
+		submittedTests, err := getSubmittedE2eTests(prLogger, ghc, org, repo, prNumber, sha)
+                if err != nil {
+                        prLogger.WithError(err)
+                }
+		submittedTestsPresent, missingTests := checkAllRequiredTestsArePresent(requiredTests, submittedTests)
 
 		if submittedTestsPresent {
                         testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, submittedTests)
@@ -152,14 +157,14 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                 } else {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
                         githubClient.CreateComment(ghc, org, repo, prNumber,
-                                "This conformance request failed to include all of the required tests for " +releaseVersion)
-                        githubClient.CreateComment(ghc, org, repo, prNumber,
-                                "The missing tests were " + missingTests[0])
+                                "This conformance request failed to include all of the required tests for " + releaseVersion)
+
+                        githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be mssing was " + missingTests[0])
 		}
         }
 	return nil
 }
-// getPullRequests sends github query to retrieve an array of PullRequest
+// getPullRequests sends a github query to retrieve an array of PullRequest
 func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([]PullRequest , error ){
 
 	pullRequests, err := prSearch(context.Background(), log, ghc, queryString)
@@ -172,17 +177,77 @@ func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([
 
 	return pullRequests, nil
 }
-// TODO Need to think about handling submitted tests that did not PASS - It should be easy to check this
-// No point in granting certification if they did not pass.
-func getSubmittedTestsThatPassed(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) []string {
-	submittedTests := []string {"itest"}
+// getSubmittedE2eTests returns an array of test names read from the junit_01.xml file
+// submitted by the vendor in the changes associated with the certification request PR
+func getSubmittedE2eTests(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) ([]string, error) {
+	submittedTests := []string {}
 
-	return submittedTests
+        changeMap, err := getChangeMap(ghc, org , repo , prNumber)
+        if err != nil {
+                return nil,err
+        }
+
+        jUnitUrl := patchUrlToFileUrl((changeMap["junit_01.xml"]).BlobURL)
+
+	resp, err := http.Get(jUnitUrl)
+	if err != nil {
+		prLogger.Errorf("gSTTP: %#v",err)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+        type TestCase struct {
+                XMLName      xml.Name `xml:"testcase"`
+                Name         string `xml:"name,attr"`
+        }
+        var conformanceRequirement struct {
+                TestSuite []TestCase `xml:"testcase"`
+        }
+
+	if err := xml.Unmarshal(body, &conformanceRequirement); err != nil {
+		prLogger.Fatal(err)
+	}
+
+        submittedTests = make([]string,len(conformanceRequirement.TestSuite))
+        for i, testcase:= range conformanceRequirement.TestSuite {
+                submittedTests[i] = testcase.Name
+        }
+
+	return submittedTests, nil
 }
-func checkAllSubmittedTestsArePresent(required[] ConformanceTestMetaData, submitted []string) ( bool, []string ) {
-	allTestsPresent := false
-        var missingTests[] string
+func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]github.PullRequestChange, error) {
+	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 
+	if err != nil {
+		return nil , err
+	}
+
+        var supportingFiles = make ( map[string] github.PullRequestChange )
+
+	for _ , change := range changes {
+		// https://developer.github.com/v3/pulls/#list-pull-requests-files
+		supportingFiles[path.Base(change.Filename)] = change
+	}
+        return supportingFiles,nil
+}
+// checkAllRequiredTestsArePresent returns true if the test array submitted by the vendor has all tests that
+// are required for certification conformance, otherwise returns false and an array of missing tests.
+func checkAllRequiredTestsArePresent(required[] ConformanceTestMetaData, submitted []string) ( bool, []string ) {
+	allTestsPresent := false
+        missingTests := []string {}
+        tempTestCountMap := map[string]int{}
+        for _, test := range required {
+               tempTestCountMap[test.Codename] ++
+        }
+        for _, test := range submitted {
+               tempTestCountMap[test] --
+        }
+        for test, count := range tempTestCountMap {
+                if count != 0 {
+                        missingTests = append(missingTests,test)
+                }
+        }
 	return allTestsPresent, missingTests
 }
 func checkE2eLogHasEvidenceOfTestRuns (prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string, requiredTests []string) (bool,error) {
@@ -301,17 +366,13 @@ func prSearch(ctx context.Context, log *logrus.Entry, ghc githubClient, q string
 	var totalCost int
 	var remaining int
 	for {
-                log.Infof("vars %#v", vars)
 		sq := SearchQuery{}
 		if err := ghc.Query(ctx, &sq, vars); err != nil {
 			return nil, err
 		}
-                log.Infof("sq %#v", sq)
 		totalCost += int(sq.RateLimit.Cost)
 		remaining = int(sq.RateLimit.Remaining)
-                log.Infof("sq.Search.Nodes %#v", sq.Search.Nodes)
 		for _, n := range sq.Search.Nodes {
-                        log.Infof("n %#v", n)
 			ret = append(ret, n.PullRequest)
 		}
 		if !sq.Search.PageInfo.HasNextPage {
