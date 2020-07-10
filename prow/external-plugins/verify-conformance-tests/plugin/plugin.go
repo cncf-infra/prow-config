@@ -76,7 +76,7 @@ func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 		nil
 }
 
-func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMetaData {
+func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMetaData{
 	// TODO we are effectively hardcoding this and we may layer this out
 	// Key'd by k8s release map that points to URLs containing the required conformance tests for that release
 	var conformanceTests = map[string]string {
@@ -107,7 +107,6 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMe
                         log.Errorf("Cannot unmarshal data. Reason:  %v\n",err)
                 }
         }
-
 	return requiredConformanceSuite
 }
 
@@ -117,31 +116,34 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMe
 // TODO add labels
 func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuration) error {
 	var queryString = "archived:false is:pr is:open label:verifiable repo:\"cncf-infra/k8s-conformance\""
+	//	var queryString = "1026 repo:\"cncf-infra/k8s-conformance\""
 	pullRequests, err := getPullRequests(log, ghc, queryString)
         if err != nil {
                 log.Error(err)
         }
+
 	for _, pr := range pullRequests {
 
 		org := string(pr.Repository.Owner.Login)
 		repo := string(pr.Repository.Name)
 		prNumber := int(pr.Number)
-		sha := string(pr.Commits.Nodes[0].Commit.Oid)
 
                 releaseVersion := getReleaseFromLabel(log, org, repo, prNumber, ghc)
+                changes, _ := getChangeMap(ghc, org, repo, prNumber)
 
                 // Add fields from this PR to logger
                 prLogger := log.WithFields(logrus.Fields{"pr": prNumber, "title": pr.Title, "release": releaseVersion })
 
-		requiredTests := getRequiredTests(prLogger, releaseVersion)
-		submittedTests, err := getSubmittedE2eTests(prLogger, ghc, org, repo, prNumber, sha)
+		requiredTests := getRequiredTests(prLogger, releaseVersion) // retrieves the conformance.yaml for this release
+		submittedTests, err := getSubmittedConformanceTests(prLogger, changes["junit_01.xml"])
                 if err != nil {
                         prLogger.WithError(err)
                 }
 		submittedTestsPresent, missingTests := checkAllRequiredTestsArePresent(requiredTests, submittedTests)
+                prLogger.Infof("submittedTestsPresent %t : missingTests are %v\n",submittedTestsPresent, missingTests)
 
 		if submittedTestsPresent {
-                        testRunEvidenceCorrect , err := checkE2eLogHasEvidenceOfTestRuns(prLogger, ghc, org, repo, prNumber, sha, submittedTests)
+                        testRunEvidenceCorrect , err := checkE2eLogHasZeroTestFailures(prLogger, changes["e2e.log"])
                         if err != nil {
                                 prLogger.WithError(err)
                         }
@@ -177,17 +179,12 @@ func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([
 
 	return pullRequests, nil
 }
-// getSubmittedE2eTests returns an array of test names read from the junit_01.xml file
-// submitted by the vendor in the changes associated with the certification request PR
-func getSubmittedE2eTests(prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string) ([]string, error) {
+// getSubmittedConformanceTests returns an array of test names that are tagged as [Conformance]
+// in the junit_01.xml file submitted by the vendor in the changes associated with the certification request PR
+func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullRequestChange) ([]string, error) {
 	submittedTests := []string {}
 
-        changeMap, err := getChangeMap(ghc, org , repo , prNumber)
-        if err != nil {
-                return nil,err
-        }
-
-        jUnitUrl := patchUrlToFileUrl((changeMap["junit_01.xml"]).BlobURL)
+        jUnitUrl := patchUrlToFileUrl(junitFile.BlobURL)
 
 	resp, err := http.Get(jUnitUrl)
 	if err != nil {
@@ -209,13 +206,17 @@ func getSubmittedE2eTests(prLogger *logrus.Entry, ghc githubClient, org,repo str
 		prLogger.Fatal(err)
 	}
 
-        submittedTests = make([]string,len(conformanceRequirement.TestSuite))
-        for i, testcase:= range conformanceRequirement.TestSuite {
-                submittedTests[i] = testcase.Name
+        submittedTests = make([]string, 0)
+        for _, testcase:= range conformanceRequirement.TestSuite {
+                if strings.Contains(testcase.Name, "[Conformance]"){
+                        submittedTests = append(submittedTests, testcase.Name)
+                }
         }
 
 	return submittedTests, nil
 }
+// getChangeMap returns a map of base filenames to the github.PullRequestChange and nil
+// returns an err if there is a problem talking to Github
 func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]github.PullRequestChange, error) {
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 
@@ -233,27 +234,50 @@ func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]
 }
 // checkAllRequiredTestsArePresent returns true if the test array submitted by the vendor has all tests that
 // are required for certification conformance, otherwise returns false and an array of missing tests.
-func checkAllRequiredTestsArePresent(required[] ConformanceTestMetaData, submitted []string) ( bool, []string ) {
-	allTestsPresent := false
+func checkAllRequiredTestsArePresent(required[] ConformanceTestMetaData, submitted []string ) ( bool, []string ) {
+	allTestsPresent := true
         missingTests := []string {}
         tempTestCountMap := map[string]int{}
+
         for _, test := range required {
-               tempTestCountMap[test.Codename] ++
+		tempTestCountMap[test.Codename] ++
         }
         for _, test := range submitted {
                tempTestCountMap[test] --
         }
+
         for test, count := range tempTestCountMap {
                 if count != 0 {
+                        allTestsPresent = false
                         missingTests = append(missingTests,test)
                 }
         }
 	return allTestsPresent, missingTests
 }
-func checkE2eLogHasEvidenceOfTestRuns (prLogger *logrus.Entry, ghc githubClient, org,repo string, prNumber int, sha string, requiredTests []string) (bool,error) {
-	allEvidencePresent := false
-	return allEvidencePresent, nil
+
+// checkE2eLogHasZeroTestFailures returns true if the e2eLog has a zero count for failed tests
+func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequestChange) (bool,error){
+	zeroTestFailures := false
+        e2eNoTestsFailed := "\"failed\":0"
+
+        fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cELHR : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	for _, line := range strings.Split(string(body), "\n") {
+                if strings.Contains(line, e2eNoTestsFailed){
+                        log.Infof("found evidence that no tests have failed %s",line)
+                        zeroTestFailures = true
+                        break
+                }
+        }
+        return zeroTestFailures, nil
 }
+
 // TODO Consolodate this and the next function to cerate a map of labels
 func HasNotVerifiableLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient) (bool,error) {
         hasNotVerifiableLabel := false
