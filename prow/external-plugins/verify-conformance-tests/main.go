@@ -30,10 +30,9 @@ import (
 
 	"k8s.io/test-infra/pkg/flagutil"
 	"k8s.io/test-infra/prow/config/secret"
-	"k8s.io/test-infra/prow/external-plugins/needs-rebase/plugin"
+	"cncf.io/infra/verify-conformance-tests/plugin"
 	prowflagutil "k8s.io/test-infra/prow/flagutil"
 	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/labels"
 
 	"k8s.io/test-infra/prow/pluginhelp/externalplugins"
 	"k8s.io/test-infra/prow/plugins"
@@ -83,14 +82,13 @@ func main() {
 		logrus.Fatalf("Invalid options: %v", err)
 	}
 
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	// TODO: Use global option from the prow config.
+	// logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetLevel(logrus.InfoLevel)
-	log := logrus.StandardLogger().WithField("plugin", labels.NeedsRebase)
+	log := logrus.StandardLogger().WithField("plugin", plugin.PluginName)
 
 	secretAgent := &secret.Agent{}
 	if err := secretAgent.Start([]string{o.github.TokenPath, o.webhookSecretFile}); err != nil {
-		logrus.WithError(err).Fatal("Error starting secrets agent.")
+		logrus.WithError(err).Fatal("Error starting test-infra/prow/config/secret agent.")
 	}
 
 	pa := &plugins.ConfigAgent{}
@@ -137,13 +135,11 @@ type Server struct {
 
 // ServeHTTP validates an incoming webhook and puts it into the event channel.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// TODO: Move webhook handling logic out of hook binary so that we don't have to import all
-	// plugins just to validate the webhook.
+	logrus.Info("ServeHTTP : Event received. Validating webhook")
 	eventType, eventGUID, payload, ok, _ := github.ValidateWebhook(w, r, s.tokenGenerator)
 	if !ok {
 		return
 	}
-	fmt.Fprint(w, "Event received. Have a nice day.")
 
 	if err := s.handleEvent(eventType, eventGUID, payload); err != nil {
 		logrus.WithError(err).Error("Error parsing event.")
@@ -164,9 +160,7 @@ func (s *Server) handleEvent(eventType, eventGUID string, payload []byte) error 
 			return err
 		}
 		go func() {
-			if err := plugin.HandlePullRequestEvent(l, s.ghc, &pre); err != nil {
-				l.WithField("event-type", eventType).WithError(err).Info("Error handling event.")
-			}
+				l.WithField("event-type", eventType).Info("Error handling event.")
 		}()
 	case "issue_comment":
 		var ice github.IssueCommentEvent
@@ -174,9 +168,7 @@ func (s *Server) handleEvent(eventType, eventGUID string, payload []byte) error 
 			return err
 		}
 		go func() {
-			if err := plugin.HandleIssueCommentEvent(l, s.ghc, &ice); err != nil {
-				l.WithField("event-type", eventType).WithError(err).Info("Error handling event.")
-			}
+				l.WithField("event-type", eventType).Info("Error handling event.")
 		}()
 	default:
 		s.log.Debugf("received an event of type %q but didn't ask for it", eventType)

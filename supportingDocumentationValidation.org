@@ -1,0 +1,182 @@
+The goal of this document is to identify checks required to validate Supporting conformance documention.
+The focus is a subset of the documentation containing evicence of tests ran, these are junit_01.xml and e2e.log conformance.yaml
+The ticket tracking the current work can be found here [[https://github.com/cncf/apisnoop/issues/343][#343]] the dashboart tracking the epic that this is under is here [[https://github.com/cncf/apisnoop/projects/29][#project/29]]
+
+* Goal: As part of a pre-submit job we need to automatically review pull requests submitted by a Vendor seeking Kubernetes certification for their product.
+There are a few checks that need to be carried out to ensure compliance
+  1) test results in junit_01.xml must include all required tests for the specified release of Kubernetes.
+  2) test result logs in the e2e.log file need to show that all tests present in the junit results file are present in the e2e.log file.
+  3) confirm all listed e2e logs pass
+  4) Tests required for conformance can be found in the kubernetes/kubernetes repo. Starting from release 1.18 these are present in a YAML file.
+https://github.com/kubernetes/kubernetes/blob/master/test/conformance/testdata/conformance.yaml
+
+* WIP First pass solving the above
+  1) Hard code a map called requiredTestsByRelease (this may be built dynamically for the required release and thus not map) which maps k8s releases to the corresponding conformance.yaml file in the k/k repo which contains the names of the conformance tests for that version. (A second pass may make the map construction more dynamic)
+
+  2) HTTP fetch and parse the requiredTests from the conformance.yaml for the requested release
+
+  3) HTTP fetch and parse the suppliedTests in the junit_01.xml file
+
+  4) Diff the two sets of tests from 2 and 3
+
+  5) report results of diff in the PR
+
+  6) if the set of supplied tests in the junit file is compliant then check the e2e.log and ensure that its tests correspond to those found in the junit xml file (and by extension the required tests present in the corresponding conformance.yaml)
+
+  7) if 6 is true then confirm that none of the matched tests failed
+
+* WIP the issue encountered as discussed in slack:
+** So the test names/ code names in
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.18/test/conformance/testdata/conformance.yaml are not comparable with the tests found in the so-called junit_01.xml file
+** To get an understanding the challenge, compare the first four tests in the conformance.yaml above and tests they are supposed to name in https://github.com/kubernetes/kubernetes/blob/master/test/e2e/common/lifecycle_hook.go#L34
+** The other way to view the situation is to take the "codenames" and search for them in k/k using hound, they simply do not exist
+https://cs.k8s.io/?q=Container%20Lifecycle%20Hook%20when%20create%20a%20pod%20with%20lifecycle%20hook&i=nope&files=&repos=test/e2e/common/lifecycle_hook.go:34
+
+* Lets look at content of each file:
+** we will start with a simple head to find the first 4 tests in conformance.yaml
+   #+begin_src shell
+cat conformance.yaml | grep  shell
+   head -40 /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   - testname: Pod Lifecycle, post start exec hook
+     codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+       should execute poststart exec hook properly [NodeConformance] [Conformance]'
+     description: When a post start handler is specified in the container lifecycle using
+       a 'Exec' action, then the handler MUST be invoked after the start of the container.
+       A server pod is created that will serve http requests, create a second pod with
+       a container lifecycle specifying a post start that invokes the server pod using
+       ExecAction to validate that the post start is executed.
+     release: v1.9
+     file: test/e2e/common/lifecycle_hook.go
+   - testname: Pod Lifecycle, post start http hook
+     codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+       should execute poststart http hook properly [NodeConformance] [Conformance]'
+     description: When a post start handler is specified in the container lifecycle using
+       a HttpGet action, then the handler MUST be invoked after the start of the container.
+       A server pod is created that will serve http requests, create a second pod with
+       a container lifecycle specifying a post start that invokes the server pod to validate
+       that the post start is executed.
+     release: v1.9
+     file: test/e2e/common/lifecycle_hook.go
+   - testname: Pod Lifecycle, prestop exec hook
+     codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+       should execute prestop exec hook properly [NodeConformance] [Conformance]'
+     description: When a pre-stop handler is specified in the container lifecycle using
+       a 'Exec' action, then the handler MUST be invoked before the container is terminated.
+       A server pod is created that will serve http requests, create a second pod with
+       a container lifecycle specifying a pre-stop that invokes the server pod using
+       ExecAction to validate that the pre-stop is executed.
+     release: v1.9
+     file: test/e2e/common/lifecycle_hook.go
+   - testname: Pod Lifecycle, prestop http hook
+     codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+       should execute prestop http hook properly [NodeConformance] [Conformance]'
+     description: When a pre-stop handler is specified in the container lifecycle using
+       a 'HttpGet' action, then the handler MUST be invoked before the container is terminated.
+       A server pod is created that will serve http requests, create a second pod with
+       a container lifecycle specifying a pre-stop that invokes the server pod to validate
+       that the pre-stop is executed.
+     release: v1.9
+     file: test/e2e/common/lifecycle_hook.go
+   #+end_example
+
+** Lets see if we can get the same tests from junit_01.xml
+   #+begin_src shell
+cat conformance.yaml | grep  shell
+ grep -i '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+       should execute poststart exec hook properly [NodeConformance] [Conformance]' /home/ii/k8s-conformance/v1.18/ace/junit_01.xml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   #+end_example
+
+*** the above give us no results, there seems to be a new line right after hook. Lets remove it.
+   #+begin_src shell
+cat conformance.yaml | grep  shell
+ grep -i '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly [NodeConformance] [Conformance]' /home/ii/k8s-conformance/v1.18/ace/junit_01.xml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   #+end_example
+
+*** Still no result The next step is to try a more targeted lets remove new lines and search for text between [k8s.io] and [NodeConformance]
+   #+begin_src shell
+cat conformance.yaml | grep  shell
+grep -i 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly'  /home/ii/k8s-conformance/v1.18/ace/junit_01.xml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+         <testcase name="[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly [NodeConformance] [Conformance]" classname="Kubernetes e2e suite" time="18.279430511"></testcase>
+   #+end_example
+
+*** This looks promising lets try all 4 the tests.
+#+begin_src shell
+cat conformance.yaml | grep  shell
+  grep -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly' /home/ii/k8s-conformance/v1.18/ace/junit_01.xml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+      <testcase name="[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly [NodeConformance] [Conformance]" classname="Kubernetes e2e suite" time="8.257161396"></testcase>
+      <testcase name="[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly [NodeConformance] [Conformance]" classname="Kubernetes e2e suite" time="12.265579628"></testcase>
+      <testcase name="[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly [NodeConformance] [Conformance]" classname="Kubernetes e2e suite" time="8.47389619"></testcase>
+      <testcase name="[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly [NodeConformance] [Conformance]" classname="Kubernetes e2e suite" time="18.279430511"></testcase>
+#+end_example
+
+*** Conclusion, it takes a bit of cleanup, but the data consistantly returns the results for the correct tests in junit if we select the correct criteria for the grep.
+** Lets see if the same search works for e2e.log
+#+begin_src shell
+cat conformance.yaml | grep  shell
+  grep -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly' /home/ii/k8s-conformance/v1.18/ace/e2e.log
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{"msg":"PASSED [k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly [NodeConformance] [Conformance]","total":277,"completed":100,"skipped":1687,"failed":0}
+{"msg":"PASSED [k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly [NodeConformance] [Conformance]","total":277,"completed":103,"skipped":1712,"failed":0}
+{"msg":"PASSED [k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly [NodeConformance] [Conformance]","total":277,"completed":117,"skipped":2019,"failed":0}
+{"msg":"PASSED [k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly [NodeConformance] [Conformance]","total":277,"completed":220,"skipped":3869,"failed":0}
+#+end_example
+
+** Important note, the same grep will not work for conformance.yaml, we are building a map for finding content in junit and e2e using conformance.yaml
+#+begin_src shell
+cat conformance.yaml | grep  shell
+  grep -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly' -e 'Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly' /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* Next steps:
+** There was a proposal to open a pr against k/k to address new line added to the codename in conformance.yaml when it gets generated
+** In parralel with the above we can adjust our parser to use reality of how conformance.yaml is currently formatted.
+*** It should be a find for codename
+*** copy text between [k8s.io] and [NodeConformance]
+*** remove line break
+
+* POC: parse conformance.yaml sort and compare with junit_01.xml to confirm strategy (warning ugly bash to follow)
+  #+begin_src shell
+#cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | sed -En 's/^.*io] //; s/[Node.*$//' | head
+cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | head
+  #+end_src
+
+  #+RESULTS:
+  #+begin_example
+    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+      should execute poststart exec hook properly [NodeConformance] [Conformance]'
+  --
+    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+      should execute poststart http hook properly [NodeConformance] [Conformance]'
+  --
+    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+      should execute prestop exec hook properly [NodeConformance] [Conformance]'
+  --
+    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+  #+end_example

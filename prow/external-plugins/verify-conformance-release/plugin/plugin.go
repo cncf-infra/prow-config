@@ -31,15 +31,32 @@ import (
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
+	"path"
+	"net/http"
+	"io/ioutil"
+	"github.com/golang-collections/collections/set"
 )
 
 const (
 	PluginName     = "verify-conformance-request"
 	needsVersionReview = "Please ensure that the logs provided correspond to the version referenced in the title of this PR."
-	verifyLabel    = "Verified version"
+	verifyLabel    = "release consistent"
 )
 
 var sleep = time.Sleep
+//var requiredProductFieldsSet = set.New("vendor", "name", "version", "website_url", "repo_url", "documentation_url", "product_logo_url", "type", "description")
+var requiredProductFieldsSet = set.New("vendor", "name", "version", "website_url", "documentation_url", "product_logo_url", "type", "description")
+var requiredProductFields = map[string]string {
+	"vendor" : "Name of the legal entity that is certifying. This entity must have a signed participation form on file with the CNCF",
+	"name" : "Name of the product being certified.",
+	"version" : "The version of the product being certified (not the version of Kubernetes it runs).",
+	"website_url" : "URL to the product information website",
+	//"repo_url" : "If your product is open source, this field is necessary to point to the primary GitHub repo containing the source. It's OK if this is a mirror. OPTIONAL",
+	"documentation_url" : "URL to the product documentation",
+	"product_logo_url" : "URL to the product's logo, (must be in SVG, AI or EPS format -- not a PNG -- and include the product name). OPTIONAL. If not supplied, we'll use your company logo. Please see logo guidelines",
+	"type" : "Is your product a distribution, hosted platform, or installer (see definitions)",
+	"description" :	"One sentence description of your offering",
+}
 
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
@@ -168,10 +185,11 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                 hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
 
 		prLogger := log.WithFields(logrus.Fields{
-			"org":  org,
-			"repo": repo,
-			"prNumber":   prNumber,
-                        "release": releaseVersion,
+			//"org":  org,
+			//"repo": repo,
+			"pr":   prNumber,
+                        "title": pr.Title,
+                        "statedRelease": releaseVersion,
 		})
 
                 if err != nil {
@@ -179,15 +197,16 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request" )
                 }
 
+		hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
                 if hasReleaseInTitle && !hasReleaseLabel {
-                        logsHaveSpecifiedRelease, err := checkLogsForK8sRelease(prLogger, ghc, org, repo, prNumber, sha, releaseVersion)
+                        changesHaveSpecifiedRelease, err := checkChangesHaveStatedK8sRelease(prLogger, ghc, org, repo, prNumber, sha, releaseVersion)
 
                         if err != nil {
-                                prLogger.WithError(err).Error("Failed to find a releaseVersion in files")
+                                prLogger.WithError(err)
                         }
 
-                        hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
-                        if logsHaveSpecifiedRelease && !hasReleaseLabel {
+			log.Infof("cHSR returns %v", changesHaveSpecifiedRelease)
+			if changesHaveSpecifiedRelease && !hasReleaseLabel {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + " in logs" )
@@ -197,11 +216,48 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         } else { // specifiedRelease not present in logs
                                 if !hasNotVerifiableLabel {
                                         githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
-                                        githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable. We cannot find a reference to " + releaseVersion + " in the logs you supplied with this PR")
+					//githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable.")
+
+					// TODO move changesHaveSpecifiedRelease back into handleall
+					// I need to report on individual failures to apply the correct lable
+					// the following code is a repeat of the same code we declared in changesHaveSpecifiedRelease
+					e2eLogHasRelease := false
+					productYamlCorrect := false
+					foldersCorrect := false
+
+					changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
+					if err != nil {
+						prLogger.WithError(err)
+					}
+					var supportingFiles = make ( map[string] github.PullRequestChange  )
+					for _ , change := range changes {
+						// https://developer.github.com/v3/pulls/#list-pull-requests-files
+						supportingFiles[path.Base(change.Filename)] = change
+						//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
+					}
+
+					productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
+					foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
+					e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], releaseVersion)
+
+					// This is why I repeat the code above, I need to be able to write individual lables based on failure reason
+
+					if !productYamlCorrect {
+						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
+						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product.yaml file have all the fields listed in https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml .")
+					}
+					if !e2eLogHasRelease {
+						prLogger.Infof("eLHR in HANDLEALL e2eLogHasRelease returned %v\n",e2eLogHasRelease)
+						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your e2e logs reference the release you are submitting for")
+					}
+					if !foldersCorrect{
+						prLogger.Infof("fC in HANDLEALL foldersCorrect returned %v\n",foldersCorrect)
+						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your supporting files are in the correct folder.")
+					}
                                 }
                         }
-                } else if !hasReleaseLabel {
-                        githubClient.AddLabel(ghc, org, repo, prNumber, "not verifiable")
+                } else if !hasNotVerifiableLabel {
+                        githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
                         githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request is not yet verifiable. Please ensure that PR Title refernces the Kubernetes Release and that the supplied logs refer to the specified Release")
 		} else {
                        break
@@ -294,30 +350,163 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 	return nil
 }
 
-// Checks changes associated with the supplied sha to see if the contain a reference to k8sRelease
-// returns true if k8sRelease found , false otherwise
-func checkLogsForK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo string, prNumber int, sha, k8sRelease string ) (bool,error) {
-	logsHaveStatedRelease := false
+// Checks that changes associated with the pull request contain correct references to k8sRelease
+// returns true if k8sRelease found in both the paths to the files and the files themselves, false otherwise
+// error contains information as to where the release was missing
+func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo string, prNumber int, sha, k8sRelease string ) (bool,error) {
+	changesHaveStatedRelease := false
+
+	e2eLogHasRelease := false
+	productYamlCorrect := false
+	foldersCorrect := false
+
+	missingProductFields := set.New()
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
+
 	if err != nil {
-		return logsHaveStatedRelease, err
+		return changesHaveStatedRelease, err
+		prLogger.WithError(err)
 	}
 
-	prLogger.Infof("checkLogsForK8sRelease: %+v", changes)
-
+	// Create a map of filenames to changes associated with the filename
+	// we are doing this so that we can handle all of the file specific
+	// checks that we need to do
+        var supportingFiles = make ( map[string] github.PullRequestChange  )
 	for _ , change := range changes {
 		// https://developer.github.com/v3/pulls/#list-pull-requests-files
-		patchContainsVersion, err := regexp.MatchString(`v[0-9]\.[0-9][0-9]*`, change.Patch)
-		if err != nil {
-			return logsHaveStatedRelease, err
-		}
-
-		if (patchContainsVersion){
-			logsHaveStatedRelease =true
-		}
-
+		supportingFiles[path.Base(change.Filename)] = change
+		//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 	}
-	return logsHaveStatedRelease , err
+
+	// Do all our checks
+	// e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
+	productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
+	foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, k8sRelease)
+	e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
+
+	prLogger.Infof("pYC productYamlCorrect returned %v\n",productYamlCorrect)
+	prLogger.Infof("fC foldersCorrect returned %v\n",foldersCorrect)
+	prLogger.Infof("eLHR e2eLogHasRelease %v\n",e2eLogHasRelease)
+
+	if ( e2eLogHasRelease && productYamlCorrect && foldersCorrect) {
+		changesHaveStatedRelease = true
+	} else {
+		// TODO we may want to consider more maintainable and more complete error reporting here
+		// Leave this for now implemnt checks first
+		var errMsg strings.Builder
+		if !e2eLogHasRelease {
+			fmt.Fprintf(&errMsg, "Release %s missing from e2e.log file\n", k8sRelease)
+		}
+
+		if !productYamlCorrect {
+			fmt.Fprintf(&errMsg, "Product.YAML is missing the following required fields %v", missingProductFields)
+			prLogger.Infof("fC should be logging the fields missing from  %v\n", missingProductFields)
+		}
+
+		if !foldersCorrect {
+			fmt.Fprintf(&errMsg, "The files supplied for release %s are not in the correct folders", k8sRelease )
+		}
+
+		err = fmt.Errorf(errMsg.String())
+	}
+
+	prLogger.WithError(err)
+	return changesHaveStatedRelease, err
+}
+
+func checkPatchContainsRelease(log *logrus.Entry, change github.PullRequestChange, k8sRelease string)(bool){
+	log.Infof("checkPatchContainsRelease: patch is %v\n ",change.Patch)
+	return strings.Contains(change.Patch, k8sRelease)
+}
+
+func checkFilesAreInCorrectFolders(log *logrus.Entry, changes map[string] github.PullRequestChange, k8sRelease string)(bool){
+	filesAreInCorrectReleaseFoldersBool := false
+
+	for _ , change := range changes {
+		filesAreInCorrectReleaseFolders := strings.Contains(change.Filename, k8sRelease)
+		if filesAreInCorrectReleaseFolders {
+			log.Infof("cFAICF found files only in stated  release folder %s", k8sRelease)
+                        filesAreInCorrectReleaseFoldersBool = true
+			break
+		}
+	}
+	return filesAreInCorrectReleaseFoldersBool
+
+}
+
+// takes a patchUrl from a githubClient.PullRequestChange and transforms it
+// to produce the url that delivers the raw file associated with the patch.
+// Tested for small files.
+func patchUrlToFileUrl(patchUrl string) (string){
+	fileUrl := strings.Replace(patchUrl, "github.com", "raw.githubusercontent.com", 1)
+	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
+        return fileUrl
+}
+// Retrieves e2eLogfile and checks that it contains k8sRelease
+func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) (bool){
+        e2eLogHasStatedRelease := false
+
+        fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cELHR : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+
+	// Make a set that contains all the key fields in the Product YAML file
+        // TODO Check to see if string(body) performant
+	for _, line := range strings.Split(string(body), "\n") {
+                if strings.Contains(line, k8sRelease){
+                        log.Infof("cELHR found stated release!! %s",line)
+                        e2eLogHasStatedRelease = true
+                        break
+                }
+        }
+        return e2eLogHasStatedRelease
+
+}
+
+func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool){
+	allRequiredFieldsPresent := false
+	productFields := set.New()
+	// ref https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml
+
+	// TODO return a list of the missing fields
+	// missingFields  := make([]string, len(requiredProductFields))
+	log.Infof("cPYHRf: PY CHANGE %+v\n",productYaml)
+
+        fileUrl := patchUrlToFileUrl(productYaml.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cPYHRf : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("cPYHRf : %+v",err)
+	}
+
+	// Make a set that contains all the key fields in the Product YAML file
+	for _, line := range strings.Split(string(body), "\n") {
+		// extract the key field regEx start of line to first occurance of :
+		key := strings.Split(line,":")
+		// Add key to fieldSet
+		if len(key[0]) > 0 {
+			log.Infof("%s", key[0])
+			productFields.Insert(key[0])
+		}
+	}
+	// Difference the requiredFieldsSet against productFields found here
+	difference := requiredProductFieldsSet.Difference(productFields)
+
+	if difference.Len() == 0 {
+		allRequiredFieldsPresent = true
+	} else {
+		log.Infof("THESE FIELDS ARE MISSING! %v", difference)
+	}
+	return allRequiredFieldsPresent
 }
 
 func shouldPrune(botName string) func(github.IssueComment) bool {
@@ -337,6 +526,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	var remaining int
 	for {
 		sq := SearchQuery{}
+		log.Infof("query \"%s\" ", q)
 		if err := ghc.Query(ctx, &sq, vars); err != nil {
 			return nil, err
 		}

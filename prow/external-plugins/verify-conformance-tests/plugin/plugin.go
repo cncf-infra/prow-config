@@ -1,5 +1,5 @@
 /*
-Copyright 2020 CNCF # TODO Check
+Copyright 2020 CNCF TODO Check how this code should be licensed
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@ limitations under the License.
 package plugin
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"strings"
+        "regexp"
+        "strings"
 	"time"
 
 	githubql "github.com/shurcooL/githubv4"
@@ -28,15 +27,27 @@ import (
 
 	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/labels"
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
+	"net/http"
+	"io/ioutil"
+	"gopkg.in/yaml.v2"
+	// 	"github.com/golang-collections/collections/set"
+	"path"
+	"encoding/xml"
 )
 
 const (
-	PluginName      = verify.ConformanceTests
-	verMismatchMsg  = "Conformance request is for %s but logs refer to version %s. Please ensure that the logs provided correspond to the version referenced in the title of this PR "
+	PluginName     = "verify-conformance-tests"
 )
+
+type ConformanceTestMetaData struct {
+        Testname string `yaml:"testname"`
+        Codename string `yaml:"codename"`
+        Description string `yaml:"description"`
+        Release string `yaml:"release"`
+        File string `yaml:"file"`
+}
 
 var sleep = time.Sleep
 
@@ -46,10 +57,10 @@ type githubClient interface {
 	BotName() (string, error)
 	AddLabel(org, repo string, number int, label string) error
 	RemoveLabel(org, repo string, number int, label string) error
-	IsMergeable(org, repo string, number int, sha string) (bool, error)
 	DeleteStaleComments(org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
 	Query(context.Context, interface{}, map[string]interface{}) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
+	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
 }
 
 type commentPruner interface {
@@ -60,159 +71,430 @@ type commentPruner interface {
 // HelpProvider defines the type for the function that constructs the PluginHelp for plugins.
 func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 	return &pluginhelp.PluginHelp{
-		Description: `The Conformance Request plugin inspects the contents of PRs that request Conformance Certification for Kubernetes.`,
-	},
+			Description: `The Verify Conformance Tests plugin checks that all required conformance tests have been run for the stated version of Kubernetes`,
+		},
 		nil
 }
 
-// HandlePullRequestEvent handles a GitHub pull request event
-func HandlePullRequestEvent(log *logrus.Entry, ghc githubClient, pre *github.PullRequestEvent) error {
-	if pre.Action != github.PullRequestActionOpened && pre.Action != github.PullRequestActionSynchronize && pre.Action != github.PullRequestActionReopened {
-		return nil
-	}
+func getRequiredTests(log *logrus.Entry, k8sRelease string) [] ConformanceTestMetaData{
+	// TODO we are effectively hardcoding this and we may layer this out
+	// Key'd by k8s release map that points to URLs containing the required conformance tests for that release
+	var conformanceTests = map[string]string {
+                "release-v1.15": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.15/test/conformance/testdata/conformance.txt",
+                        "v1.16": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.16/test/conformance/testdata/conformance.txt",
+                        "v1.17": "https://raw.githubusercontent.com/kubernetes/kubernetes/blob/release-1.17/test/conformance/testdata/conformance.txt",
+                        "v1.18": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.18/test/conformance/testdata/conformance.yaml",
+                        "master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
+                }
 
-	return handle(log, ghc, &pre.PullRequest)
+	var requiredConformanceSuite []ConformanceTestMetaData
+        confTestSuiteUrl := conformanceTests[k8sRelease]
+
+	resp, err := http.Get(confTestSuiteUrl)
+        if resp.StatusCode > 199 && resp.StatusCode < 300 {
+                // TODO check body for 404
+                if err != nil {
+                        log.Errorf("Error retrieving conformance tests metadata from : %s", confTestSuiteUrl)
+                        log.Errorf("HTTP Reponse was: %+v", resp)
+                        log.Errorf("getRequiredTests : %+v",err)
+                }
+                defer resp.Body.Close()
+                body, _ := ioutil.ReadAll(resp.Body) // TODO Handle err
+
+
+                err = yaml.Unmarshal(body, &requiredConformanceSuite)
+                if err != nil{
+                        log.Errorf("Cannot unmarshal data. Reason:  %v\n",err)
+                }
+        }
+	return requiredConformanceSuite
 }
 
-// HandleIssueCommentEvent handles a GitHub issue comment event and adds or removes a
-// wantning message indicating that there are inconsitencies in the version of Kubernetes
-// referenced in the title of the PR versus the log file evidence supplied in the associated commit.
-func HandleIssueCommentEvent(log *logrus.Entry, ghc githubClient, ice *github.IssueCommentEvent) error {
-	if !ice.Issue.IsPullRequest() {
-		return nil
-	}
-	pr, err := ghc.GetPullRequest(ice.Repo.Owner.Login, ice.Repo.Name, ice.Issue.Number)
-	if err != nil {
-		return err
-	}
-
-	return handle(log, ghc, pr)
-}
-
-// handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
-// Adds a comment to indicate whther or not the version in the PR title occurs in the supplied logs.
-func handle(log *logrus.Entry, ghc githubClient, pr *github.PullRequest) error {
-	if pr.Merged {
-		return nil
-	}
-	// Before checking mergeability wait a few seconds to give github a chance to calculate it.
-	// This initial delay prevents us from always wasting the first API token.
-	sleep(time.Second * 5)
-
-	org := pr.Base.Repo.Owner.Login
-	repo := pr.Base.Repo.Name
-	number := pr.Number
-	sha := pr.Head.SHA
-
-	verifiable, err := IsVerifiable(org, repo, number, sha)
-	if err != nil {
-		return err
-	}
-	issueLabels, err := ghc.GetIssueLabels(org, repo, number)
-	if err != nil {
-		return err
-	}
-	hasLabel := github.HasLabel(labels.Verifiable, issueLabels)
-
-	return takeAction(log, ghc, org, repo, number, pr.User.Login, hasLabel, verifiable)
-}
-
-// HandleAll checks all orgs and repos that enabled this plugin for open PRs to
-// determine if the "needs-rebase" label needs to be added or removed. It
-// depends on GitHub's mergeability check to decide the need for a rebase.
-/**
+// HandleAll checks verifiable certification pull requests to insure that all required
+// tests for the stated k8s release (e.g. release-1.19) have been executed and have passed.
+// the following labels will be added depending on the outcome of checking the tests
+// TODO add labels
 func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuration) error {
-	log.Info("Checking all PRs.")
-	orgs, repos := config.EnabledReposForExternalPlugin(PluginName)
-	if len(orgs) == 0 && len(repos) == 0 {
-		log.Warnf("No repos have been configured for the %s plugin", PluginName)
-		return nil
-	}
-	var buf bytes.Buffer
-	fmt.Fprint(&buf, "archived:false is:pr is:open")
-	for _, org := range orgs {
-		fmt.Fprintf(&buf, " org:\"%s\"", org)
-	}
-	for _, repo := range repos {
-		fmt.Fprintf(&buf, " repo:\"%s\"", repo)
-	}
-	prs, err := search(context.Background(), log, ghc, buf.String())
-	if err != nil {
-		return err
-	}
-	log.Infof("Considering %d PRs.", len(prs))
+	var queryString = "archived:false is:pr is:open label:verifiable repo:\"cncf-infra/k8s-conformance\""
+	//	var queryString = "1026 repo:\"cncf-infra/k8s-conformance\""
+	pullRequests, err := getPullRequests(log, ghc, queryString)
+        if err != nil {
+                log.Error(err)
+        }
 
-	for _, pr := range prs {
-		// Skip PRs that are calculating mergeability. They will be updated by event or next loop.
-		if pr.Mergeable == githubql.MergeableStateUnknown {
-			continue
-		}
+	for _, pr := range pullRequests {
+
 		org := string(pr.Repository.Owner.Login)
 		repo := string(pr.Repository.Name)
-		num := int(pr.Number)
-		l := log.WithFields(logrus.Fields{
-			"org":  org,
-			"repo": repo,
-			"pr":   num,
-		})
-		hasLabel := false
-		for _, label := range pr.Labels.Nodes {
-			if label.Name == labels.NeedsRebase {
-				hasLabel = true
-				break
+		prNumber := int(pr.Number)
+
+                releaseVersion := getReleaseFromLabel(log, org, repo, prNumber, ghc)
+                changes, _ := getChangeMap(ghc, org, repo, prNumber)
+
+                // Add fields from this PR to logger
+                prLogger := log.WithFields(logrus.Fields{"pr": prNumber, "title": pr.Title, "release": releaseVersion })
+
+		requiredTests := getRequiredTests(prLogger, releaseVersion) // retrieves the conformance.yaml for this release
+		submittedTests, err := getSubmittedConformanceTests(prLogger, changes["junit_01.xml"])
+                if err != nil {
+                        prLogger.WithError(err)
+                }
+		submittedTestsPresent, missingTests := checkAllRequiredTestsArePresent(requiredTests, submittedTests)
+                prLogger.Infof("submittedTestsPresent %t : missingTests are %v\n",submittedTestsPresent, missingTests)
+
+		if submittedTestsPresent {
+                        testRunEvidenceCorrect , err := checkE2eLogHasZeroTestFailures(prLogger, changes["e2e.log"])
+                        hasVerifiedLabel, err := HasVerifiedLabel(log, org, repo, prNumber, ghc, "verified-"+releaseVersion)
+                        if err != nil {
+                                prLogger.WithError(err)
+                        }
+                        if !hasVerifiedLabel{
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "verified-"+releaseVersion)
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed"  )
+                        }
+
+                        if testRunEvidenceCorrect {
+                                hasNoTestFaiLabel, err := HasNoTestFailLabel(log, org, repo, prNumber, ghc, "noFailedTests-"+releaseVersion)
+                                if err != nil {
+                                        prLogger.WithError(err)
+                                }
+
+                                if !hasNoTestFaiLabel{
+                                        githubClient.AddLabel(ghc, org, repo, prNumber, "noFailedTests-"+releaseVersion)
+                                        githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed"  )
+                                }
+                        } else { // specifiedRelease not present in logs
+
+                                hasNoEvidenceMissingLabel, err := HasNoEvidenceMissingLabel(log, org, repo, prNumber, ghc, "evidence-missing")
+                                if err != nil {
+                                        prLogger.WithError(err)
+                                }
+
+                                if !hasNoEvidenceMissingLabel{
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
+                                githubClient.CreateComment(ghc, org, repo, prNumber,
+                                        "This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
+                                }
 			}
+                } else {
+                        hasNoRequiredTestsMissingLabel, err := HasNoRequiredTestsMissingLabel(log, org, repo, prNumber, ghc, "required-tests-missing")
+                        if err != nil {
+                                prLogger.WithError(err)
+                        }
+                        if !hasNoRequiredTestsMissingLabel{
+
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
+                                githubClient.CreateComment(ghc, org, repo, prNumber,
+                                        "This conformance request failed to include all of the required tests for " + releaseVersion)
+
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be mssing was " + missingTests[0])
+                        }
 		}
-		err := takeAction(
-			l,
-			ghc,
-			org,
-			repo,
-			num,
-			string(pr.Author.Login),
-			hasLabel,
-			pr.Mergeable == githubql.MergeableStateMergeable,
-		)
-		if err != nil {
-			l.WithError(err).Error("Error handling PR.")
-		}
-	}
+        }
 	return nil
 }
-*/
+// hasNoRequiredTestsMissingLabel checks if the evidence-missing label has been set
+func HasNoRequiredTestsMissingLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
 
-// takeAction adds or removes the "needs-rebase" label based on the current
-// state of the PR (hasLabel and mergeable). It also handles adding and
-// removing GitHub comments notifying the PR author that a rebase is needed.
-func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, author string, hasLabel, verifiable bool) error {
-	if !verifiable && !hasLabel {
-		if err := ghc.AddLabel(org, repo, num, labels.NeedsRebase); err != nil {
-			log.WithError(err).Errorf("Failed to add %q label.", labels.NeedsRebase)
-		}
-		msg := plugins.FormatSimpleResponse(author, needsRebaseMessage)
-		return ghc.CreateComment(org, repo, num, msg)
-	} else if verifiable && hasLabel {
-		// remove label and prune comment
-		if err := ghc.RemoveLabel(org, repo, num, labels.NeedsRebase); err != nil {
-			log.WithError(err).Errorf("Failed to remove %q label.", labels.NeedsRebase)
-		}
-		botName, err := ghc.BotName()
-		if err != nil {
-			return err
-		}
-		return ghc.DeleteStaleComments(org, repo, num, nil, shouldPrune(botName))
-	}
-	return nil
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+                        hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
 }
 
-func shouldPrune(botName string) func(github.IssueComment) bool {
-	return func(ic github.IssueComment) bool {
-		return github.NormLogin(botName) == github.NormLogin(ic.User.Login) &&
-			strings.Contains(ic.Body, needsRebaseMessage)
-	}
+// hasNoEvidenceMissingLabel checks if the evidence-missing label has been set
+func HasNoEvidenceMissingLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+                        hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
 }
 
-func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) ([]pullRequest, error) {
-	var ret []pullRequest
+// hasNoTestFailLabel checks if the noTestFail-releaseVersion label has been set
+func HasNoTestFailLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+        prLogger.WithError(err).Error("Failed to find labels")
+}
+
+        for foundLabel := range labels {
+        releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+        if releaseCheck == 0 {
+                hasReleaseLabel = true
+                break
+        }
+}
+
+        return hasReleaseLabel, err
+}
+
+
+// hasVerifiedLabel checks if the verified-releaseVersion has been set
+func HasVerifiedLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+			hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
+}
+
+
+// getPullRequests sends a github query to retrieve an array of PullRequest
+func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([]PullRequest , error ){
+
+	pullRequests, err := prSearch(context.Background(), log, ghc, queryString)
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Considering %d verifiable PRs.", len(pullRequests))
+
+	return pullRequests, nil
+}
+// getSubmittedConformanceTests returns an array of test names that are tagged as [Conformance]
+// in the junit_01.xml file submitted by the vendor in the changes associated with the certification request PR
+func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullRequestChange) ([]string, error) {
+	submittedTests := []string {}
+
+        jUnitUrl := patchUrlToFileUrl(junitFile.BlobURL)
+
+	resp, err := http.Get(jUnitUrl)
+	if err != nil {
+		prLogger.Errorf("gSTTP: %#v",err)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+        type TestCase struct {
+                XMLName      xml.Name `xml:"testcase"`
+                Name         string `xml:"name,attr"`
+        }
+        var conformanceRequirement struct {
+                TestSuite []TestCase `xml:"testcase"`
+        }
+
+	if err := xml.Unmarshal(body, &conformanceRequirement); err != nil {
+		prLogger.Fatal(err)
+	}
+
+        submittedTests = make([]string, 0)
+        for _, testcase:= range conformanceRequirement.TestSuite {
+                if strings.Contains(testcase.Name, "[Conformance]"){
+                        submittedTests = append(submittedTests, testcase.Name)
+                }
+        }
+
+	return submittedTests, nil
+}
+// getChangeMap returns a map of base filenames to the github.PullRequestChange and nil
+// returns an err if there is a problem talking to Github
+func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]github.PullRequestChange, error) {
+	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
+
+	if err != nil {
+		return nil , err
+	}
+
+        var supportingFiles = make ( map[string] github.PullRequestChange )
+
+	for _ , change := range changes {
+		// https://developer.github.com/v3/pulls/#list-pull-requests-files
+		supportingFiles[path.Base(change.Filename)] = change
+	}
+        return supportingFiles,nil
+}
+// checkAllRequiredTestsArePresent returns true if the test array submitted by the vendor has all tests that
+// are required for certification conformance, otherwise returns false and an array of missing tests.
+func checkAllRequiredTestsArePresent(required[] ConformanceTestMetaData, submitted []string ) ( bool, []string ) {
+	allTestsPresent := true
+        missingTests := []string {}
+        tempTestCountMap := map[string]int{}
+
+        for _, test := range required {
+		tempTestCountMap[test.Codename] ++
+        }
+        for _, test := range submitted {
+               tempTestCountMap[test] --
+        }
+
+        for test, count := range tempTestCountMap {
+                if count != 0 {
+                        allTestsPresent = false
+                        missingTests = append(missingTests,test)
+                }
+        }
+	return allTestsPresent, missingTests
+}
+
+// checkE2eLogHasZeroTestFailures returns true if the e2eLog has a zero count for failed tests
+func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequestChange) (bool,error){
+	zeroTestFailures := false
+        e2eNoTestsFailed := "\"failed\":0"
+        e2eMainTestSuite := "\"Test Suite starting\""
+
+        fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cELHR : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	for _, line := range strings.Split(string(body), "\n") {
+                if strings.Contains(line, e2eMainTestSuite){
+                        if strings.Contains(line, e2eNoTestsFailed){
+                                log.Infof("found evidence that no tests have failed %s",line)
+                                zeroTestFailures = true
+                                break
+                        }
+                }
+        }
+        return zeroTestFailures, nil
+}
+
+// TODO Consolodate this and the next function to cerate a map of labels
+func HasNotVerifiableLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient) (bool,error) {
+        hasNotVerifiableLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                notVerifiableCheck := strings.Compare(labels[foundLabel].Name,"not-verifiable")
+                if notVerifiableCheck == 0 {
+			hasNotVerifiableLabel = true
+                        break
+                }
+        }
+
+        return hasNotVerifiableLabel, err
+}
+func getReleaseFromLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient) (string) {
+	release := ""
+	hasRelease := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("GetReleaseLabel : Failed to find labels")
+        }
+
+        for _, foundLabel := range labels {
+		// I had error that release was being declared but not used. I see you changed line 225?
+		// What did I miss? I need to figure out foundLabel. Can we spend a few minutes reviewing?
+		hasRelease, release = findRelease(prLogger, foundLabel.Name)
+		if hasRelease {
+			break
+		}
+        }
+
+        return release
+}
+
+func findRelease(log *logrus.Entry, word string)  (bool, string) {
+        hasRelease := false
+        k8sRelease := ""
+        k8sVerRegExp := regexp.MustCompile(`v[0-9]\.[0-9][0-9]*`)
+        containsVersion, err := regexp.MatchString(`v[0-9]\.[0-9][0-9]*`, word)
+        if err != nil {
+                log.WithError(err).Error("Error matching k8s version in %s",word)
+        }
+        if (containsVersion) {
+                k8sRelease = k8sVerRegExp.FindString(word)
+                log.WithFields(logrus.Fields{
+                        "Version": k8sRelease,
+                })
+                hasRelease = true
+        }
+        return hasRelease, k8sRelease
+}
+
+// takes a patchUrl from a githubClient.PullRequestChange and transforms it
+// to produce the url that delivers the raw file associated with the patch.
+// Tested for small files.
+func patchUrlToFileUrl(patchUrl string) (string){
+	fileUrl := strings.Replace(patchUrl, "github.com", "raw.githubusercontent.com", 1)
+	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
+        return fileUrl
+}
+
+// Retrieves e2eLogfile and checks that it contains k8sRelease
+func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) (bool){
+        e2eLogHasStatedRelease := false
+
+        fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cELHR : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+
+	// Make a set that contains all the key fields in the Product YAML file
+        // TODO Check to see if string(body) performant
+	for _, line := range strings.Split(string(body), "\n") {
+                if strings.Contains(line, k8sRelease){
+                        log.Infof("cELHR found stated release!! %s",line)
+                        e2eLogHasStatedRelease = true
+                        break
+                }
+        }
+        return e2eLogHasStatedRelease
+
+}
+
+// Retrves conformance.yaml so we can create a map from it
+func createMapOfRequirements(log *logrus.Entry,  k8sRelease string) (bool){
+        e2eLogHasStatedRelease := false
+
+        return e2eLogHasStatedRelease
+
+}
+
+// prSearch executes a search query q using GitHub client ghc to find PullRequests that match the query in q
+// return array of PullRequests found and err is set if there is a problem
+func prSearch(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) ([]PullRequest, error) {
+	var ret []PullRequest
 	vars := map[string]interface{}{
 		"query":        githubql.String(q),
 		"searchCursor": (*githubql.String)(nil),
@@ -220,7 +502,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	var totalCost int
 	var remaining int
 	for {
-		sq := searchQuery{}
+		sq := SearchQuery{}
 		if err := ghc.Query(ctx, &sq, vars); err != nil {
 			return nil, err
 		}
@@ -234,12 +516,11 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 		}
 		vars["searchCursor"] = githubql.NewString(sq.Search.PageInfo.EndCursor)
 	}
-	log.Infof("Search for query \"%s\" cost %d point(s). %d remaining.", q, totalCost, remaining)
+	log.Infof("Search for query \"%s\" cost %d point(s). %d remaining. ", q, totalCost, remaining)
 	return ret, nil
 }
 
-// TODO(spxtr): Add useful information for frontend stuff such as links.
-type pullRequest struct {
+type PullRequest struct {
 	Number githubql.Int
 	Author struct {
 		Login githubql.String
@@ -255,10 +536,22 @@ type pullRequest struct {
 			Name githubql.String
 		}
 	} `graphql:"labels(first:100)"`
-	Mergeable githubql.MergeableState
+        Files struct {
+                Nodes []struct {
+                        Path githubql.String
+                }
+	} `graphql:"files(first:10)"`
+	Title githubql.String
+	Commits struct {
+		Nodes []struct {
+			Commit struct {
+				Oid githubql.String
+			}
+		}
+	} `graphql:"commits(first:5)"`
 }
 
-type searchQuery struct {
+type SearchQuery struct {
 	RateLimit struct {
 		Cost      githubql.Int
 		Remaining githubql.Int
@@ -269,7 +562,7 @@ type searchQuery struct {
 			EndCursor   githubql.String
 		}
 		Nodes []struct {
-			PullRequest pullRequest `graphql:"... on PullRequest"`
+			PullRequest PullRequest `graphql:"... on PullRequest"`
 		}
 	} `graphql:"search(type: ISSUE, first: 100, after: $searchCursor, query: $query)"`
 }
