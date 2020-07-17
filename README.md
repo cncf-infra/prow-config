@@ -1,12 +1,3 @@
----
-title: 'Document k8s-conformance gate'
----
-
-
-## Table of Contents
-
-[TOC]
-
 ## High level overview
 
 [Project board](https://github.com/cncf/apisnoop/projects/29)
