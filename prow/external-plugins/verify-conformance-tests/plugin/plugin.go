@@ -154,7 +154,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         } else { // specifiedRelease not present in logs
 				githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
 				githubClient.CreateComment(ghc, org, repo, prNumber,
-					"This conformance request has the correct list of tests present in the junit file but is missing evidence from the e2e log file")
+					"This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
 			}
                 } else {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
@@ -259,6 +259,7 @@ func checkAllRequiredTestsArePresent(required[] ConformanceTestMetaData, submitt
 func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequestChange) (bool,error){
 	zeroTestFailures := false
         e2eNoTestsFailed := "\"failed\":0"
+        e2eMainTestSuite := "\"Test Suite starting\""
 
         fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
 	resp, err := http.Get(fileUrl)
@@ -269,10 +270,12 @@ func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequ
 	body, err := ioutil.ReadAll(resp.Body)
 
 	for _, line := range strings.Split(string(body), "\n") {
-                if strings.Contains(line, e2eNoTestsFailed){
-                        log.Infof("found evidence that no tests have failed %s",line)
-                        zeroTestFailures = true
-                        break
+                if strings.Contains(line, e2eMainTestSuite){
+                        if strings.Contains(line, e2eNoTestsFailed){
+                                log.Infof("found evidence that no tests have failed %s",line)
+                                zeroTestFailures = true
+                                break
+                        }
                 }
         }
         return zeroTestFailures, nil
