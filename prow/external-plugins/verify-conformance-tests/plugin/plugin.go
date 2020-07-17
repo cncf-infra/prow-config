@@ -144,28 +144,137 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
 		if submittedTestsPresent {
                         testRunEvidenceCorrect , err := checkE2eLogHasZeroTestFailures(prLogger, changes["e2e.log"])
+                        hasVerifiedLabel, err := HasVerifiedLabel(log, org, repo, prNumber, ghc, "verified-"+releaseVersion)
                         if err != nil {
                                 prLogger.WithError(err)
                         }
-
-                        if testRunEvidenceCorrect {
+                        if !hasVerifiedLabel{
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verified-"+releaseVersion)
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed"  )
+                        }
+
+                        if testRunEvidenceCorrect {
+                                hasNoTestFaiLabel, err := HasNoTestFailLabel(log, org, repo, prNumber, ghc, "noFailedTests-"+releaseVersion)
+                                if err != nil {
+                                        prLogger.WithError(err)
+                                }
+
+                                if !hasNoTestFaiLabel{
+                                        githubClient.AddLabel(ghc, org, repo, prNumber, "noFailedTests-"+releaseVersion)
+                                        githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed"  )
+                                }
                         } else { // specifiedRelease not present in logs
-				githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
-				githubClient.CreateComment(ghc, org, repo, prNumber,
-					"This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
+
+                                hasNoEvidenceMissingLabel, err := HasNoEvidenceMissingLabel(log, org, repo, prNumber, ghc, "evidence-missing")
+                                if err != nil {
+                                        prLogger.WithError(err)
+                                }
+
+                                if !hasNoEvidenceMissingLabel{
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
+                                githubClient.CreateComment(ghc, org, repo, prNumber,
+                                        "This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
+                                }
 			}
                 } else {
-                        githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
-                        githubClient.CreateComment(ghc, org, repo, prNumber,
-                                "This conformance request failed to include all of the required tests for " + releaseVersion)
+                        hasNoRequiredTestsMissingLabel, err := HasNoRequiredTestsMissingLabel(log, org, repo, prNumber, ghc, "required-tests-missing")
+                        if err != nil {
+                                prLogger.WithError(err)
+                        }
+                        if !hasNoRequiredTestsMissingLabel{
 
-                        githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be mssing was " + missingTests[0])
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "required-tests-missing")
+                                githubClient.CreateComment(ghc, org, repo, prNumber,
+                                        "This conformance request failed to include all of the required tests for " + releaseVersion)
+
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be mssing was " + missingTests[0])
+                        }
 		}
         }
 	return nil
 }
+// hasNoRequiredTestsMissingLabel checks if the evidence-missing label has been set
+func HasNoRequiredTestsMissingLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+                        hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
+}
+
+// hasNoEvidenceMissingLabel checks if the evidence-missing label has been set
+func HasNoEvidenceMissingLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+                        hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
+}
+
+// hasNoTestFailLabel checks if the noTestFail-releaseVersion label has been set
+func HasNoTestFailLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+        prLogger.WithError(err).Error("Failed to find labels")
+}
+
+        for foundLabel := range labels {
+        releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+        if releaseCheck == 0 {
+                hasReleaseLabel = true
+                break
+        }
+}
+
+        return hasReleaseLabel, err
+}
+
+
+// hasVerifiedLabel checks if the verified-releaseVersion has been set
+func HasVerifiedLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, verifiedLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                releaseCheck := strings.Compare(labels[foundLabel].Name,verifiedLabel)
+                if releaseCheck == 0 {
+			hasReleaseLabel = true
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
+}
+
+
 // getPullRequests sends a github query to retrieve an array of PullRequest
 func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([]PullRequest , error ){
 
