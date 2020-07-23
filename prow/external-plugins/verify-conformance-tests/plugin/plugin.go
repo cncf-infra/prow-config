@@ -34,20 +34,13 @@ import (
 	"net/http"
 	// 	"github.com/golang-collections/collections/set"
 	"encoding/xml"
+	"github.com/hashicorp/go-version"
 	"path"
 )
 
 const (
 	PluginName = "verify-conformance-tests"
 )
-
-type ConformanceTestMetaData struct {
-	Testname    string `yaml:"testname"`
-	Codename    string `yaml:"codename"`
-	Description string `yaml:"description"`
-	Release     string `yaml:"release"`
-	File        string `yaml:"file"`
-}
 
 var sleep = time.Sleep
 
@@ -76,7 +69,15 @@ func HelpProvider(_ []config.OrgRepo) (*pluginhelp.PluginHelp, error) {
 		nil
 }
 
-func getRequiredTests(log *logrus.Entry, k8sRelease string) []ConformanceTestMetaData {
+type ConformanceTestMetaData struct {
+	Testname    string `yaml:"testname"`
+	Codename    string `yaml:"codename"`
+	Description string `yaml:"description"`
+	Release     string `yaml:"release"`
+	File        string `yaml:"file"`
+}
+
+func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
 	// TODO we are effectively hardcoding this and we may layer this out
 	// Key'd by k8s release map that points to URLs containing the required conformance tests for that release
 
@@ -99,17 +100,25 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) []ConformanceTestMet
 			log.Errorf("Cannot unmarshal data. Reason:  %v\n", err)
 		}
 	}
-	requiredConformanceSuiteForRelease = make(map[string]bool, 0)
-	v1, err := version.NewVersion(k8sRelease)
-	v2, err := version.NewVersion(requiredConformanceSuite.Release)
+	requiredConformanceSuiteForRelease := make(map[string]bool, 0)
 
 	for _, testcase := range requiredConformanceSuite {
-		if v1.GreaterThanOrEqual(v2) {
-			fmt.Printf("%s is less than %s", v1, v2)
-			for _, mapOfConformanceSuiteTests := range requiredConformanceSuite.Release {
-				requiredConformanceSuiteForRelease[requiredConformanceSuite.Name] = false
-			}
-		}
+                v1, err := version.NewVersion(k8sRelease)
+                if err != nil {
+                        log.Errorf("Unable to parse the version string %v:  %v\n", k8sRelease , err)
+                }
+                testcaseRelease := strings.Split(testcase.Release, ",")
+                if testcaseRelease[0] != ""{
+                        //                log.Println(testcase)
+                        v2, err := version.NewVersion(testcaseRelease[0])
+                        if err != nil {
+                                log.Errorf("Unable to parse the testcase version string  %v:  %v\n", testcase, err)
+                                continue
+                        }
+                        if v1.GreaterThanOrEqual(v2) {
+                                requiredConformanceSuiteForRelease[testcase.Codename] = false
+                        }
+                }
 	}
 	return requiredConformanceSuiteForRelease
 }
@@ -295,7 +304,6 @@ func getPullRequests(log *logrus.Entry, ghc githubClient, queryString string) ([
 // getSubmittedConformanceTests returns an array of test names that are tagged as [Conformance]
 // in the junit_01.xml file submitted by the vendor in the changes associated with the certification request PR
 func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullRequestChange) ([]string, error) {
-	submittedTests := []string{}
 
 	jUnitUrl := patchUrlToFileUrl(junitFile.BlobURL)
 
@@ -319,14 +327,17 @@ func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullR
 		prLogger.Fatal(err)
 	}
 
-	submittedTests = make([]string, 0)
+	submittedTestMap := make([]string, len(conformanceRequirement.TestSuite))
 	for _, testcase := range conformanceRequirement.TestSuite {
 		if strings.Contains(testcase.Name, "[Conformance]") {
-			submittedTests = append(submittedTests, testcase.Name)
+			testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
+			testcase.Name = strings.Replace(testcase.Name, "&#34;", "!", -1)
+			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
+			submittedTestMap = append(submittedTestMap, testcase.Name)
 		}
 	}
 
-	return submittedTests, nil
+	return submittedTestMap, nil
 }
 
 // getChangeMap returns a map of base filenames to the github.PullRequestChange and nil
@@ -349,20 +360,22 @@ func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]
 
 // checkAllRequiredTestsArePresent returns true if the test array submitted by the vendor has all tests that
 // are required for certification conformance, otherwise returns false and an array of missing tests.
-func checkAllRequiredTestsArePresent(required []ConformanceTestMetaData, submitted []string) (bool, []string) {
+func checkAllRequiredTestsArePresent(required map[string]bool, submitted []string) (bool, []string) {
 	allTestsPresent := true
+	localRequired := required
 	missingTests := []string{}
 	tempTestCountMap := map[string]int{}
 
-	for _, test := range required {
-		tempTestCountMap[test.Codename]++
-	}
 	for _, test := range submitted {
-		tempTestCountMap[test]--
+		if _, found := localRequired[test]; found {
+			localRequired[test] = true
+                        //		} else {
+			// tempTestCountMap[test]++
+		}
 	}
 
-	for test, count := range tempTestCountMap {
-		if count != 0 {
+	for test, val := range tempTestCountMap {
+		if val != 0 {
 			allTestsPresent = false
 			missingTests = append(missingTests, test)
 		}
