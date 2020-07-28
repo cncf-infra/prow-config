@@ -275,7 +275,7 @@
   release: v1.9
   file: test/e2e/common/container_probe.go
 - testname: Pod liveness probe, using local file, no restart
-  codename: '[k8s.io] Probing container should *not* be restarted with a exec "cat 
+  codename: '[k8s.io] Probing container should *not* be restarted with a exec "cat
     /tmp/health" liveness probe [NodeConformance] [Conformance]'
   description: Pod is created with liveness probe that uses 'exec' command to cat
     /temp/health file. Liveness probe MUST not fail to check health and the restart
@@ -399,14 +399,14 @@
   file: test/e2e/node/events.go
 - testname: Pod Eviction, Toleration limits
   codename: '[sig-scheduling] NoExecuteTaintManager Multiple Pods [Serial] evicts
-    pods with minTolerationSeconds [Disruptive] [Conformance]'
+    pods with minTolerationSeconds [Conformance]'
   description: In a multi-pods scenario with tolerationSeconds, the pods MUST be evicted
     as per the toleration time limit.
   release: v1.16
   file: test/e2e/node/taints.go
 - testname: Taint, Pod Eviction on taint removal
   codename: '[sig-scheduling] NoExecuteTaintManager Single Pod [Serial] removing
-    taint cancels eviction [Disruptive] [Conformance]'
+    taint cancels eviction [Conformance]'
   description: The Pod with toleration timeout scheduled on a tainted Node MUST not
     be evicted if the taint is removed before toleration time ends.
   release: v1.16
@@ -1711,7 +1711,7 @@
   release: v1.9
   file: test/e2e/common/configmap_volume.go
 - testname: ConfigMap Volume, without mapping, non-root user
-  codename: '[sig-storage] ConfigMap should be consumable from pods in volume as non-root   
+  codename: '[sig-storage] ConfigMap should be consumable from pods in volume as non-root
     [LinuxOnly] [NodeConformance] [Conformance]'
   description: Create a ConfigMap, create a Pod that mounts a volume and populates
     the volume with data stored in the ConfigMap. Pod is run as a non-root user with
@@ -2079,7 +2079,7 @@
   file: test/e2e/common/projected_configmap.go
 - testname: Projected Volume, ConfigMap, non-root user
   codename: '[sig-storage] Projected configMap should be consumable from pods in volume
-    as non-root [NodeConformance] [Conformance]'
+    as non-root [LinuxOnly] [NodeConformance] [Conformance]'
   description: A Pod is created with projected volume source 'ConfigMap' to store
     a configMap as non-root user with uid 1000. Pod MUST be able to read the content
     of the ConfigMap successfully and the mode on the volume MUST be -rw-r--r--.
@@ -2117,7 +2117,7 @@
   file: test/e2e/common/projected_configmap.go
 - testname: Projected Volume, ConfigMap, mapped, non-root user
   codename: '[sig-storage] Projected configMap should be consumable from pods in volume
-    with mappings as non-root [NodeConformance] [Conformance]'
+    with mappings as non-root [LinuxOnly] [NodeConformance] [Conformance]'
   description: A Pod is created with projected volume source 'ConfigMap' to store
     a configMap as non-root user with uid 1000. The ConfigMap is also mapped to a
     custom path. Pod MUST be able to read the content of the ConfigMap from the custom
