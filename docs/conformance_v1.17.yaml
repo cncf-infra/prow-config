@@ -289,8 +289,8 @@
   release: v1.9
   file: test/e2e/common/container_probe.go
 - testname: Pod liveness probe, using local file, no restart
-  codename: '[k8s.io] Probing container should *not* be restarted with a exec \'cat
-    /tmp/health\' liveness probe [NodeConformance] [Conformance]'
+  codename: '[k8s.io] Probing container should *not* be restarted with a exec 
+    "cat /tmp/health" liveness probe [NodeConformance] [Conformance]'
   description: Pod is created with liveness probe that uses 'exec' command to cat
     /temp/health file. Liveness probe MUST not fail to check health and the restart
     count should remain 0.
