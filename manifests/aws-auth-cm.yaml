@@ -23,6 +23,10 @@ data:
       username: hh
       groups:
         - system:masters
+    - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
+      username: zz
+      groups:
+        - system:masters
     - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
       username: rob
       groups:
