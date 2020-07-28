@@ -1749,8 +1749,8 @@
   release: v1.9
   file: test/e2e/common/configmap_volume.go
 - testname: ConfigMap Volume, without mapping, non-root user
-  codename: '[sig-storage] ConfigMap should be consumable from pods in volume as non-root
-    [NodeConformance] [Conformance]'
+  codename: '[sig-storage] ConfigMap should be consumable from pods in volume as non-root   
+    [LinuxOnly] [NodeConformance] [Conformance]'
   description: Create a ConfigMap, create a Pod that mounts a volume and populates
     the volume with data stored in the ConfigMap. Pod is run as a non-root user with
     uid=1000. The ConfigMap that is created MUST be accessible to read from the newly
