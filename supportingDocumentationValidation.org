@@ -162,21 +162,122 @@ cat conformance.yaml | grep  shell
 *** remove line break
 
 * POC: parse conformance.yaml sort and compare with junit_01.xml to confirm strategy (warning ugly bash to follow)
+** I know there are 100 ways to do this, the intent is to confirm there are no other issues with the text before we put more effort in to build this out in go.
+** Strategies
+*** parse out testname(codename) from conformance.yaml, grep -v results from above against junit and e2e make sure there are no unnacounted tests
+*** Parse names out of junit, e2e and conformance.yaml sort and diff results
+
+**** Very basic, just get entire phrase
   #+begin_src shell
-#cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | sed -En 's/^.*io] //; s/[Node.*$//' | head
-cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | head
+ cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | head -12
+  #+end_src
+
+#+RESULTS:
+#+begin_example
+  codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+    should execute poststart exec hook properly [NodeConformance] [Conformance]'
+--
+  codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+    should execute poststart http hook properly [NodeConformance] [Conformance]'
+--
+  codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+    should execute prestop exec hook properly [NodeConformance] [Conformance]'
+--
+  codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+    should execute prestop http hook properly [NodeConformance] [Conformance]'
+--
+#+end_example
+
+
+**** First attempt, extract phrase that matches in e2e and junit from conformance.yaml, I understand this is very hackey, goal is simplicity over elegance, this is just POC
+**** I am looking for wisdom from others before I invest more time
+  #+begin_src shell
+#cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename
+
+# This is really gross, but gets us grep strings
+cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | sed -r 's/^.*io\] //; s/\[Node.*$//; s/    / /; s/--/  /; s/  /\" -e \"/'| head -12 |tr -d "\n" | sed -r 's/^ */-e  \"/; s/ \"/\"/g; s/-e/-e /g; s/ -e \"$//'
+
+#cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | cut -d ']' -f2 | head
+
+#cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | head
   #+end_src
 
   #+RESULTS:
   #+begin_example
-    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
-      should execute poststart exec hook properly [NodeConformance] [Conformance]'
-  --
-    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
-      should execute poststart http hook properly [NodeConformance] [Conformance]'
-  --
-    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
-      should execute prestop exec hook properly [NodeConformance] [Conformance]'
-  --
-    codename: '[k8s.io] Container Lifecycle Hook when create a pod with lifecycle hook
+  -e  "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly"
   #+end_example
+
+
+  #+begin_src shell
+    #cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | grep -v "\-\-" | sed -r 's/^.*io\] //; s/\[Node.*$//' | tr "\n" "|" | head
+    cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | grep -v "\-\-" | sed -r 's/^.*io\] //; s/\[Node.*$//' | perl -00pe 's/\n(?=[   ])/ /g'| sed -r 's/   */ /' | head -4 | sort
+  #+end_src
+
+  #+RESULTS:
+  #+begin_example
+  Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly
+  Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly
+  Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly
+  Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly
+  #+end_example
+
+
+**** like a pig in mud, now lets use that output to find matches in junit
+     What the heck is the shell expansion to redirect output to grep something <()
+#+begin_src shell
+grep -e  "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly" /home/ii/k8s-conformance/v1.18/ace/junit_01.xml | sed -r 's/^.*io\] //; s/\[Node.*$//' | sort
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly
+#+end_example
+
+**** The same works for e2e
+
+#+begin_src shell
+grep -e  "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly" /home/ii/k8s-conformance/v1.18/ace/e2e.log | sed -r 's/^.*io\] //; s/\[Node.*$//' | sort
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly
+Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly
+#+end_example
+
+
+#+begin_src shell
+  diff -y <(grep -e  "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute poststart http hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop exec hook properly" -e "Container Lifecycle Hook when create a pod with lifecycle hook should execute prestop http hook properly" /home/ii/k8s-conformance/v1.18/ace/junit_01.xml | sed -r 's/^.*io\] //; s/\[Node.*$//' | sort) <(cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | grep -v "\-\-" | sed -r 's/^.*io\] //; s/\[Node.*$//' | perl -00pe 's/\n(?=[   ])/ /g'| sed -r 's/   */ /' | head  | sort)
+     diff -y <() <()
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+
+
+  #+begin_src shell
+    #cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | grep -v "\-\-" | sed -r 's/^.*io\] //; s/\[Node.*$//' | tr "\n" "|" | head
+    cat /home/ii/prow-config/prow/external-plugins/verify-conformance-release/conformance.yaml | grep -A 1 codename | grep -v "\-\-" | sed -r 's/^.*io\] //; s/\[Node.*$//' | perl -00pe 's/\n(?=[   ])/ /g'| sed -r 's/   */ /' | sort > /home/ii/foo.txt
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+
+
+
+
+
+
+Talk with Rob:
+We have people implementing gingo without understanding it.
+This means they are not naming the tests consistantly.
