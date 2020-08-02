@@ -625,20 +625,40 @@ N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
 
 Remember to change the version
 Bryan is doing work on this so this will as he rolls out new procedures. Thanks Bryan!
-  #+BEGIN_SRC bash
-    cd /home/ii/prow-config/prow/external-plugins/verify-conformance-request
-    aws ecr get-login-password --region ap-southeast-2  | docker login --username AWS --password-stdin 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com
-    docker build -t cncf-prow .
-    docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.3
-    docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.3
-  #+END_SRC
+#+BEGIN_SRC bash
+  cd /home/ii/p row-config/prow/external-plugins/verify-conformance-release
+  aws ecr get-login-password --region ap-southeast-2  | docker login --username AWS --password-stdin 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com
+  docker build -t cncf-prow .
+  docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release:latest
+  docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release:latest
+#+END_SRC
 
-  #+RESULTS:
-  #+begin_src bash
+#+RESULTS:
+#+begin_src bash
   Login Succeeded
-  The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow]
-  e8dcdc465683: Preparing
-  c52a2bd34fd7: Preparing
+  Sending build context to Docker daemon  53.65MB
+  Step 1/6 : FROM golang:1.13.4
+  ---> a2e245db8bd3
+  Step 2/6 : COPY ./ /tmp/build
+  ---> Using cache
+  ---> 2a830bb03a79
+  Step 3/6 : WORKDIR /tmp/build
+  ---> Using cache
+  ---> c18fe4e9cf71
+  Step 4/6 : RUN go get && go build . && mkdir -p /plugin && cp verify-conformance-release /plugin
+  ---> Using cache
+  ---> ac5319062da5
+  Step 5/6 : WORKDIR /plugin
+  ---> Using cache
+  ---> 7fa4481dd0b6
+  Step 6/6 : ENTRYPOINT ["/plugin/verify-conformance-release"]
+  ---> Using cache
+  ---> cd9e6cdab2ce
+  Successfully built cd9e6cdab2ce
+  Successfully tagged cncf-prow:latest
+  The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release]
+  510493383037: Preparing
+  2964d1b0ba0c: Preparing
   5a92b57a5aac: Preparing
   5835b741b51f: Preparing
   02c991ab8711: Preparing
@@ -646,104 +666,106 @@ Bryan is doing work on this so this will as he rolls out new procedures. Thanks 
   423d63eb4a27: Preparing
   7f9bf938b053: Preparing
   f2b4f0674ba3: Preparing
-  7f9bf938b053: Waiting
   423d63eb4a27: Waiting
+  7f9bf938b053: Waiting
   f2b4f0674ba3: Waiting
   bee1c15bf7e8: Waiting
-  5835b741b51f: Layer already exists
-  c52a2bd34fd7: Layer already exists
-  02c991ab8711: Layer already exists
-  e8dcdc465683: Layer already exists
   5a92b57a5aac: Layer already exists
+  5835b741b51f: Layer already exists
+  02c991ab8711: Layer already exists
   bee1c15bf7e8: Layer already exists
   7f9bf938b053: Layer already exists
-  f2b4f0674ba3: Layer already exists
   423d63eb4a27: Layer already exists
-  v1.3: digest: sha256:ed6402db6f8458e08bd6b9cf334d99fbdfc749d69473f006069010ccca149fc7 size: 2214
-  #+end_src
+  f2b4f0674ba3: Layer already exists
+  2964d1b0ba0c: Pushed
+  510493383037: Pushed
+  latest: digest: sha256:c5e53166bb40de1e94275a2a3e02f3663d512f32c3fe76704377a22ed8929b88 size: 2220
+#+end_src
+
+
 
 
 ** Run the container to make sure it is working (optional step that can be used for troubleshooting)
-#+begin_src bash
-  docker run  -v /home/ii/.secret-hook:/etc/webhook/hmac -v /home/ii/.secret-oauth:/etc/github/oauth -v /home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml:/plugin/vcr.yaml -v /home/ii/prow-config/plugins.yaml:/etc/plugins/plugins.yaml 847cf1d2cf02  /bin/bash -c "/plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m"
-#+end_src
+   #+begin_src bash
+     docker run  -v /home/ii/.secret-hook:/etc/webhook/hmac -v /home/ii/.secret-oauth:/etc/github/oauth -v /home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml:/plugin/vcr.yaml -v /home/ii/prow-config/plugins.yaml:/etc/plugins/plugins.yaml 847cf1d2cf02  /bin/bash -c "/plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m"
+   #+end_src
 
-  #+RESULTS:
-  #+begin_src bash
-time="2020-06-10T07:03:37Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
-time="2020-06-10T07:03:37Z" level=warning msg="missing required flag: please set to --github-token-path=/etc/github/oauth before June 2020"
-time="2020-06-10T07:03:37Z" level=info msg="Throttle(360, 360)" client=github
-time="2020-06-10T07:03:37Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
-time="2020-06-10T07:03:37Z" level=warning msg="HandleAll : No repos have been configured for the verify-conformance-request plugin" plugin=verify-conformance-request
-time="2020-06-10T07:03:37Z" level=info msg="Periodic update complete." duration="89.344µs" plugin=verify-conformance-request
-#+end_src
+   #+RESULTS:
+   #+begin_src bash
+     time="2020-06-10T07:03:37Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+     time="2020-06-10T07:03:37Z" level=warning msg="missing required flag: please set to --github-token-path=/etc/github/oauth before June 2020"
+     time="2020-06-10T07:03:37Z" level=info msg="Throttle(360, 360)" client=github
+     time="2020-06-10T07:03:37Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+     time="2020-06-10T07:03:37Z" level=warning msg="HandleAll : No repos have been configured for the verify-conformance-request plugin" plugin=verify-conformance-request
+     time="2020-06-10T07:03:37Z" level=info msg="Periodic update complete." duration="89.344µs" plugin=verify-conformance-request
+   #+end_src
 
 *** I do not understand why the above docker run is not seeing the repo
     - I did notice if I exec into that container and run the command in -c it works as expected
-#+begin_src bash
-docker exec -i -t f39470700e75 bash
-root@f39470700e75:/plugin# cat /plugin/vcr.yaml
-external_plugins:
-  cncf-infra/k8s-conformance:
-  - name: verify-conformance-request
-    events:
+    #+begin_src bash
+      docker exec -i -t f39470700e75 bash
+      root@f39470700e75:/plugin# cat /plugin/vcr.yaml
+      external_plugins:
+      cncf-infra/k8s-conformance:
+      - name: verify-conformance-request
+      events:
       - issue_comment
-     - pull_request
-root@f39470700e75:/plugin# /plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m
-WARN[0000] It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy
-WARN[0000] no plugins specified-- check syntax?
-INFO[0000] Throttle(360, 360)                            client=github
-INFO[0000] verify-conformance-request : HandleAll : Checking all PRs for handling  plugin=verify-conformance-request
-INFO[0000] Server exited.                                error="listen tcp :8888: bind: address already in use"
-INFO[0000] Search for query "archived:false is:pr is:open repo:"cncf-infra/k8s-conformance"" cost 1 point(s). 4991 remaining.  plugin=verify-conformance-request
-INFO[0000] Considering 1 PRs.                            plugin=verify-conformance-request
-INFO[0000] IsVerifiable: title of PR is "NOT A REAL CONFORMANCE REQ for  v1.18"  plugin=verify-conformance-request
-INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
-#+end_src
+      - pull_request
+      root@f39470700e75:/plugin# /plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m
+      WARN[0000] It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy
+      WARN[0000] no plugins specified-- check syntax?
+      INFO[0000] Throttle(360, 360)                            client=github
+      INFO[0000] verify-conformance-request : HandleAll : Checking all PRs for handling  plugin=verify-conformance-request
+      INFO[0000] Server exited.                                error="listen tcp :8888: bind: address already in use"
+      INFO[0000] Search for query "archived:false is:pr is:open repo:"cncf-infra/k8s-conformance"" cost 1 point(s). 4991 remaining.  plugin=verify-conformance-request
+      INFO[0000] Considering 1 PRs.                            plugin=verify-conformance-request
+      INFO[0000] IsVerifiable: title of PR is "NOT A REAL CONFORMANCE REQ for  v1.18"  plugin=verify-conformance-request
+      INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
+    #+end_src
 
     - For now I am going to call this good and use the above flags to build out the verify-conformance-deploy.yaml
 
 * Next steps update verify-conformance-deployment.yaml to emulate the docker run
-Also, ensure that you are referencing the tag of the image that you just built
+  Also, ensure that you are referencing the tag of the image that you just built
 ** loading config map for vcr.yaml
- #+begin_src shell
-   kubectl delete configmap vcr-config
-   kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml
- #+end_src
+   #+begin_src shell
+     kubectl delete configmap vcr-config
+     kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml
+   #+end_src
 
- #+RESULTS:
- configmap/vcr-config created
- #+end_example
+   #+RESULTS:
+   configmap/vcr-config created
+   #+end_example
 
 ** apply verify-conformance-deployment.yaml
-#+begin_src shell :dir "~/prow-config"
-  kubectl apply -f manifests/verify-conformance-deployment.yaml
-#+end_src
+   #+begin_src shell :dir "~/prow-config"
+     kubectl apply -f manifests/verify-conformance-deployment.yaml
+   #+end_src
 
-#+RESULTS:
-#+begin_example
-deployment.apps/verify-conformance-request configured
-#+end_example
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-request configured
+   #+end_example
 
 *** Lets look at the pods.
 #+begin_src shell
-  kubectl get pods
+ kubectl get po14372bd4-d12e-11ea-b2a4-ea964f830367ds
 #+end_src
 
 #+RESULTS:
 #+begin_example
 NAME                                          READY   STATUS    RESTARTS   AGE
-deck-7c6d46b4f7-dp68c                         1/1     Running   0          30d
-deck-7c6d46b4f7-n8x5q                         1/1     Running   0          30d
-ghproxy-75ddf48577-g9bbs                      1/1     Running   0          30d
-hook-59bb5f886d-24sw2                         1/1     Running   0          23d
-hook-59bb5f886d-d29vb                         1/1     Running   0          23d
-horologium-54f95c4dc4-z58sb                   1/1     Running   0          30d
-plank-7cf6bf5cb6-979ph                        1/1     Running   0          30d
-sinker-ddf8cbcb6-8tl7f                        1/1     Running   1          30d
-statusreconciler-b946855cf-l5x7g              1/1     Running   0          30d
-tide-66b57f5ccf-x6j67                         1/1     Running   0          30d
-verify-conformance-request-5798fc7694-sbjn8   1/1     Running   0          15s
+deck-7c6d46b4f7-dp68c                         1/1     Running   0          44d
+deck-7c6d46b4f7-n8x5q                         1/1     Running   0          44d
+ghproxy-75ddf48577-g9bbs                      1/1     Running   0          44d
+hook-59bb5f886d-24sw2                         1/1     Running   0          37d
+hook-59bb5f886d-d29vb                         1/1     Running   0          37d
+horologium-54f95c4dc4-z58sb                   1/1     Running   0          44d
+plank-7cf6bf5cb6-979ph                        1/1     Running   0          44d
+sinker-ddf8cbcb6-8tl7f                        1/1     Running   1          44d
+statusreconciler-b946855cf-l5x7g              1/1     Running   0          44d
+tide-66b57f5ccf-x6j67                         1/1     Running   0          44d
+verify-conformance-request-67cd666b58-qz5sg   1/1     Running   0          114s
 #+end_example
 
 *** Initially we crashed without logs, this helped me get a meaningful error
