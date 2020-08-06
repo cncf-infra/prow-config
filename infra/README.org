@@ -1,0 +1,77 @@
+# -*- ii: apisnoop; -*-
+#+TITLE: prow.cncf.io infrastructure
+
+Terraform configuration for prow.cncf.io
+
+* Dependecies
+- terraform
+- aws cli
+
+* Initial things
+** Configure aws cli
+#+begin_src shell
+   aws configure
+#+end_src
+
+* Deploying
+** Init
+#+begin_src shell
+  terraform init modules/aws-project
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[0m[1mInitializing modules...[0m
+Downloading terraform-aws-modules/eks/aws 12.2.0 for eks...
+- eks in .terraform/modules/eks/terraform-aws-eks-12.2.0
+- eks.node_groups in .terraform/modules/eks/terraform-aws-eks-12.2.0/modules/node_groups
+Downloading terraform-aws-modules/vpc/aws 2.6.0 for vpc...
+- vpc in .terraform/modules/vpc/terraform-aws-vpc-2.6.0
+
+[0m[1mInitializing the backend...[0m
+
+[0m[1mInitializing provider plugins...[0m
+- Checking for available provider plugins...
+- Downloading plugin for provider "random" (hashicorp/random) 2.3.0...
+- Downloading plugin for provider "local" (hashicorp/local) 1.4.0...
+- Downloading plugin for provider "null" (hashicorp/null) 2.1.2...
+- Downloading plugin for provider "template" (hashicorp/template) 2.1.2...
+- Downloading plugin for provider "kubernetes" (hashicorp/kubernetes) 1.12.0...
+- Downloading plugin for provider "aws" (hashicorp/aws) 3.0.0...
+
+[0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
+[0m[32m
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.[0m
+#+end_example
+
+** Plan
+#+begin_src shell
+  terraform plan modules/aws-project
+#+end_src
+
+** Apply
+#+begin_src shell
+  terraform apply -auto-approve modules/aws-project
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+** Configure kubectl to use the new cluster
+
+Find the cluster name:
+#+begin_src shell
+  aws eks list-clusters
+#+end_src
+
+Set current context to be the newly created cluster
+#+begin_src shell
+  aws eks --region ap-southeast-2 update-kubeconfig --name prow-1QQTdZBm
+#+end_src
