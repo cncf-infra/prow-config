@@ -1,0 +1,79 @@
+# Copyright 2020 CNCF TODO Check this
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: verify-conformance-test
+  labels:
+    app: verify-conformance-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: verify-conformance-test
+  template:
+    metadata:
+      labels:
+        app: verify-conformance-test
+    spec:
+      terminationGracePeriodSeconds: 180
+      containers:
+      - name: verify-conformance-test
+        image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-tests:latest
+        imagePullPolicy: Always
+        args:
+        - --dry-run=false
+        - --github-endpoint=http://ghproxy
+        - --github-endpoint=https://api.github.com
+        - --dry-run=false
+        - --hmac-secret-file=/etc/webhook/hmac
+        - --github-token-path=/etc/github/oauth
+        - --plugin-config=/plugin/vct.yaml
+        - --update-period=5m
+        ## Nice trick for keeping a crashing container running so you can exec in
+        # command:
+        #   r /bin/sleep
+        #   - +Inf
+        ports:
+          - name: http
+            containerPort: 8888
+        volumeMounts:
+        - name: hmac
+          mountPath: /etc/webhook
+          readOnly: true
+        - name: oauth
+          mountPath: /etc/github
+          readOnly: true
+        - name: plugins
+          mountPath: /etc/plugins
+          readOnly: true
+        - name: vct-config
+          mountPath: /plugin/vct.yaml
+          subPath: vct.yaml
+          readOnly: true
+      volumes:
+      - name: hmac
+        secret:
+          secretName: hmac-token
+      - name: oauth
+        secret:
+          secretName: oauth-token
+      - name: plugins
+        configMap:
+          name: plugins
+      - name: vct-config
+        configMap:
+          name: vct-config

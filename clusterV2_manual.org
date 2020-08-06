@@ -1,0 +1,1570 @@
+* BOARD
+** [[https://github.com/cncf/apisnoop/projects/29#column-8865828][prow.cncf.io-TODO]]
+*** TODO ghproxy
+*** TODO plank
+    [[https://github.com/kubernetes/test-infra/tree/0bde37ecf717799c2953131192c997373ffe976d/prow/cmd/plank][Plank]]
+    [[https://github.com/kubernetes/test-infra/blob/0bde37ecf717799c2953131192c997373ffe976d/prow/pod-utilities.md][Pod Utilities]]
+*** DONE tide
+    CLOSED: [2020-05-14 Thu 03:21]
+    -  https://prow.k8s.io/tide
+    So here we see Merge Requirements and repos that have incoming PRs
+    - cf. http://prow.cncf.io/tide
+    - [[https://github.com/kubernetes/test-infra/blob/0bde37ecf717799c2953131192c997373ffe976d/config/prow/config.yaml#L351][Tide Config for test-infra]]
+
+** [[https://github.com/cncf/apisnoop/projects/29#column-8865858][cncf/k8s-conformance-TODO]]
+*** TODO confirm version of k8s being tested matched foldera
+*** TODO generate list of tests required for a specific version
+*** TODO generate list of tests submitted as run by a PR
+*** TODO add blocking tag if any requeired tests not run
+*** TODO comment with list of missing tests
+* strat
+** get presubmits job results showing up as comments
+** optional
+** required
+** simple presubmit job (cat/dog) counts something [[https://github.com/cncf/k8s-conformance][cncf/k8s-conformance]]
+* Setup a cluster
+
+Used *eksctl* though long term, maybe we use cluster-api and [[https://github.com/aws/aws-service-operator-k8s/blob/master/docs/background.md#custom-controllers-and-operators-in-aws][aws-service-operation-k8s]]
+
+#+begin_src  shell
+aws eks list-clusters
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{
+    "clusters": [
+        "prow-dev",
+        "prowManual",
+        "prow-stg"
+    ]
+}
+#+end_example
+
+We based our build steps off: https://logz.io/blog/amazon-eks-cluster/
+
+#+begin_src shell
+  aws eks \
+      --region ap-southeast-2 \
+          create-cluster \
+      --name prowManual \
+      --role-arn arn:aws:iam::928655657136:role/eksClusterManualRole \
+      --resources-vpc-config subnetIds=subnet-032f7b836def5b20e,subnet-0fc7775f9e58c8816,subnet-03ed8175806667c5d,securityGroupIds=sg-0851f8576aa400228
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{
+    "cluster": {
+        "name": "prowManual",
+        "arn": "arn:aws:eks:ap-southeast-2:928655657136:cluster/prowManual",
+        "createdAt": 1596593352.588,
+        "version": "1.16",
+        "roleArn": "arn:aws:iam::928655657136:role/eksClusterManualRole",
+        "resourcesVpcConfig": {
+            "subnetIds": [
+                "subnet-032f7b836def5b20e",
+                "subnet-0fc7775f9e58c8816",
+                "subnet-03ed8175806667c5d"
+            ],
+            "securityGroupIds": [
+                "sg-0851f8576aa400228"
+            ],
+            "vpcId": "vpc-0370ec7970868fc28",
+            "endpointPublicAccess": true,
+            "endpointPrivateAccess": false,
+            "publicAccessCidrs": [
+                "0.0.0.0/0"
+            ]
+        },
+        "logging": {
+            "clusterLogging": [
+                {
+                    "types": [
+                        "api",
+                        "audit",
+                        "authenticator",
+                        "controllerManager",
+                        "scheduler"
+                    ],
+                    "enabled": false
+                }
+            ]
+        },
+        "status": "CREATING",
+        "certificateAuthority": {},
+        "platformVersion": "eks.2",
+        "tags": {}
+    }
+}
+#+end_example
+
+#+begin_src shell
+aws eks --region ap-southeast-2 describe-cluster --name prowManual --query cluster.status
+#+end_src
+
+#+RESULTS:
+#+begin_example
+"ACTIVE"
+#+end_example
+
+#+begin_src shell
+aws eks --region ap-southeast-2 update-kubeconfig --name prowManual
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Added new context arn:aws:eks:ap-southeast-2:928655657136:cluster/prowManual to /home/ii/.kube/config
+#+end_example
+
+#+begin_src shell
+kubectl get svc
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+kubernetes   ClusterIP   10.100.0.1       <none>        443/TCP          19h
+#+end_example
+
+#+begin_src yaml :tangle aws-auth-configmap.yaml
+  ---
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: aws-auth
+    namespace: kube-system
+  data:
+    mapRoles: |
+      - rolearn: arn:aws:iam::928655657136:role/prowManualNodegroupStack-NodeInstanceRole-KWMYH39VBRIU
+        username: system:node:{{EC2PrivateDNSName}}
+        groups:
+          - system:bootstrappers
+          - system:nodes
+    mapUsers: |
+      - userarn: arn:aws:iam::928655657136:user/prow.cncf.io
+        username: prow
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/bb@ii.coop
+        username: bb
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/hh@ii.coop
+        username: hh
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
+        username: zz
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
+        username: rob
+        groups:
+          - system:masters
+#+end_src
+
+#+begin_src shell
+  kubectl apply -f aws-auth-configmap.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/aws-auth configured
+#+end_example
+
+#+name: Prow EKS ClusterConfig
+#+begin_src yaml :tangle eks-prow-clusterconfig.yaml
+  ---
+  apiVersion: eksctl.io/v1alpha5
+  kind: ClusterConfig
+  metadata:
+    name: prow-5
+    region: ap-southeast-2
+
+  managedNodeGroups:
+    - name: prow-3
+      labels:
+        name: prow
+      instanceType: c5.2xlarge
+      desiredCapacity: 3
+      volumeSize: 100
+      minSize: 3
+      maxSize: 10
+      privateNetworking: true
+#+end_src
+
+#+name: test Pod scheduling
+#+begin_src shell
+  kubectl run nginx --image=nginx
+#+end_src
+
+#+RESULTS: test Pod scheduling
+#+begin_example
+pod/nginx created
+#+end_example
+
+#+name: check Pod scheduling
+#+begin_src shell
+  kubectl get pod nginx
+#+end_src
+
+#+RESULTS: check Pod scheduling
+#+begin_example
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          25s
+#+end_example
+
+#+name: delete Pod test
+#+begin_src shell
+  kubectl delete pod nginx
+#+end_src
+
+#+RESULTS: delete Pod test
+#+begin_example
+pod "nginx" deleted
+#+end_example
+
+The following steps were based off of: https://www.padok.fr/en/blog/application-load-balancer-aws
+
+# Create AIM role with ID provider
+#+begin_src shell
+aws eks describe-cluster --name prowManual --query "cluster.identity.oidc.issuer" --output text
+#+end_src
+
+#+RESULTS:
+#+begin_example
+https://oidc.eks.ap-southeast-2.amazonaws.com/id/F16BE3092082125F8560267D06EC9BCC
+#+end_example
+
+#+name: add stable helm repo
+#+begin_src shell
+  helm repo add stable https://kubernetes-charts.storage.googleapis.com
+#+end_src
+
+#+RESULTS: add stable helm repo
+#+begin_example
+"stable" has been added to your repositories
+#+end_example
+
+#+name: nginx ingress values
+#+begin_src yaml :tangle nginx-ingress-values.yaml
+  ---
+  controller:
+    service:
+      externalTrafficPolicy: Local
+      type: LoadBalancer
+    publishService:
+      enabled: true
+    config:
+      service-tokens: "false"
+      use-proxy-protocol: "false"
+      compute-full-forwarded-for: "true"
+      use-forwarded-headers: "true"
+    metrics:
+      enabled: true
+    autoscaling:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 10
+
+  serviceAccount:
+    create: true
+
+  rbac:
+    create: true
+#+end_src
+
+#+name: create nginx-ingress namespace
+#+begin_src shell
+  kubectl create ns nginx-ingress
+#+end_src
+
+#+RESULTS: create nginx-ingress namespace
+#+begin_example
+namespace/nginx-ingress created
+#+end_example
+
+#+name: install nginx-ingress
+#+begin_src shell
+  helm install nginx-ingress -f nginx-ingress-values.yaml --namespace nginx-ingress stable/nginx-ingress
+#+end_src
+
+#+RESULTS: install nginx-ingress
+#+begin_example
+NAME: nginx-ingress
+LAST DEPLOYED: Wed Aug  5 03:56:09 2020
+NAMESPACE: nginx-ingress
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+The nginx-ingress controller has been installed.
+Get the application URL by running these commands:
+  export HTTP_NODE_PORT=$(kubectl --namespace nginx-ingress get services -o jsonpath="{.spec.ports[0].nodePort}" nginx-ingress-controller)
+  export HTTPS_NODE_PORT=$(kubectl --namespace nginx-ingress get services -o jsonpath="{.spec.ports[1].nodePort}" nginx-ingress-controller)
+  export NODE_IP=$(kubectl --namespace nginx-ingress get nodes -o jsonpath="{.items[0].status.addresses[1].address}")
+
+  echo "Visit http://$NODE_IP:$HTTP_NODE_PORT to access your application via HTTP."
+  echo "Visit https://$NODE_IP:$HTTPS_NODE_PORT to access your application via HTTPS."
+
+An example Ingress that makes use of the controller:
+
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    name: example
+    namespace: foo
+  spec:
+    rules:
+      - host: www.example.com
+        http:
+          paths:
+            - backend:
+                serviceName: exampleService
+                servicePort: 80
+              path: /
+    # This section is only required if TLS is to be enabled for the Ingress
+    tls:
+        - hosts:
+            - www.example.com
+          secretName: example-tls
+
+If TLS is enabled for the Ingress, a Secret containing the certificate and key must also be provided:
+
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: example-tls
+    namespace: foo
+  data:
+    tls.crt: <base64 encoded cert>
+    tls.key: <base64 encoded key>
+  type: kubernetes.io/tls
+#+end_example
+
+#+begin_src shell
+  kubectl -n nginx-ingress get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                             READY   STATUS    RESTARTS   AGE
+nginx-ingress-controller-6fd5487458-9t25x        1/1     Running   0          46s
+nginx-ingress-controller-6fd5487458-mzfj8        1/1     Running   0          30s
+nginx-ingress-controller-6fd5487458-r7ktj        1/1     Running   0          30s
+nginx-ingress-default-backend-5b967cf596-4xx7b   1/1     Running   0          46s
+#+end_example
+
+#+name: create alb-ingress namespace
+#+begin_src shell
+  kubectl create ns alb-ingress
+#+end_src
+
+#+RESULTS: create alb-ingress namespace
+#+begin_example
+namespace/alb-ingress created
+#+end_example
+
+#+name: alb ingress controller values
+#+begin_src yaml :tangle alb-ingress-controller-values.yaml
+  ---
+  clusterName: prowManual
+  awsRegion: ap-southeast-2
+  awsVpcID: vpc-0370ec7970868fc28
+  rbac:
+    serviceAccountAnnotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::928655657136:role/prowManualNodegroupStack-NodeInstanceRole-KWMYH39VBRIU
+  scope:
+    ingressClass: alb
+#+end_src
+
+#+name: add helm incubator repository
+#+begin_src shell
+  helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com
+#+end_src
+
+#+RESULTS: add helm incubator repository
+#+begin_example
+"incubator" has been added to your repositories
+#+end_example
+
+#+name: install alb ingress controller
+#+begin_src shell
+  helm install alb-ingress -f alb-ingress-controller-values.yaml --namespace alb-ingress incubator/aws-alb-ingress-controller
+#+end_src
+
+#+RESULTS: install alb ingress controller
+#+begin_example
+NAME: alb-ingress
+LAST DEPLOYED: Wed Aug  5 04:03:05 2020
+NAMESPACE: alb-ingress
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+To verify that alb-ingress-controller has started, run:
+
+  kubectl --namespace=alb-ingress get pods -l "app.kubernetes.io/name=aws-alb-ingress-controller,app.kubernetes.io/instance=alb-ingress"
+
+An example Ingress that makes use of the controller:
+
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/subnets: subnet-a4f0098e,subnet-457ed533,subnet-95c904cd
+    name: example
+    namespace: foo
+  spec:
+    rules:
+      - host: www.example.com
+        http:
+          paths:
+            - path: /
+              backend:
+                serviceName: exampleService
+                servicePort: 80
+#+end_example
+
+#+begin_src shell
+  kubectl -n alb-ingress get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                                      READY   STATUS    RESTARTS   AGE
+alb-ingress-aws-alb-ingress-controller-6fcdcd4875-ftbsd   1/1     Running   0          65s
+#+end_example
+
+#+begin_src shell
+  kubectl get svc -A
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAMESPACE       NAME                               TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
+default         kubernetes                         ClusterIP      10.100.0.1       <none>                                                                         443/TCP                      108m
+kube-system     kube-dns                           ClusterIP      10.100.0.10      <none>                                                                         53/UDP,53/TCP                108m
+nginx-ingress   nginx-ingress-controller           LoadBalancer   10.100.246.105   a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com   80:30971/TCP,443:30592/TCP   11m
+nginx-ingress   nginx-ingress-controller-metrics   ClusterIP      10.100.255.66    <none>                                                                         9913/TCP                     11m
+nginx-ingress   nginx-ingress-default-backend      ClusterIP      10.100.113.243   <none>                                                                         80/TCP                       11m
+#+end_example
+
+* loading secrets
+
+#+name: create prow namespace
+#+begin_src shell
+  kubectl create ns prow
+#+end_src
+
+#+RESULTS: create prow namespace
+#+begin_example
+namespace/prow created
+#+end_example
+
+  TODO: Where did we get these? How do we want to manage them in the future?
+** github-hmac / hook
+ #+begin_src shell
+   kubectl delete secret hmac-token
+   kubectl create secret generic hmac-token --from-file=hmac=.secret-hook
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret/hmac-token created
+ #+end_example
+
+** github-oauth
+ #+begin_src shell
+   kubectl delete secret oauth-token
+   kubectl create secret generic oauth-token --from-file=oauth=.secret-oauth
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret/oauth-token created
+ #+end_example
+
+* prow components manifst
+** cluster/starter.yaml
+https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#add-the-prow-components-to-the-cluster
+#+begin_src shell :dir "~/prow-config"
+  kubectl apply -f manifests/starter.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/plugins created
+configmap/config created
+customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io created
+deployment.apps/hook created
+service/hook created
+deployment.apps/plank created
+deployment.apps/sinker created
+deployment.apps/deck created
+service/deck created
+deployment.apps/horologium created
+deployment.apps/tide created
+service/tide created
+ingress.extensions/ing created
+deployment.apps/statusreconciler created
+namespace/test-pods created
+serviceaccount/deck created
+rolebinding.rbac.authorization.k8s.io/deck created
+rolebinding.rbac.authorization.k8s.io/deck created
+role.rbac.authorization.k8s.io/deck created
+role.rbac.authorization.k8s.io/deck created
+serviceaccount/horologium created
+role.rbac.authorization.k8s.io/horologium created
+rolebinding.rbac.authorization.k8s.io/horologium created
+serviceaccount/plank created
+role.rbac.authorization.k8s.io/plank created
+role.rbac.authorization.k8s.io/plank created
+rolebinding.rbac.authorization.k8s.io/plank created
+rolebinding.rbac.authorization.k8s.io/plank created
+serviceaccount/sinker created
+role.rbac.authorization.k8s.io/sinker created
+role.rbac.authorization.k8s.io/sinker created
+rolebinding.rbac.authorization.k8s.io/sinker created
+rolebinding.rbac.authorization.k8s.io/sinker created
+serviceaccount/hook created
+role.rbac.authorization.k8s.io/hook created
+rolebinding.rbac.authorization.k8s.io/hook created
+serviceaccount/tide created
+role.rbac.authorization.k8s.io/tide created
+rolebinding.rbac.authorization.k8s.io/tide created
+serviceaccount/statusreconciler created
+role.rbac.authorization.k8s.io/statusreconciler created
+rolebinding.rbac.authorization.k8s.io/statusreconciler created
+#+end_example
+
+* components
+** services
+#+begin_src shell
+  kubectl get services
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+deck         NodePort    10.100.143.126   <none>        80:32358/TCP     23s
+hook         NodePort    10.100.27.185    <none>        8888:32242/TCP   23s
+kubernetes   ClusterIP   10.100.0.1       <none>        443/TCP          119m
+tide         NodePort    10.100.58.102    <none>        80:30826/TCP     23s
+#+end_example
+
+** pods
+#+begin_src shell
+  kubectl get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                READY   STATUS    RESTARTS   AGE
+deck-7d486fcc-59bx7                 1/1     Running   0          2m11s
+deck-7d486fcc-72zdt                 1/1     Running   0          2m12s
+hook-5674b4dc6b-8lr76               0/1     Running   0          2m11s
+hook-5674b4dc6b-mxqzm               0/1     Running   0          2m11s
+horologium-6947d84b-2dhv7           1/1     Running   0          2m12s
+plank-569bd9857d-tr99g              1/1     Running   0          2m12s
+sinker-5bd5749656-wjx9z             1/1     Running   0          2m10s
+statusreconciler-64d56987cc-jb4g6   1/1     Running   0          2m11s
+tide-7f89d88467-hvjn5               1/1     Running   0          2m11s
+#+end_example
+
+** deployment
+
+#+begin_src shell
+  kubectl get deployments
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+deck               2/2     2            2           4m6s
+hook               0/2     2            0           4m6s
+horologium         1/1     1            1           4m6s
+plank              1/1     1            1           4m6s
+sinker             1/1     1            1           4m6s
+statusreconciler   1/1     1            1           4m6s
+tide               1/1     1            1           4m6s
+#+end_example
+
+** TODO ingress
+
+#+begin_src shell
+  kubectl get ingress
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME   HOSTS   ADDRESS                                                                        PORTS   AGE
+ing    *       a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com   80      4m22s
+#+end_example
+
+#+begin_src shell
+  kubectl get ingress ing -o yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"extensions/v1beta1","kind":"Ingress","metadata":{"annotations":{},"name":"ing","namespace":"default"},"spec":{"backend":{"serviceName":"deck","servicePort":80},"rules":[{"http":{"paths":[{"backend":{"serviceName":"deck","servicePort":80},"path":"/"},{"backend":{"serviceName":"hook","servicePort":8888},"path":"/hook"}]}}]}}
+  creationTimestamp: "2020-08-05T04:17:54Z"
+  generation: 1
+  name: ing
+  namespace: default
+  resourceVersion: "13435"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/ingresses/ing
+  uid: 780ca17d-b39c-4ee6-bb6c-b46a3bd540bf
+spec:
+  backend:
+    serviceName: deck
+    servicePort: 80
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: deck
+          servicePort: 80
+        path: /
+      - backend:
+          serviceName: hook
+          servicePort: 8888
+        path: /hook
+status:
+  loadBalancer:
+    ingress:
+    - hostname: a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com
+#+end_example
+
+#+begin_src shell
+curl a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script type="text/javascript">
+    var csrfToken = "";
+  </script>
+
+
+  <script>
+    function gtag() {}
+  </script>
+
+
+  <title>Prow Status</title>
+  <link rel="stylesheet" type="text/css" href="/static/style.css">
+  <link rel="stylesheet" type="text/css" href="/static/extensions/style.css">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+  <script type="text/javascript" src="/static/extensions/script.js"></script>
+  <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+<script type="text/javascript" src="/static/prow_bundle.min.js"></script>
+<script type="text/javascript" src="prowjobs.js?var=allBuilds&omit=annotations,labels,decoration_config,pod_spec"></script>
+<script type="text/javascript">
+  var spyglass =  false ;
+  var rerunCreatesJob =  false ;
+</script>
+
+</head>
+<body id="index">
+<div id="alert-container"></div>
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+  <header class="mdl-layout__header">
+    <div class="mdl-layout__header-row">
+      <a href="/"
+         class="logo"><img src="/static/logo-light.png" alt="kubernetes logo" class="logo"/></a>
+      <span class="mdl-layout-title header-title">Prow Status</span>
+    </div>
+  </header>
+  <div class="mdl-layout__drawer">
+    <span class="mdl-layout-title">Prow Dashboard</span>
+    <nav class="mdl-navigation">
+      <a class="mdl-navigation__link mdl-navigation__link--current" href="/">Prow Status</a>
+
+      <a class="mdl-navigation__link" href="/command-help">Command Help</a>
+
+        <a class="mdl-navigation__link" href="/tide">Tide Status</a>
+        <a class="mdl-navigation__link" href="/tide-history">Tide History</a>
+
+      <a class="mdl-navigation__link" href="/plugins">Plugins</a>
+      <a class="mdl-navigation__link" href="https://github.com/kubernetes/test-infra/blob/master/prow/README.md" target="_blank">Documentation <span class="material-icons">open_in_new</span></a>
+    </nav>
+    <footer>
+      36c6a27f0
+    </footer>
+  </div>
+  <div id="loading-progress" class="mdl-progress mdl-js-progress mdl-progress__indeterminate hidden"></div>
+  <main class="mdl-layout__content">
+
+<button id="top-navigator" class="mdl-button mdl-js-button mdl-button--fab hidden">
+  <i class="material-icons">arrow_upward</i>
+</button>
+<div class="page-content">
+  <aside>
+    <div id="filter-box" class="card-box">
+      <ul id="filter-list" class="noBullets">
+        <li>Filter</li>
+        <li><select id="type"><option>all job types</option></select></li>
+        <li><select id="repo"><option>all repositories</option></select></li>
+        &gt;&gt;
+        <li><select id="pull"><option>all pull requests</option></select></li>
+        <li><select id="author"><option>all authors</option></select></li>
+        <li>
+          <div class="fuzzy-search" id="job">
+            <input class="fuzzy-search-input" placeholder="Search job name, accepts '*' wildcards" type="text" id="job-input">
+            <ul id="job-list" class="fuzzy-search-list"></ul>
+          </div>
+        </li>
+        <li><select id="state"><option>all states</option></select></li>
+        <li id="job-count"></li>
+      </ul>
+    </div>
+    <div id="job-bar">
+    <div id="job-bar-success" class="job-bar-state"></div>
+    <div id="success-tooltip" class="mdl-tooltip" for="job-bar-success"></div>
+    <div id="job-bar-pending" class="job-bar-state"></div>
+    <div id="pending-tooltip" class="mdl-tooltip" for="job-bar-pending"></div>
+    <div id="job-bar-triggered" class="job-bar-state"></div>
+    <div id="triggered-tooltip" class="mdl-tooltip" for="job-bar-triggered"></div>
+    <div id="job-bar-error" class="job-bar-state"></div>
+
+    <div id="error-tooltip" class="mdl-tooltip" for="job-bar-error"></div>
+    <div id="job-bar-failure" class="job-bar-state"></div>
+    <div id="failure-tooltip" class="mdl-tooltip" for="job-bar-failure"></div>
+    <div id="job-bar-aborted" class="job-bar-state"></div>
+    <div id="aborted-tooltip" class="mdl-tooltip" for="job-bar-aborted"></div>
+    <div id="job-bar-unknown" class="job-bar-state"></div>
+    <div id="unknown-tooltip" class="mdl-tooltip" for="job-bar-unknown"></div>
+    </div>
+    <div id="job-histogram-container">
+      <span id="job-histogram-labels-y-max"></span>
+      <span id="job-histogram-labels-y-mid"></span>
+      <table id="job-histogram"><tbody id="job-histogram-content"></tbody></table>
+    </div>
+    <div id="job-histogram-labels"><span id="job-histogram-end">Now</span><span id="job-histogram-start"></span><span id="job-histogram-summary"></span></div>
+  </aside>
+  <article>
+    <div class="table-container">
+      <table id="builds">
+        <thead>
+        <tr>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th>Repository</th>
+          <th>Revision</th>
+          <th></th>
+          <th>Job</th>
+          <th>Started</th>
+          <th>Duration</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </article>
+  <div id="rerun">
+    <div id="rerun-content"></div>
+  </div>
+</div>
+
+  </main>
+</div>
+
+<div id="toast" class="mdl-js-snackbar mdl-snackbar">
+  <div class="mdl-snackbar__text"></div>
+  <button class="mdl-snackbar__action" type="button"></button>
+</div>
+</body>
+</html>
+
+#+end_example
+
+* Rob -> ALB Ingress => other ingress
+[[https://aws.amazon.com/blogs/opensource/network-load-balancer-nginx-ingress-controller-eks/][AWS Blog - NLB Nginx Ingress Controller on EKS]]
+[[https://kubernetes.github.io/ingress-nginx/deploy/][NGINX Ingress Controller - Install Guide]]
+** Network Load Balancer with the NGINX Ingress resource
+
+#+begin_src shell :dir "~/prow-config"
+  #  curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/aws/deploy.yaml
+  # curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-0.32.0/deploy/static/provider/aws/deploy.yaml
+  kubectl apply -f manifests/ingress/deploy.yaml  # 404s / docs may have moved
+  # curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+  curl -LO https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/nlb-service.yaml
+  curl -LO https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/apple.yaml
+  curl -LO  https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/banana.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/nlb-service.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/apple.yaml
+  kubectl apply -f https://raw.githubusercontent.com/cornellanthony/nlb-nginxIngress-eks/master/banana.yaml
+#+end_src
+
+** Troubleshooting resources
+
+[[https://eksctl.io/usage/eks-managed-nodes/][EKS Managed Nodes]]
+So in AWS Console land in order to grok the nodes you need to
+look at EC2 . Do not bother with the EKS Clusters page for reason?
+
+When you logon to the nodes with the unknown state and run the following
+#+begin_src shell
+[ec2-user@ip-192-168-45-255 ~]$ systemctl status kubelet
+● kubelet.service - Kubernetes Kubelet
+   Loaded: loaded (/etc/systemd/system/kubelet.service; enabled; vendor preset: disabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-eksclt.al2.conf
+   Active: active (running) since Mon 2020-05-11 03:07:19 UTC; 16h ago
+     Docs: https://github.com/kubernetes/kubernetes
+ Main PID: 7983 (kubelet)
+    Tasks: 83
+   Memory: 222.9M
+   CGroup: /system.slice/kubelet.service
+           ├─ 7983 /usr/bin/kubelet --node-ip=192.168.45.255 --node-labels=role=prow,alpha.eksctl.io/cluster-name=prow-dev,alpha.eksctl.io/nodegroup-name=prow-1,alpha.eksctl.io/instance-id=i-063c273807d19a3...
+           └─24396 /usr/bin/python2 -s /usr/bin/aws eks get-token --cluster-name prow-dev --region ap-southeast-2
+
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.711930    7983 reflector.go:125] k8s.io/kubernetes/pkg/kubelet/kubelet.go:445: Failed to list *v1.Se...authorized
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.712010    7983 controller.go:125] failed to ensure node lease exists, will retry in 7s, error: Unauthorized
+May 11 19:14:58 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:58.712078    7983 reflector.go:125] object-"default"/"deck-token-g5pc5": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.018466    7983 reflector.go:125] object-"kube-system"/"kube-proxy": Failed to list *v1.ConfigMap: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.326603    7983 reflector.go:125] k8s.io/kubernetes/pkg/kubelet/kubelet.go:454: Failed to list *v1.No...authorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.326665    7983 reflector.go:125] object-"default"/"sinker-token-8pgvp": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.634835    7983 reflector.go:125] object-"default"/"tide-token-9fqsp": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.943901    7983 reflector.go:125] object-"default"/"hook-token-dz222": Failed to list *v1.Secret: Unauthorized
+May 11 19:14:59 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:14:59.944074    7983 reflector.go:125] object-"default"/"plugins": Failed to list *v1.ConfigMap: Unauthorized
+May 11 19:15:00 ip-192-168-45-255.ap-southeast-2.compute.internal kubelet[7983]: E0511 19:15:00.254296    7983 reflector.go:125] object-"default"/"hmac-token": Failed to list *v1.Secret: Unauthorized
+Hint: Some lines were ellipsized, use -l to show in full.
+[ec2-user@ip-192-168-45-255 ~]$ date
+Mon May 11 19:15:41 UTC 2020
+[ec2-user@ip-192-168-45-255 ~]$
+#+end_src
+
+#+begin_src shell
+ eksctl get --cluster prowManual nodegroup
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+#+begin_src shell
+# need to check this
+ eksctl delete --cluster prow-dev nodegroup
+# pasted result
+ii@ip-172-31-4-91:~$ eksctl delete nodegroup --cluster prow-dev prow-1
+[ℹ]  eksctl version 0.19.0-rc.1
+[ℹ]  using region ap-southeast-2
+[ℹ]  combined include rules: prow-1
+[ℹ]  1 nodegroup (prow-1) was included (based on the include/exclude rules)
+[ℹ]  will delete 1 nodegroups from auth ConfigMap in cluster "prow-dev"
+[!]  removing nodegroup from auth ConfigMap: instance identity ARN "arn:aws:iam::928655657136:role/eksctl-prow-dev-nodegroup-prow-1-NodeInstanceRole-1UFBFQ9Q5BFN1" not found in auth ConfigMap
+[ℹ]  will drain 1 nodegroup(s) in cluster "prow-dev"
+[ℹ]  cordon node "ip-192-168-4-247.ap-southeast-2.compute.internal"
+[ℹ]  cordon node "ip-192-168-45-255.ap-southeast-2.compute.internal"
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-t9mrd, kube-system/kube-proxy-tggtw
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-lc6f5, kube-system/kube-proxy-kxmzh
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-t9mrd, kube-system/kube-proxy-tggtw
+[!]  ignoring DaemonSet-managed Pods: kube-system/aws-node-lc6f5, kube-system/kube-proxy-kxmzh
+[✔]  drained nodes: [ip-192-168-4-247.ap-southeast-2.compute.internal ip-192-168-45-255.ap-southeast-2.compute.internal]
+[ℹ]  will delete 1 nodegroups from cluster "prow-dev"
+[ℹ]  1 task: { delete nodegroup "prow-1" [async] }
+[ℹ]  will delete stack "eksctl-prow-dev-nodegroup-prow-1"
+[✔]  deleted 1 nodegroup(s) from cluster "prow-dev"
+
+#+end_src
+* Creating a managed nodegroup
+[[https://eksctl.io/usage/eks-managed-nodes/][EKS - Creating a cluster]]
+#+begin_src shell
+eksctl create nodegroup -f eksctl.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* go get go
+#+begin_src shell
+  curl -L https://dl.google.com/go/go1.14.2.linux-amd64.tar.gz | sudo tar -C /usr/local -xzf -
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* hook up
+  Setting up repo with a hook ...
+Source coude for the add-hook below.
+[[https://github.com/kubernetes/test-infra/blob/dbbeb4216756c3e2bdffa7da6ac0bd97ead001e4/experiment/add-hook/main.go][hook main.go]]
+
+Bazel separates flags ro the command being run using --
+Here for example, bazel refuses to parse --help (no wonder nobody understands it!) so in order to have --help interpred by the add-hook code prepend -- first
+~
+ii@ip-172-31-4-91 ~/test-infra $ bazel run //experiment/add-hook -- --help
+INFO: Analyzed target //experiment/add-hook:add-hook (1 packages loaded, 556 targets configured).
+INFO: Found 1 target...
+INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
+google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
+google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
+Target //experiment/add-hook:add-hook up-to-date:
+  bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
+INFO: Elapsed time: 76.356s, Critical Path: 17.69s
+INFO: 213 processes: 213 linux-sandbox.
+INFO: Build completed successfully, 215 total actions
+INFO: Build completed successfully, 215 total actions
+Usage of /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734f8c8c7e2d452a8/execroot/io_k8s_test_infra/bazel-out/k8-fastbuild/bin/experiment/add-hook/linux_amd64_stripped/add-hook:
+  -confirm
+        Apply changes to github
+  -event value
+        Receive hooks for the following events, defaults to ["*"] (all events) (default *)
+  -github-endpoint value
+        GitHub's API endpoint (may differ for enterprise). (default https://api.github.com)
+  -github-graphql-endpoint string
+        GitHub GraphQL API endpoint (may differ for enterprise). (default "https://api.github.com/graphql")
+  -github-host string
+        GitHub's default host (may differ for enterprise) (default "github.com")
+  -github-token-path string
+        Path to the file containing the GitHub OAuth secret.
+  -hmac-path string
+        Path to hmac secret
+  -hook-url string
+        URL to send hooks
+  -repo value
+        Add hooks for this org or org/repo
+~
+
+#+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
+ echo $PATH
+  go get -u github.com/kubernetes/test-infra/experiment/add-hook
+  #add-hook
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
+  add-hook
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+#+begin_src shell :dir "~/test-infra/"
+  pwd
+  ls -al ../prow-config/.secret-hook
+  ls -al ../prow-config/.secret-oauth
+    (
+    bazel run //experiment/add-hook -- \
+      --github-endpoint=http://ghproxy/ \
+      --github-token-path=/home/ii/prow-config/.secret-oauth \
+      --hmac-path=../prow-config/.secret-hook \
+      --hook-url http://a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com/hook \
+      --repo cncf-infra/k8s-conformance \
+      --repo cncf/apisnoop \
+      --repo cncf-infra/prow-config \
+    ) 2>&1
+  # --confirm=false  # Remove =false to actually add hook
+    :
+#+end_src
+
+#+begin_src shell :dir "~/test-infra/"
+  ./bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--github-endpoint=http://ghproxy/' '--github-token-path=/home/ii/prow-config/.secret-oauth' '--hmac-path=../prow-config/.secret-hook' --hook-url http://a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com/hook --repo cncf-infra/k8s-conformance --repo cncf-infra/prow-config
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+* Adding more repos to prow
+- The new repo will need to be defined in the hook above, but also added to plugins
+** content of plugins.yaml showing cncf/k8s-conformance added
+#+begin_src  shell
+  cat plugins.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+# plugin-specific config
+
+# config-updater
+# update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+
+# which plugins should be enabled for which orgs or org/repos
+plugins:
+  cncf-infra:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+
+  cncf-infra/prow-config:
+  - config-updater
+
+  cncf-infra/k8s-conformance:
+  - verify-conformance-request
+#+end_example
+
+Old#+RESULTS:
+#+begin_example
+# plugin-specific config
+
+# config-updater
+# update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+
+# which plugins should be enabled for which orgs or org/repos
+plugins:
+  cncf-infra:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+
+  cncf-infra/prow-config:
+  - config-updater
+
+  cncf/k8s-conformance:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+#+end_example
+
+- After updating plugins run the following to apply it it the cluster.
+** Lets apply the change
+#+begin_src  shell
+  kubectl create configmap plugins --from-file=plugins.yaml=./plugins.yaml  --dry-run -o yaml | kubectl replace configmap plugins -f -
+#+end_src
+
+#+begin_src shell
+cat ./plugins.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+# plugin-specific config
+
+# config-updater
+# update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+
+# which plugins should be enabled for which orgs or org/repos
+plugins:
+  cncf-infra:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+
+  cncf-infra/prow-config:
+  - config-updater
+
+#  cncf-infra/k8s-conformance:
+#  - verify-conformance-request
+#+end_example
+
+
+* ghproxy
+
+#+begin_src shell
+  kubectl apply -f manifests/ghproxy.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+persistentvolumeclaim/ghproxy created
+deployment.apps/ghproxy created
+service/ghproxy created
+#+end_example
+* Verifying Conformance Certification Requests
+Live Repo : https://github.com/cncf/k8s-conformance
+Test Repo : https://github.com/cncf-infra/k8s-conformance a fork of the cncf repo
+
+https://github.com/cncf/apisnoop/projects/29
+https://github.com/cncf/apisnoop/issues/342
+** Requirements
+Check the consistencey of the PR to the above repos
+Ensure that the versoin referenced in the PR Title corresponds to the version of k8s referenced in the supplied logs
+
+** Design
+Implement as a [[https://github.com/kubernetes/test-infra/tree/master/prow/plugins#external-plugins][External Plugin]] that interacts but is no linked into the Hook component of Prow
+
+** Implementation
+*** Plugin
+name verify-conformance-request
+desc Checks a k8s-conformance PR to see if it is internally consitent.
+*** Development setup
+Code location
+/home/ii/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
+*** Building Code
+
+In the mean time following the steps below
+** Literate Build of the go code
+Execute the block below using ,,
+So note here that we are bulding locally on the host
+And developing the plugin in the k8s/test-infra clone while we figure out how to vendor k8s/test-infra/prow dependancies.
+
+#+BEGIN_SRC shell
+# Workaround for above is to place the cncf plugin in to the the k8s/infra code base
+cd ~/go/src/k8s.io/test-infra/prow/external-plugins/verify-conformance-request
+# make changes
+go build
+cp verify-conformance-request /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
+ls -al /home/ii/prow-config/prow/external-plugins/verify-conformance-request/
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 51412
+drwxrwxr-x 4 ii ii     4096 Jun 10 21:50 .
+drwxrwxr-x 3 ii ii     4096 May 26 16:34 ..
+-rw-rw-r-- 1 ii ii       40 May 26 17:02 .secret-hook
+-rw-rw-r-- 1 ii ii       40 May 26 17:02 .secret-oauth
+-rw-rw-r-- 1 ii ii      807 Jun 10 21:50 Dockerfile
+-rw-rw-r-- 1 ii ii     5603 May 26 18:33 main.go
+drwxrwxr-x 2 ii ii     4096 May 24 17:38 plugin
+drwxrwxr-x 2 ii ii     4096 Jun  3 19:19 test-data
+-rw-rw-r-- 1 ii ii      140 Jun  6 11:05 vcr.yaml
+-rwxrwxr-x 1 ii ii 52603642 Jun 11 18:02 verify-conformance-request
+#+end_example
+
+*** Running the external plugin locally
+
+#+BEGIN_SRC lang=shell
+$ ./verify-conformance-request --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=/home/ii/prow-config/plugins.yaml
+#+END_SRC
+
+  *** Building Container
+  [[https://github.com/kubernetes/test-infra/blob/master/prow/build_test_update.md#how-to-test-a-plugin][How to test a plugin]]
+  Test data has been placeid in /home/ii/prow-config/prow/external-plugins/verify-conformance-request/test-data/open-pr.json
+  You can send a test webhook using phony as follows:
+#+BEGIN_SRC shell
+ bazel run //prow/cmd/phony -- \
+  --address=http://localhost:8888/hook \
+  --hmac="secret_text_does_here" --event=pull_request \
+  --payload=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/test-data/open-pr.json
+#+END_SRC
+N.B. the ~--hmac~ flag requires a string with the text of the hmacs secret.
+
+* Build and push the container
+** Make sure that the Building code step above is done and that you have the binary copied into the prow-config repo
+** build the container and tag
+- Will build this as a container and publish to the cncf-infra ECR repository [[https://console.aws.amazon.com/ecr/repositories/cncf-infra/?region=us-east-1][ecr/repo cncf-infra]]
+- The link above will also provide you with a list of commands to run if you get stuck
+- TODO: Bryan is updating repo to be the plugin name instead of cncf-prow, once it is up change this push to go to verify-conformance-request (rememver to update verify-conformance-deploy.yaml
+
+Remember to change the version
+Bryan is doing work on this so this will as he rolls out new procedures. Thanks Bryan!
+#+BEGIN_SRC bash
+  cd /home/ii/p row-config/prow/external-plugins/verify-conformance-release
+  aws ecr get-login-password --region ap-southeast-2  | docker login --username AWS --password-stdin 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com
+  docker build -t cncf-prow .
+  docker tag cncf-prow:latest 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release:latest
+  docker push 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release:latest
+#+END_SRC
+
+#+RESULTS:
+#+begin_src bash
+  Login Succeeded
+  Sending build context to Docker daemon  53.65MB
+  Step 1/6 : FROM golang:1.13.4
+  ---> a2e245db8bd3
+  Step 2/6 : COPY ./ /tmp/build
+  ---> Using cache
+  ---> 2a830bb03a79
+  Step 3/6 : WORKDIR /tmp/build
+  ---> Using cache
+  ---> c18fe4e9cf71
+  Step 4/6 : RUN go get && go build . && mkdir -p /plugin && cp verify-conformance-release /plugin
+  ---> Using cache
+  ---> ac5319062da5
+  Step 5/6 : WORKDIR /plugin
+  ---> Using cache
+  ---> 7fa4481dd0b6
+  Step 6/6 : ENTRYPOINT ["/plugin/verify-conformance-release"]
+  ---> Using cache
+  ---> cd9e6cdab2ce
+  Successfully built cd9e6cdab2ce
+  Successfully tagged cncf-prow:latest
+  The push refers to repository [928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release]
+  510493383037: Preparing
+  2964d1b0ba0c: Preparing
+  5a92b57a5aac: Preparing
+  5835b741b51f: Preparing
+  02c991ab8711: Preparing
+  bee1c15bf7e8: Preparing
+  423d63eb4a27: Preparing
+  7f9bf938b053: Preparing
+  f2b4f0674ba3: Preparing
+  423d63eb4a27: Waiting
+  7f9bf938b053: Waiting
+  f2b4f0674ba3: Waiting
+  bee1c15bf7e8: Waiting
+  5a92b57a5aac: Layer already exists
+  5835b741b51f: Layer already exists
+  02c991ab8711: Layer already exists
+  bee1c15bf7e8: Layer already exists
+  7f9bf938b053: Layer already exists
+  423d63eb4a27: Layer already exists
+  f2b4f0674ba3: Layer already exists
+  2964d1b0ba0c: Pushed
+  510493383037: Pushed
+  latest: digest: sha256:c5e53166bb40de1e94275a2a3e02f3663d512f32c3fe76704377a22ed8929b88 size: 2220
+#+end_src
+
+
+
+
+** Run the container to make sure it is working (optional step that can be used for troubleshooting)
+   #+begin_src bash
+     docker run  -v /home/ii/.secret-hook:/etc/webhook/hmac -v /home/ii/.secret-oauth:/etc/github/oauth -v /home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml:/plugin/vcr.yaml -v /home/ii/prow-config/plugins.yaml:/etc/plugins/plugins.yaml 847cf1d2cf02  /bin/bash -c "/plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m"
+   #+end_src
+
+   #+RESULTS:
+   #+begin_src bash
+     time="2020-06-10T07:03:37Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
+     time="2020-06-10T07:03:37Z" level=warning msg="missing required flag: please set to --github-token-path=/etc/github/oauth before June 2020"
+     time="2020-06-10T07:03:37Z" level=info msg="Throttle(360, 360)" client=github
+     time="2020-06-10T07:03:37Z" level=info msg="verify-conformance-request : HandleAll : Checking all PRs for handling" plugin=verify-conformance-request
+     time="2020-06-10T07:03:37Z" level=warning msg="HandleAll : No repos have been configured for the verify-conformance-request plugin" plugin=verify-conformance-request
+     time="2020-06-10T07:03:37Z" level=info msg="Periodic update complete." duration="89.344µs" plugin=verify-conformance-request
+   #+end_src
+
+*** I do not understand why the above docker run is not seeing the repo
+    - I did notice if I exec into that container and run the command in -c it works as expected
+    #+begin_src bash
+      docker exec -i -t f39470700e75 bash
+      root@f39470700e75:/plugin# cat /plugin/vcr.yaml
+      external_plugins:
+      cncf-infra/k8s-conformance:
+      - name: verify-conformance-request
+      events:
+      - issue_comment
+      - pull_request
+      root@f39470700e75:/plugin# /plugin/verify-conformance-request --hmac-secret-file=/etc/webhook/hmac --github-token-path=/etc/github/oauth --plugin-config=/plugin/vcr.yaml --update-period=1m
+      WARN[0000] It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy
+      WARN[0000] no plugins specified-- check syntax?
+      INFO[0000] Throttle(360, 360)                            client=github
+      INFO[0000] verify-conformance-request : HandleAll : Checking all PRs for handling  plugin=verify-conformance-request
+      INFO[0000] Server exited.                                error="listen tcp :8888: bind: address already in use"
+      INFO[0000] Search for query "archived:false is:pr is:open repo:"cncf-infra/k8s-conformance"" cost 1 point(s). 4991 remaining.  plugin=verify-conformance-request
+      INFO[0000] Considering 1 PRs.                            plugin=verify-conformance-request
+      INFO[0000] IsVerifiable: title of PR is "NOT A REAL CONFORMANCE REQ for  v1.18"  plugin=verify-conformance-request
+      INFO[0000] AddLabel(cncf-infra, k8s-conformance, 1, verifiable)  client=github
+    #+end_src
+
+    - For now I am going to call this good and use the above flags to build out the verify-conformance-deploy.yaml
+
+* Next steps update verify-conformance-deployment.yaml to emulate the docker run
+  Also, ensure that you are referencing the tag of the image that you just built
+** loading config map for vcr.yaml
+   #+begin_src shell
+     kubectl delete configmap vcr-config
+     kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-release/vcr.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   configmap/vcr-config created
+   #+end_example
+
+** apply verify-conformance-deployment.yaml
+   #+begin_src shell :dir "~/prow-config"
+     kubectl apply -f manifests/verify-conformance-release-deployment.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-release created
+   #+end_example
+
+   #+begin_src shell
+     kubectl delete configmap vct-config
+     kubectl create configmap vct-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-tests/vct.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   configmap/vct-config created
+   #+end_example
+
+** apply verify-conformance-deployment.yaml
+   #+begin_src shell :dir "~/prow-config"
+     kubectl apply -f manifests/verify-conformance-test-deployment.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-test configured
+   #+end_example
+
+*** Lets look at the pods.
+#+begin_src shell
+ kubectl get po14372bd4-d12e-11ea-b2a4-ea964f830367ds
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                          READY   STATUS    RESTARTS   AGE
+deck-7c6d46b4f7-dp68c                         1/1     Running   0          44d
+deck-7c6d46b4f7-n8x5q                         1/1     Running   0          44d
+ghproxy-75ddf48577-g9bbs                      1/1     Running   0          44d
+hook-59bb5f886d-24sw2                         1/1     Running   0          37d
+hook-59bb5f886d-d29vb                         1/1     Running   0          37d
+horologium-54f95c4dc4-z58sb                   1/1     Running   0          44d
+plank-7cf6bf5cb6-979ph                        1/1     Running   0          44d
+sinker-ddf8cbcb6-8tl7f                        1/1     Running   1          44d
+statusreconciler-b946855cf-l5x7g              1/1     Running   0          44d
+tide-66b57f5ccf-x6j67                         1/1     Running   0          44d
+verify-conformance-request-67cd666b58-qz5sg   1/1     Running   0          114s
+#+end_example
+
+*** Initially we crashed without logs, this helped me get a meaningful error
+#+begin_src shell
+kubectl describe pod verify-conformance-request-5b7647499f-lr49f
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Name:           verify-conformance-request-5b7647499f-lr49f
+Namespace:      default
+Priority:       0
+Node:           ip-192-168-18-143.ap-southeast-2.compute.internal/192.168.18.143
+Start Time:     Thu, 11 Jun 2020 04:18:30 +0000
+Labels:         app=verify-conformance-request
+                pod-template-hash=5b7647499f
+Annotations:    kubernetes.io/psp: eks.privileged
+Status:         Running
+IP:             192.168.31.154
+IPs:            <none>
+Controlled By:  ReplicaSet/verify-conformance-request-5b7647499f
+Containers:
+  verify-conformance-request:
+    Container ID:  docker://2b3be86482ef64fae7981029d847534e8f6e2197b0812db0df6229ecf4bef58c
+    Image:         928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow:v1.2
+    Image ID:      docker-pullable://928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/cncf-prow@sha256:7374eaa38823120333d2ea8b31ceef0110e0dc6be34f775ae2054858ddee2da5
+    Port:          8888/TCP
+    Host Port:     0/TCP
+    Args:
+      --dry-run=false
+      --github-endpoint=http://ghproxy
+      --github-endpoint=https://api.github.com
+      --hmac-secret-file=/etc/webhook/hmac
+      --github-token-path=/etc/github/oauth
+      --plugin-config=/plugin/vcr.yaml
+      --update-period=1m
+    State:          Running
+      Started:      Thu, 11 Jun 2020 04:18:32 +0000
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /etc/github from oauth (ro)
+      /etc/plugins from plugins (ro)
+      /etc/webhook from hmac (ro)
+      /plugin/vcr.yaml from vcr-config (ro,path="vcr.yaml")
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-lsxfc (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  hmac:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  hmac-token
+    Optional:    false
+  oauth:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  oauth-token
+    Optional:    false
+  plugins:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      plugins
+    Optional:  false
+  vcr-config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      vcr-config
+    Optional:  false
+  default-token-lsxfc:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-lsxfc
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:          <none>
+#+end_example
+
+*** See if the logs will tell us anything.
+#+begin_src shell
+  kubectl logs verify-conformance-request-5b7647499f-lr49f | tail -20
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+
+*  Random header to stop the content below accidentally getting collapsed with another header
+
+  This is how [[https://github.com/kubernetes/test-infra/blob/100609e548a3cca9f007557727ed83dee0992b14/config/prow/cluster/needs-rebase_deployment.yaml][test-infra deploy needs-rebase external plugin]]
+
+  *** Configuration
+  #+BEGIN_SRC lang=yaml
+  plugins:
+    cncf-infra/k8s-conformance:
+    # - approve
+    - verify-conf-request
+    - assign
+  #+END_SRC
+
+
+
+
+
+  * Footnotes
+  ** software
+  *** direnv
+  *** aws-iam-authenticator
+  https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
+  ** gotchas
+  *** documentation seems to call it the oauth secret.... when in fact it's a github personal access tokens
+  *** cluster authentication / iam
+  https://github.com/kubernetes-sigs/aws-iam-authenticator/issues/174#issuecomment-450651720
+
+  *** cluster-admin role
+  #+BEGIN_SRC sh
+    kubectl get clusterrolebinding cluster-admin -o yaml
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_src sh
+  apiVersion: rbac.authorization.k8s.io/v1verify-conformance-deployment.yaml
+  kind: ClusterRoleBinding
+  metadata:
+    annotations:
+      rbac.authorization.kubernetes.io/autoupdate: "true"
+    creationTimestamp: "2020-04-06T04:19:41Z"
+    labels:
+      kubernetes.io/bootstrapping: rbac-defaults
+    name: cluster-admin
+    resourceVersion: "95"
+    selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/cluster-admin
+    uid: c8c1eb3a-72a4-45d3-8ae2-c7d8abda71ee
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: cluster-admin
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:masters
+  #+end_src
+  ** ENV for aws cli
+  https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+
+  **AWS_PROFILE**
