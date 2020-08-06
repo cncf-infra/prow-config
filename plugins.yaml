@@ -16,8 +16,8 @@ plugins:
   cncf-infra:
   # - approve
   - assign
-  - cat
-  - dog
+  #- cat
+  #- dog
   - hold
   - label
   - lgtm
@@ -35,4 +35,6 @@ plugins:
   - config-updater
 
   cncf-infra/k8s-conformance:
-  - verify-conformance-request
+  - cat
+  - dog
+  # - verify-conformance-request

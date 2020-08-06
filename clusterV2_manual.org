@@ -22,7 +22,6 @@
 ** optional
 ** required
 ** simple presubmit job (cat/dog) counts something [[https://github.com/cncf/k8s-conformance][cncf/k8s-conformance]]
-
 * Setup a cluster
 
 Used *eksctl* though long term, maybe we use cluster-api and [[https://github.com/aws/aws-service-operator-k8s/blob/master/docs/background.md#custom-controllers-and-operators-in-aws][aws-service-operation-k8s]]
@@ -36,6 +35,7 @@ aws eks list-clusters
 {
     "clusters": [
         "prow-dev",
+        "prowManual",
         "prow-stg"
     ]
 }
@@ -44,12 +44,12 @@ aws eks list-clusters
 We based our build steps off: https://logz.io/blog/amazon-eks-cluster/
 
 #+begin_src shell
-    aws eks \
-        --region ap-southeast-2 \
-        create-cluster \
-        --name prowManual \
-        --role-arn arn:aws:iam::928655657136:role/eksClusterManualRole \
-        --resources-vpc-config subnetIds=subnet-032f7b836def5b20e,subnet-0fc7775f9e58c8816,subnet-03ed8175806667c5d,securityGroupIds=sg-0851f8576aa400228
+  aws eks \
+      --region ap-southeast-2 \
+          create-cluster \
+      --name prowManual \
+      --role-arn arn:aws:iam::928655657136:role/eksClusterManualRole \
+      --resources-vpc-config subnetIds=subnet-032f7b836def5b20e,subnet-0fc7775f9e58c8816,subnet-03ed8175806667c5d,securityGroupIds=sg-0851f8576aa400228
 #+end_src
 
 #+RESULTS:
@@ -123,8 +123,8 @@ kubectl get svc
 
 #+RESULTS:
 #+begin_example
-NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
-kubernetes   ClusterIP   10.100.0.1   <none>        443/TCP   35m
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+kubernetes   ClusterIP   10.100.0.1       <none>        443/TCP          19h
 #+end_example
 
 #+begin_src yaml :tangle aws-auth-configmap.yaml
@@ -922,7 +922,7 @@ eksctl create nodegroup -f eksctl.yaml
 #+end_example
 
 * hook up
-Setting up repo with a hook ...
+  Setting up repo with a hook ...
 Source coude for the add-hook below.
 [[https://github.com/kubernetes/test-infra/blob/dbbeb4216756c3e2bdffa7da6ac0bd97ead001e4/experiment/add-hook/main.go][hook main.go]]
 
@@ -963,9 +963,9 @@ Usage of /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734f8c8c7e2d452a8/execro
 ~
 
 #+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
-  echo $PATH
-  go get -u k8s.io/test-infra/experiment/add-hook
-  add-hook
+ echo $PATH
+  go get -u github.com/kubernetes/test-infra/experiment/add-hook
+  #add-hook
 #+end_src
 
 #+RESULTS:
@@ -980,70 +980,31 @@ Usage of /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734f8c8c7e2d452a8/execro
 #+begin_example
 #+end_example
 
-#+begin_src shell :dir "~/test-infra"
-  (
-  bazel run //experiment/add-hook -- \
-    --github-endpoint=http://ghproxy/
-    --github-token-path=../prow-config/.secret-oauth \
-    --hmac-path=../prow-config/.secret-hook \
-    --hook-url http://prow.cncf.io/hook \
-    --repo cncf/k8s-conformance \
-    --repo cncf/apisnoop \
-    --repo cncf-infra/prow-config \
-  ) 2>&1
-# --confirm=false  # Remove =false to actually add hook
-  :
+#+begin_src shell :dir "~/test-infra/"
+  pwd
+  ls -al ../prow-config/.secret-hook
+  ls -al ../prow-config/.secret-oauth
+    (
+    bazel run //experiment/add-hook -- \
+      --github-endpoint=http://ghproxy/ \
+      --github-token-path=/home/ii/prow-config/.secret-oauth \
+      --hmac-path=../prow-config/.secret-hook \
+      --hook-url http://a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com/hook \
+      --repo cncf-infra/k8s-conformance \
+      --repo cncf/apisnoop \
+      --repo cncf-infra/prow-config \
+    ) 2>&1
+  # --confirm=false  # Remove =false to actually add hook
+    :
+#+end_src
+
+#+begin_src shell :dir "~/test-infra/"
+  ./bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--github-endpoint=http://ghproxy/' '--github-token-path=/home/ii/prow-config/.secret-oauth' '--hmac-path=../prow-config/.secret-hook' --hook-url http://a432803aac9574a1c93a4b109da563c5-1000428393.ap-southeast-2.elb.amazonaws.com/hook --repo cncf-infra/k8s-conformance --repo cncf-infra/prow-config
+
 #+end_src
 
 #+RESULTS:
 #+begin_example
-Starting local Bazel server and connecting to it...
-Loading:
-Loading: 0 packages loaded
-Loading: 0 packages loaded
-Loading: 0 packages loaded
-    currently loading: experiment/add-hook
-Analyzing: target //experiment/add-hook:add-hook (1 packages loaded, 0 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (31 packages loaded, 5708 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (71 packages loaded, 6593 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (225 packages loaded, 7260 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (390 packages loaded, 8922 targets configured)
-Analyzing: target //experiment/add-hook:add-hook (597 packages loaded, 10308 targets configured)
-INFO: Analyzed target //experiment/add-hook:add-hook (597 packages loaded, 10309 targets configured).
-INFO: Found 1 target...
-INFO: Deleting stale sandbox base /newhome/ii/.cache/bazel/_bazel_ii/8dad4840a73c734ffda8c8c7e2d452a8/sandbox
-[0 / 29] [Prepa] BazelWorkspaceStatusAction stable-status.txt
-[24 / 765] Compiling external/com_google_protobuf/src/google/protobuf/any_lite.cc [for host]; 0s linux-sandbox ... (8 actions, 7 running)
-[42 / 765] Compiling external/com_google_protobuf/src/google/protobuf/extension_set.cc [for host]; 1s linux-sandbox ... (8 actions, 7 running)
-[54 / 765] Compiling external/com_google_protobuf/src/google/protobuf/extension_set.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
-[71 / 765] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_table_driven_lite.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
-[79 / 765] Compiling external/com_google_protobuf/src/google/protobuf/text_format.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
-[88 / 765] Compiling external/com_google_protobuf/src/google/protobuf/generated_message_reflection.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
-[104 / 765] Compiling external/com_google_protobuf/src/google/protobuf/map_field.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
-[123 / 765] Compiling external/com_google_protobuf/src/google/protobuf/wire_format.cc [for host]; 4s linux-sandbox ... (7 actions, 6 running)
-[134 / 765] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 6s linux-sandbox ... (8 actions running)
-[144 / 765] Compiling external/com_google_protobuf/src/google/protobuf/descriptor.cc [for host]; 11s linux-sandbox ... (8 actions running)
-[157 / 765] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_file.cc [for host]; 5s linux-sandbox ... (8 actions running)
-[175 / 765] Compiling external/com_google_protobuf/src/google/protobuf/struct.pb.cc [for host]; 4s linux-sandbox ... (8 actions, 7 running)
-[194 / 765] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_primitive_field_lite.cc [for host]; 2s linux-sandbox ... (8 actions, 7 running)
-[243 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/command_line_interface.cc [for host]; 3s linux-sandbox ... (8 actions, 7 running)
-[272 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/cpp/cpp_message.cc; 8s linux-sandbox ... (8 actions, 7 running)
-[305 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/java/java_primitive_field.cc; 2s linux-sandbox ... (8 actions, 7 running)
-[340 / 953] Compiling external/com_google_protobuf/src/google/protobuf/compiler/python/python_generator.cc; 4s linux-sandbox ... (8 actions, 7 running)
-[389 / 953] Compiling external/com_google_protobuf/src/google/protobuf/wire_format.cc; 3s linux-sandbox ... (8 actions, 7 running)
-INFO: From Generating Descriptor Set proto_library @go_googleapis//google/iam/v1:iam_proto:
-google/iam/v1/options.proto:20:1: warning: Import google/api/annotations.proto is unused.
-google/iam/v1/policy.proto:21:1: warning: Import google/api/annotations.proto is unused.
-Target //experiment/add-hook:add-hook up-to-date:
-  bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook
-INFO: Elapsed time: 121.350s, Critical Path: 15.54s
-INFO: 373 processes: 373 linux-sandbox.
-INFO: Build completed successfully, 376 total actions
-INFO: Running command line: bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--hmac-path=../prow-config/.secret-hook' '--github-token-path=../prow-config/.secret-oauth' --hook-url http://prow.cncf.io/hook --repo cncf/k8s-conformance --repo cncf/apisnoop
-INFO: Build completed successfully, 376 total actions
-time="2020-05-18T18:54:07Z" level=warning msg="It doesn't look like you are using ghproxy to cache API calls to GitHub! This has become a required component of Prow and other components will soon be allowed to add features that may rapidly consume API ratelimit without caching. Starting May 1, 2020 use Prow components without ghproxy at your own risk! https://github.com/kubernetes/test-infra/tree/master/ghproxy#ghproxy"
-time="2020-05-18T18:54:07Z" level=fatal msg="Could not create github client: start ../prow-config/.secret-oauth: error reading ../prow-config/.secret-oauth: open ../prow-config/.secret-oauth: no such file or directory"
-/bin/bash: line 9: --confirm=false: command not found
 #+end_example
 * Adding more repos to prow
 - The new repo will need to be defined in the hook above, but also added to plugins
@@ -1053,6 +1014,48 @@ time="2020-05-18T18:54:07Z" level=fatal msg="Could not create github client: sta
 #+end_src
 
 #+RESULTS:
+#+begin_example
+# plugin-specific config
+
+# config-updater
+# update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+
+# which plugins should be enabled for which orgs or org/repos
+plugins:
+  cncf-infra:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+
+  cncf-infra/prow-config:
+  - config-updater
+
+  cncf-infra/k8s-conformance:
+  - verify-conformance-request
+#+end_example
+
+Old#+RESULTS:
 #+begin_example
 # plugin-specific config
 
@@ -1115,10 +1118,52 @@ plugins:
   kubectl create configmap plugins --from-file=plugins.yaml=./plugins.yaml  --dry-run -o yaml | kubectl replace configmap plugins -f -
 #+end_src
 
+#+begin_src shell
+cat ./plugins.yaml
+#+end_src
+
 #+RESULTS:
 #+begin_example
-configmap/plugins replaced
+# plugin-specific config
+
+# config-updater
+# update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+
+# which plugins should be enabled for which orgs or org/repos
+plugins:
+  cncf-infra:
+  # - approve
+  - assign
+  - cat
+  - dog
+  - hold
+  - label
+  - lgtm
+  # - owners-label
+  - pony
+  - shrug
+  - size
+  - skip
+  - trigger
+  - wip
+  # - verify-owners
+  - yuks
+
+  cncf-infra/prow-config:
+  - config-updater
+
+#  cncf-infra/k8s-conformance:
+#  - verify-conformance-request
 #+end_example
+
 
 * ghproxy
 
@@ -1316,21 +1361,42 @@ Bryan is doing work on this so this will as he rolls out new procedures. Thanks 
 ** loading config map for vcr.yaml
    #+begin_src shell
      kubectl delete configmap vcr-config
-     kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-request/vcr.yaml
+     kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-release/vcr.yaml
    #+end_src
 
    #+RESULTS:
+   #+begin_example
    configmap/vcr-config created
    #+end_example
 
 ** apply verify-conformance-deployment.yaml
    #+begin_src shell :dir "~/prow-config"
-     kubectl apply -f manifests/verify-conformance-deployment.yaml
+     kubectl apply -f manifests/verify-conformance-release-deployment.yaml
    #+end_src
 
    #+RESULTS:
    #+begin_example
-   deployment.apps/verify-conformance-request configured
+   deployment.apps/verify-conformance-release created
+   #+end_example
+
+   #+begin_src shell
+     kubectl delete configmap vct-config
+     kubectl create configmap vct-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-tests/vct.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   configmap/vct-config created
+   #+end_example
+
+** apply verify-conformance-deployment.yaml
+   #+begin_src shell :dir "~/prow-config"
+     kubectl apply -f manifests/verify-conformance-test-deployment.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-test configured
    #+end_example
 
 *** Lets look at the pods.
