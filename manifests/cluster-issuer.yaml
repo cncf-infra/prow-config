@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1beta1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod-prow-cncf-io
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email:
+    privateKeySecretRef:
+      name: letsencrypt-prod-prow-cncf-io
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+        selector:
+          dnsNames:
+            - "prow.cncf.io"

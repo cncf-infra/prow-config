@@ -1,0 +1,399 @@
+# This documents deploying prow to an empty cluster, this was built using the /infra/modules/aws-modules terraform build. The intent is that it will work with all builds
+
+* Confirm cluster aws cli and kubeconfig points to the right cluster
+** List all eks clusters
+#+begin_src  shell
+aws eks list-clusters
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{
+    "clusters": [
+        "prow-dev",
+        "prowManual",
+        "prow-1QQTdZBm",
+        "prow-stg"
+    ]
+}
+#+end_example
+
+** Set current context to be the newly created cluster
+#+begin_src shell
+  aws sts get-caller-identity
+#+end_src
+
+#+RESULTS:
+#+begin_example
+{
+    "UserId": "AIDA5QOBQZCYOSBXDQBV2",
+    "Account": "928655657136",
+    "Arn": "arn:aws:iam::928655657136:user/prow.cncf.io"
+}
+#+end_example
+
+# Set current context to be the newly created cluster
+#+begin_src shell
+  aws eks update-kubeconfig --name prow-1QQTdZBm --region ap-southeast-2
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Updated context arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm in /home/ii/.kube/config
+#+end_example
+
+#+begin_src shell
+ kubectl config view --minify
+#+end_src
+#+RESULTS:d
+#+begin_example
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://7EC74CD0AF19F532E3384523191552E5.sk1.ap-southeast-2.eks.amazonaws.com
+  name: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+contexts:
+- context:
+    cluster: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+    user: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+  name: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+current-context: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+kind: Config
+preferences: {}
+users:
+- name: arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-1QQTdZBm
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1alpha1
+      args:
+      - --region
+      - ap-southeast-2
+      - eks
+      - get-token
+      - --cluster-name
+      - prow-1QQTdZBm
+      command: aws
+      env:
+      - name: AWS_PROFILE
+        value: prow
+#+end_example
+
+** Add certificates for https
+#+begin_src yaml :tangle manifests/cert.yaml
+apiVersion: cert-manager.io/v1beta1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod-prow-cncf-io
+spec:
+  secretName: letsencrypt-prod-prow-cncf-io
+  issuerRef:
+    name: letsencrypt-prod-prow-cncf-io
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - 'prow.cncf.io'
+#+end_src
+
+
+#+begin_src yaml :tangle manifests/cluster-issuer.yaml
+apiVersion: cert-manager.io/v1beta1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod-prow-cncf-io
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email:
+    privateKeySecretRef:
+      name: letsencrypt-prod-prow-cncf-io
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+        selector:
+          dnsNames:
+            - "prow.cncf.io"
+#+end_src
+
+#+begin_src shell
+kubectl apply -f manifests/cluster-issuer.yaml -f manifests/cert.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+clusterissuer.cert-manager.io/letsencrypt-prod-prow-cncf-io configured
+certificate.cert-manager.io/letsencrypt-prod-prow-cncf-io unchanged
+#+end_example
+
+* Add github secrets, to the cluster
+These secrets gets generated in github, we manually add them to local file system for use here
+ TODO: document exact process for getting .secrets-hook and .secret-oauth
+** github-hmac / hook
+ #+begin_src shell
+   kubectl delete secret hmac-token
+   kubectl create secret generic hmac-token --from-file=hmac=.secret-hook
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret/hmac-token created
+ #+end_example
+
+** github-oauth
+ #+begin_src shell
+   kubectl delete secret oauth-token
+   kubectl create secret generic oauth-token --from-file=oauth=.secret-oauth
+ #+end_src
+
+ #+RESULTS:
+ #+begin_example
+ secret/oauth-token created
+ #+end_example
+
+* Install Prow components manifst
+** cluster/starter.yaml
+https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#add-the-prow-components-to-the-cluster
+#+begin_src shell :dir "~/prow-config"
+  kubectl apply -f manifests/starter.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/plugins configured
+configmap/config unchanged
+customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io unchanged
+deployment.apps/hook unchanged
+service/hook unchanged
+deployment.apps/plank unchanged
+deployment.apps/sinker unchanged
+deployment.apps/deck unchanged
+service/deck unchanged
+deployment.apps/horologium unchanged
+deployment.apps/tide unchanged
+service/tide unchanged
+ingress.extensions/ing configured
+deployment.apps/statusreconciler unchanged
+namespace/test-pods unchanged
+serviceaccount/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+serviceaccount/horologium unchanged
+role.rbac.authorization.k8s.io/horologium unchanged
+rolebinding.rbac.authorization.k8s.io/horologium unchanged
+serviceaccount/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+serviceaccount/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+serviceaccount/hook unchanged
+role.rbac.authorization.k8s.io/hook unchanged
+rolebinding.rbac.authorization.k8s.io/hook unchanged
+serviceaccount/tide unchanged
+role.rbac.authorization.k8s.io/tide unchanged
+rolebinding.rbac.authorization.k8s.io/tide unchanged
+serviceaccount/statusreconciler unchanged
+role.rbac.authorization.k8s.io/statusreconciler unchanged
+rolebinding.rbac.authorization.k8s.io/statusreconciler unchanged
+#+end_example
+* Verify components
+** services
+#+begin_src shell
+  kubectl get services
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME         TYPE           CLUSTER-IP       EXTERNAL-IP                                                                   PORT(S)          AGE
+deck         NodePort       172.20.140.54    <none>                                                                        80:31119/TCP     14s
+hook         NodePort       172.20.200.138   <none>                                                                        8888:32063/TCP   15s
+kubernetes   ClusterIP      172.20.0.1       <none>                                                                        443/TCP          3d18h
+nginx        LoadBalancer   172.20.97.109    ab86cbb70de5540daa1edffac0df5b32-237511451.ap-southeast-2.elb.amazonaws.com   80:31981/TCP     33m
+tide         NodePort       172.20.77.80     <none>                                                                        80:31849/TCP     14s
+#+end_example
+
+** pods
+#+begin_src shell
+  kubectl get pods
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                                READY   STATUS    RESTARTS   AGE
+deck-7d486fcc-5wxr4                 1/1     Running   0          21s
+deck-7d486fcc-ss5lv                 1/1     Running   0          21s
+hook-5674b4dc6b-26fpt               0/1     Running   0          21s
+hook-5674b4dc6b-52jlv               0/1     Running   0          21s
+horologium-6947d84b-jbf8n           1/1     Running   0          21s
+nginx-5578584966-gw8mg              1/1     Running   0          77m
+plank-569bd9857d-hsdxq              1/1     Running   0          21s
+sinker-5bd5749656-d9pgq             1/1     Running   0          21s
+statusreconciler-64d56987cc-wvr96   1/1     Running   0          21s
+tide-7f89d88467-xwgdt               1/1     Running   0          21s
+#+end_example
+
+** deployment
+
+#+begin_src shell
+  kubectl get deployments
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+deck               2/2     2            2           29s
+hook               0/2     2            0           29s
+horologium         1/1     1            1           28s
+nginx              1/1     1            1           77m
+plank              1/1     1            1           29s
+sinker             1/1     1            1           29s
+statusreconciler   1/1     1            1           28s
+tide               1/1     1            1           28s
+#+end_example
+
+** ingress
+#+begin_src shell
+  kubectl get ingress
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME   HOSTS   ADDRESS   PORTS   AGE
+ing    *                 80      37s
+#+end_example
+
+#+begin_src shell
+  kubectl get ingress ing -o yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"extensions/v1beta1","kind":"Ingress","metadata":{"annotations":{},"name":"ing","namespace":"default"},"spec":{"backend":{"serviceName":"deck","servicePort":80},"rules":[{"http":{"paths":[{"backend":{"serviceName":"deck","servicePort":80},"path":"/"},{"backend":{"serviceName":"hook","servicePort":8888},"path":"/hook"}]}}]}}
+  creationTimestamp: "2020-08-09T22:28:27Z"
+  generation: 1
+  name: ing
+  namespace: default
+  resourceVersion: "571059"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/ingresses/ing
+  uid: 7e22c500-bf5e-4012-ac24-0aa1ea58c5ae
+spec:
+  backend:
+    serviceName: deck
+    servicePort: 80
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: deck
+          servicePort: 80
+        path: /
+      - backend:
+          serviceName: hook
+          servicePort: 8888
+        path: /hook
+status:
+  loadBalancer:
+    ingress:
+    - hostname: adc0c1d070fdb46b2897a567e5c017db-1395387388.ap-southeast-2.elb.amazonaws.com
+#+end_example
+
+* Go get hook
+#+begin_src shell :prologue "export PATH=/usr/local/go/bin:$PATH\n"
+ echo $PATH
+  go get -u github.com/kubernetes/test-infra/experiment/add-hook
+  #add-hook
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+* Adding more repos to prow
+- The new repo will need to be defined in the hook above, but also added to plugins
+
+#+begin_src  shell
+  cat plugins.yaml
+#+end_src
+
+** Lets apply the change
+#+begin_src  shell
+  kubectl create configmap plugins --from-file=plugins.yaml=./plugins.yaml  --dry-run -o yaml | kubectl replace configmap plugins -f -
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/plugins replaced
+#+end_example
+
+* ghproxy
+#+begin_src shell
+  kubectl apply -f manifests/ghproxy.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+persistentvolumeclaim/ghproxy created
+deployment.apps/ghproxy created
+service/ghproxy created
+#+end_example
+
+* hook up
+   For this to work, you will need to make sure the hook is added on the github side, you have to whitelist the hook-url in github settings, it also require
+
+#+begin_src shell :dir "~/test-infra/"
+  ./bazel-bin/experiment/add-hook/linux_amd64_stripped/add-hook '--github-endpoint=http://ghproxy/' '--github-token-path=/home/ii/prow-config/.secret-oauth' '--hmac-path=../prow-config/.secret-hook' --hook-url http://adc0c1d070fdb46b2897a567e5c017db-1395387388.ap-southeast-2.elb.amazonaws.com/hook --repo cncf-infra/k8s-conformance --repo cncf-infra/prow-config
+#+end_src
+* Deploy verify conformance release/test external plugins
+** loading config map for vcr.yaml
+   #+begin_src shell
+     kubectl delete configmap vcr-config
+     kubectl create configmap vcr-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-release/vcr.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   configmap/vcr-config created
+   #+end_example
+
+** apply verify-conformance-deployment.yaml
+   #+begin_src shell :dir "~/prow-config"
+     kubectl apply -f manifests/verify-conformance-release-deployment.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-release created
+   #+end_example
+
+** loading config map for vct.yaml
+   #+begin_src shell
+     kubectl delete configmap vct-config
+     kubectl create configmap vct-config --from-file=/home/ii/prow-config/prow/external-plugins/verify-conformance-tests/vct.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   configmap/vct-config created
+   #+end_example
+
+** apply verify-conformance-deployment.yaml
+   #+begin_src shell :dir "~/prow-config"
+    kubectl apply -f manifests/verify-conformance-test-deployment.yaml
+   #+end_src
+
+   #+RESULTS:
+   #+begin_example
+   deployment.apps/verify-conformance-test created
+   #+end_example
