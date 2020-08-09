@@ -1,0 +1,18 @@
+
+
+# #+RESULTS: create alb-ingress namespace
+# #+begin_example
+# namespace/alb-ingress created
+# #+end_example
+
+# #+name: alb ingress controller values
+
+---
+clusterName: prowManual
+awsRegion: ap-southeast-2
+awsVpcID: vpc-0370ec7970868fc28
+rbac:
+  serviceAccountAnnotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::928655657136:role/prowManualNodegroupStack-NodeInstanceRole-KWMYH39VBRIU
+scope:
+  ingressClass: alb

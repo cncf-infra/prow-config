@@ -6,6 +6,9 @@
   - [Plan](#sec-3-2)
   - [Apply](#sec-3-3)
   - [Configure kubectl to use the new cluster](#sec-3-4)
+  - [Configure aws auth for EKS cluster](#sec-3-5)
+- [Setup ELB + nginx-ingress](#sec-4)
+  - [Cert-Manager](#sec-4-1)
 
 Terraform configuration for prow.cncf.io
 
@@ -154,7 +157,7 @@ aws eks list-clusters
     +-------------------+
     ||    clusters     ||
     |+-----------------+|
-    ||  prow-cluster   ||
+    ||  prow-1QQTdZBm  ||
     |+-----------------+|
 
 Set current context to be the newly created cluster
@@ -162,3 +165,206 @@ Set current context to be the newly created cluster
 ```shell
 aws eks --region ap-southeast-2 update-kubeconfig --name prow-cluster
 ```
+
+## Configure aws auth for EKS cluster<a id="sec-3-5"></a>
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::928655657136:role/prow-1QQTdZBm2020080603513072090000000a
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+  mapUsers: |
+    - userarn: arn:aws:iam::928655657136:user/prow.cncf.io
+      username: prow
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::928655657136:user/bb@ii.coop
+      username: bb
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::928655657136:user/hh@ii.coop
+      username: hh
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
+      username: zz
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
+      username: rob
+      groups:
+        - system:masters
+```
+
+```shell
+kubectl apply -f aws-auth-configmap.yaml
+```
+
+    configmap/aws-auth configured
+
+# Setup ELB + nginx-ingress<a id="sec-4"></a>
+
+```shell
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
+```
+
+    "stable" has been added to your repositories
+
+```yaml
+---
+controller:
+  service:
+    externalTrafficPolicy: Local
+    type: LoadBalancer
+  publishService:
+    enabled: true
+  config:
+    service-tokens: "false"
+    use-proxy-protocol: "false"
+    compute-full-forwarded-for: "true"
+    use-forwarded-headers: "true"
+  metrics:
+    enabled: true
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+
+serviceAccount:
+  create: true
+
+rbac:
+  create: true
+```
+
+```shell
+kubectl create ns nginx-ingress
+```
+
+    
+
+```shell
+helm install nginx-ingress -f nginx-ingress-values.yaml --namespace nginx-ingress stable/nginx-ingress
+```
+
+    NAME: nginx-ingress
+    LAST DEPLOYED: Mon Aug 10 10:28:45 2020
+    NAMESPACE: nginx-ingress
+    STATUS: deployed
+    REVISION: 1
+    TEST SUITE: None
+    NOTES:
+    The nginx-ingress controller has been installed.
+    It may take a few minutes for the LoadBalancer IP to be available.
+    You can watch the status by running 'kubectl --namespace nginx-ingress get services -o wide -w nginx-ingress-controller'
+    
+    An example Ingress that makes use of the controller:
+    
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        annotations:
+          kubernetes.io/ingress.class: nginx
+        name: example
+        namespace: foo
+      spec:
+        rules:
+          - host: www.example.com
+            http:
+              paths:
+                - backend:
+                    serviceName: exampleService
+                    servicePort: 80
+                  path: /
+        # This section is only required if TLS is to be enabled for the Ingress
+        tls:
+            - hosts:
+                - www.example.com
+              secretName: example-tls
+    
+    If TLS is enabled for the Ingress, a Secret containing the certificate and key must also be provided:
+    
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: example-tls
+        namespace: foo
+      data:
+        tls.crt: <base64 encoded cert>
+        tls.key: <base64 encoded key>
+      type: kubernetes.io/tls
+
+```shell
+kubectl -n nginx-ingress get pods
+```
+
+    NAME                                             READY   STATUS    RESTARTS   AGE
+    nginx-ingress-controller-6fd5487458-8m68q        1/1     Running   0          91s
+    nginx-ingress-controller-6fd5487458-96k7h        1/1     Running   0          76s
+    nginx-ingress-controller-6fd5487458-cn9qh        1/1     Running   0          76s
+    nginx-ingress-default-backend-5b967cf596-74mn6   1/1     Running   0          91s
+
+## Cert-Manager<a id="sec-4-1"></a>
+
+Download the latest cert-manager manifest:
+
+```shell
+curl -L -o cert-manager-v0.16.1.yaml https://github.com/jetstack/cert-manager/releases/download/v0.16.1/cert-manager.yaml
+```
+
+    
+
+Apply:
+
+```shell
+kubectl apply -f cert-manager-v0.16.1.yaml
+```
+
+    customresourcedefinition.apiextensions.k8s.io/certificaterequests.cert-manager.io created
+    customresourcedefinition.apiextensions.k8s.io/certificates.cert-manager.io created
+    customresourcedefinition.apiextensions.k8s.io/challenges.acme.cert-manager.io created
+    customresourcedefinition.apiextensions.k8s.io/clusterissuers.cert-manager.io created
+    customresourcedefinition.apiextensions.k8s.io/issuers.cert-manager.io created
+    customresourcedefinition.apiextensions.k8s.io/orders.acme.cert-manager.io created
+    namespace/cert-manager created
+    serviceaccount/cert-manager-cainjector created
+    serviceaccount/cert-manager created
+    serviceaccount/cert-manager-webhook created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-cainjector created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-issuers created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-clusterissuers created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-certificates created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-orders created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-challenges created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-controller-ingress-shim created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-view created
+    clusterrole.rbac.authorization.k8s.io/cert-manager-edit created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-cainjector created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-issuers created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-clusterissuers created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-certificates created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-orders created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-challenges created
+    clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-ingress-shim created
+    role.rbac.authorization.k8s.io/cert-manager-cainjector:leaderelection created
+    role.rbac.authorization.k8s.io/cert-manager:leaderelection created
+    role.rbac.authorization.k8s.io/cert-manager-webhook:dynamic-serving created
+    rolebinding.rbac.authorization.k8s.io/cert-manager-cainjector:leaderelection created
+    rolebinding.rbac.authorization.k8s.io/cert-manager:leaderelection created
+    rolebinding.rbac.authorization.k8s.io/cert-manager-webhook:dynamic-serving created
+    service/cert-manager created
+    service/cert-manager-webhook created
+    deployment.apps/cert-manager-cainjector created
+    deployment.apps/cert-manager created
+    deployment.apps/cert-manager-webhook created
+    mutatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
+    validatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
