@@ -1,0 +1,66 @@
+#+TITLE: Box
+
+Ubuntu 20.04 EC2 instance for managing things.
+
+* Tools
+  
+Install misc tools:
+#+begin_src shell
+  sudo apt update
+
+  sudo apt install unzip emacs-nox tmate
+#+end_src
+
+Install docker:
+#+begin_src shell
+  sudo apt update
+
+  sudo apt install -y \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg-agent \
+     software-properties-common
+
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+  sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  sudo apt update
+  sudo apt install docker-ce docker-ce-cli containerd.io
+#+end_src
+
+Install kubectl:
+#+begin_src shell
+  sudo apt update && sudo apt install -y apt-transport-https gnupg2
+  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+  echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+  sudo apt update
+  sudo apt install -y kubectl
+#+end_src
+
+Install aws-cli:
+#+begin_src shell
+  sudo apt install awscli
+#+end_src
+
+Install terraform:
+#+begin_src shell
+  curl -L -o terraform.zip https://releases.hashicorp.com/terraform/0.12.29/terraform_0.12.29_linux_amd64.zip
+
+  unzip terraform.tar.gz
+  sudo mv terraform /usr/local/bin/terraform
+#+end_src
+
+Humacs:
+#+begin_src shell
+  git clone --recursive https://github.com/humacs/humacs
+  cd humacs
+  ./install.sh
+#+end_src
+
+* Repos
+
+#+begin_src shell
+  git clone https://github.com/cncf-infra/prow-config
+  git clone https://github.com/kubernetes/test-infra
+#+end_src
