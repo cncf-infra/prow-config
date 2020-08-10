@@ -1,0 +1,14 @@
+# Add certificates for https
+
+apiVersion: cert-manager.io/v1beta1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod-prow-cncf-io
+spec:
+  secretName: letsencrypt-prod-prow-cncf-io
+  issuerRef:
+    name: letsencrypt-prod-prow-cncf-io
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - 'prow.cncf.io'
