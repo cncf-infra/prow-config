@@ -16,6 +16,8 @@ Terraform configuration for prow.cncf.io
 
 -   [terraform](https://www.terraform.io/downloads.html)
 -   [aws cli](https://aws.amazon.com/cli/)
+-   [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+-   [helm](https://helm.sh/docs/intro/install/)
 
 # Initial things<a id="sec-2"></a>
 

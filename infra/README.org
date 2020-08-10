@@ -6,6 +6,8 @@ Terraform configuration for prow.cncf.io
 * Dependecies
 - [[https://www.terraform.io/downloads.html][terraform]]
 - [[https://aws.amazon.com/cli/][aws cli]]
+- [[https://kubernetes.io/docs/tasks/tools/install-kubectl/][kubectl]]
+- [[https://helm.sh/docs/intro/install/][helm]]
 
 * Initial things
 ** Configure aws cli
