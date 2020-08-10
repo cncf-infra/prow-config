@@ -14,8 +14,8 @@ Terraform configuration for prow.cncf.io
 
 # Dependecies<a id="sec-1"></a>
 
--   terraform
--   aws cli
+-   [terraform](https://www.terraform.io/downloads.html)
+-   [aws cli](https://aws.amazon.com/cli/)
 
 # Initial things<a id="sec-2"></a>
 
