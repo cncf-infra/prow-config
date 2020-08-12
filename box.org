@@ -38,6 +38,61 @@ Install kubectl:
   sudo apt install -y kubectl
 #+end_src
 
+Install golang:
+#+begin_src shell
+  export GO_VERSION=1.15rc1
+  curl -L https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz | sudo tar --directory /usr/local --extract --ungzip
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+Install bazel:
+#+begin_src shell
+  export BAZEL_VERSION=2.2.0
+  sudo curl -L -o /usr/local/bin/bazel https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-x86_64
+  sudo chmod +x /usr/local/bin/bazel && bazel
+#+end_src
+
+#+RESULTS:
+#+begin_example
+                                                           [bazel release 2.2.0]
+Usage: bazel <command> <options> ...
+
+Available commands:
+  analyze-profile     Analyzes build profile data.
+  aquery              Analyzes the given targets and queries the action graph.
+  build               Builds the specified targets.
+  canonicalize-flags  Canonicalizes a list of bazel options.
+  clean               Removes output files and optionally stops the server.
+  coverage            Generates code coverage report for specified test targets.
+  cquery              Loads, analyzes, and queries the specified targets w/ configurations.
+  dump                Dumps the internal state of the bazel server process.
+  fetch               Fetches external repositories that are prerequisites to the targets.
+  help                Prints help for commands, or the index.
+  info                Displays runtime info about the bazel server.
+  license             Prints the license of this software.
+  mobile-install      Installs targets to mobile devices.
+  print_action        Prints the command line args for compiling a file.
+  query               Executes a dependency graph query.
+  run                 Runs the specified target.
+  shutdown            Stops the bazel server.
+  sync                Syncs all repositories specified in the workspace file
+  test                Builds and runs the specified test targets.
+  version             Prints version information for bazel.
+
+Getting more help:
+  bazel help <command>
+                   Prints help and options for <command>.
+  bazel help startup_options
+                   Options for the JVM hosting bazel.
+  bazel help target-syntax
+                   Explains the syntax for specifying targets.
+  bazel help info-keys
+                   Displays a list of keys used by the info command.
+#+end_example
+
 Install aws-cli:
 #+begin_src shell
   sudo apt install awscli
@@ -57,6 +112,22 @@ Humacs:
   cd humacs
   ./install.sh
 #+end_src
+
+Helm:
+#+begin_src shell
+  curl -L -o helm.tar.gz https://get.helm.sh/helm-v3.3.0-linux-amd64.tar.gz
+  tar xvf helm.tar.gz
+  sudo mv linux-amd64/helm /usr/local/bin/helm
+  rm -r helm.tar.gz linux-amd64
+#+end_src
+
+#+RESULTS:
+#+begin_example
+linux-amd64/
+linux-amd64/README.md
+linux-amd64/helm
+linux-amd64/LICENSE
+#+end_example
 
 * Repos
 
