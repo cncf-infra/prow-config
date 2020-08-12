@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Job
+metadata:
+  namespace: default
+  name: repo-webhook
+  labels:
+    app: repo-webhook
+spec:
+  selector:
+    matchLabels:
+      app: repo-webhook
+  template:
+    metadata:
+      labels:
+        app: repo-webhook
+  template:
+    metadata:
+      labels:
+        app: repo-webhook
+    spec:
+      serviceAccountName: hook
+      terminationGracePeriodSeconds: 180
+      containers:
+      - name:repo-webhook
+        image: gcr.io/cncf-prow/repo-webhook:latest
+        imagePullPolicy: Always
+        args:
+          --github-endpoint=http://ghproxy/
+          --github-token-path=../prow-config/.secret-oauth \
+          --hmac-path=../prow-config/.secret-hook \
+          --hook-url http://prow.cncf.io/hook \
+          --repo cncf/k8s-conformance \
+          --repo cncf/apisnoop \
+          --repo cncf-infra/prow-config \
+        volumeMounts:
+        - mountPath: /etc/webhook
+          name: hmac
+          readOnly: true
+        - mountPath: /etc/github
+          name: oauth
+          readOnly: true
+        - mountPath: /etc/config
+          name: config
+          readOnly: true
+        - mountPath: /etc/job-config
+          name: job-config
+          readOnly: true
+        - mountPath: /etc/plugins
+          name: plugins
+          readOnly: true
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 3
+          timeoutSeconds: 600
+      terminationGracePeriodSeconds: 180
+      volumes:
+      - name: hmac
+        secret:
+          secretName: hmac-token
+      - name: oauth
+        secret:
+          secretName: oauth-token
