@@ -3,7 +3,7 @@
 
 Terraform configuration for prow.cncf.io
 
-* Dependecies
+* Dependencies
 - [[https://www.terraform.io/downloads.html][terraform]]
 - [[https://aws.amazon.com/cli/][aws cli]]
 - [[https://kubernetes.io/docs/tasks/tools/install-kubectl/][kubectl]]
@@ -26,7 +26,7 @@ Initialize terraform with the plugins that are required.
 #+end_src
 
 #+RESULTS:
-#+begin_example
+#+BEGIN_example
 [0m[1mInitializing modules...[0m
 Downloading terraform-aws-modules/eks/aws 12.2.0 for eks...
 - eks in .terraform/modules/eks/terraform-aws-eks-12.2.0
@@ -38,12 +38,12 @@ Downloading terraform-aws-modules/vpc/aws 2.6.0 for vpc...
 
 [0m[1mInitializing provider plugins...[0m
 - Checking for available provider plugins...
-- Downloading plugin for provider "template" (hashicorp/template) 2.1.2...
-- Downloading plugin for provider "kubernetes" (hashicorp/kubernetes) 1.12.0...
 - Downloading plugin for provider "aws" (hashicorp/aws) 3.1.0...
 - Downloading plugin for provider "random" (hashicorp/random) 2.3.0...
 - Downloading plugin for provider "local" (hashicorp/local) 1.4.0...
 - Downloading plugin for provider "null" (hashicorp/null) 2.1.2...
+- Downloading plugin for provider "template" (hashicorp/template) 2.1.2...
+- Downloading plugin for provider "kubernetes" (hashicorp/kubernetes) 1.12.0...
 
 [0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
 [0m[32m
@@ -54,7 +54,7 @@ should now work.
 If you ever set or change modules or backend configuration for Terraform,
 rerun this command to reinitialize your working directory. If you forget, other
 commands will detect it and remind you to do so if necessary.[0m
-#+end_example
+#+END_example
 
 ** Plan
 
@@ -64,18 +64,18 @@ Using plan, verify that the actions performed will be the correct ones.
 #+end_src
 
 #+RESULTS:
-#+begin_example
+#+BEGIN_example
 [0m[1mRefreshing Terraform state in-memory prior to plan...[0m
 The refreshed state will be used to calculate this plan, but will not be
 persisted to local or remote state storage.
 [0m
-[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_assume_role_policy: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_caller_identity.current: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_partition.current: Refreshing state...[0m
-[0m[1mdata.aws_availability_zones.available: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_ami.eks_worker: Refreshing state...[0m
 [0m[1mmodule.eks.data.aws_ami.eks_worker_windows: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_partition.current: Refreshing state...[0m
 [0m[1mmodule.eks.data.aws_iam_policy_document.cluster_elb_sl_role_creation[0]: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_ami.eks_worker: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_assume_role_policy: Refreshing state...[0m
+[0m[1mdata.aws_availability_zones.available: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_caller_identity.current: Refreshing state...[0m
 [0m[1mmodule.eks.data.aws_iam_policy_document.workers_assume_role_policy: Refreshing state...[0m
 
 ------------------------------------------------------------------------
@@ -878,7 +878,7 @@ Note: You didn't specify an "-out" parameter to save this plan, so Terraform
 can't guarantee that exactly these actions will be performed if
 "terraform apply" is subsequently run.
 
-#+end_example
+#+END_example
 
 ** Apply
 
@@ -888,82 +888,80 @@ Create the infrastructure using apply.
 #+end_src
 
 #+RESULTS:
-#+begin_example
-[0m[1mrandom_string.suffix: Refreshing state... [id=ztwaOEOw][0m
+#+BEGIN_example
+[0m[1mrandom_string.suffix: Refreshing state... [id=LltO5Bjk][0m
 [0m[1mmodule.eks.data.aws_partition.current: Refreshing state...[0m
-[0m[1mdata.aws_availability_zones.available: Refreshing state...[0m
-[0m[1mmodule.vpc.aws_vpc.this[0]: Refreshing state... [id=vpc-092e948c5b555e953][0m
-[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_elb_sl_role_creation[0]: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_ami.eks_worker_windows: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_caller_identity.current: Refreshing state...[0m
-[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_assume_role_policy: Refreshing state...[0m
 [0m[1mmodule.eks.data.aws_ami.eks_worker: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_assume_role_policy: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_ami.eks_worker_windows: Refreshing state...[0m
+[0m[1mmodule.vpc.aws_vpc.this[0]: Refreshing state... [id=vpc-0277e293e84bd1e19][0m
+[0m[1mmodule.eks.data.aws_caller_identity.current: Refreshing state...[0m
+[0m[1mmodule.eks.data.aws_iam_policy_document.cluster_elb_sl_role_creation[0]: Refreshing state...[0m
+[0m[1mdata.aws_availability_zones.available: Refreshing state...[0m
 [0m[1mmodule.eks.data.aws_iam_policy_document.workers_assume_role_policy: Refreshing state...[0m
-[0m[1mmodule.eks.aws_iam_role.cluster[0]: Refreshing state... [id=prow-ztwaOEOw20200811225058826300000001][0m
-[0m[1mmodule.vpc.aws_eip.nat[0]: Refreshing state... [id=eipalloc-064d80ac7c7f0f37c][0m
-[0m[1maws_security_group.worker_group_mgmt_two: Refreshing state... [id=sg-0556b0fe6cdad0424][0m
-[0m[1maws_security_group.all_worker_mgmt: Refreshing state... [id=sg-0d9d1a2ef965de5c1][0m
-[0m[1mmodule.eks.aws_security_group.workers[0]: Refreshing state... [id=sg-0f347b3ee45de5a73][0m
-[0m[1maws_security_group.worker_group_mgmt_one: Refreshing state... [id=sg-03906b81c31055db2][0m
-[0m[1mmodule.eks.aws_security_group.cluster[0]: Refreshing state... [id=sg-0e822bab324fe23a8][0m
-[0m[1mmodule.vpc.aws_internet_gateway.this[0]: Refreshing state... [id=igw-04f82f9c62136e469][0m
-[0m[1mmodule.vpc.aws_route_table.private[0]: Refreshing state... [id=rtb-0dcbb1cbc4b089921][0m
-[0m[1mmodule.vpc.aws_subnet.private[1]: Refreshing state... [id=subnet-0f0978df37e9d54d0][0m
-[0m[1mmodule.vpc.aws_subnet.private[2]: Refreshing state... [id=subnet-037b01c4d3d446827][0m
-[0m[1mmodule.vpc.aws_subnet.private[0]: Refreshing state... [id=subnet-0275b445c9cd997cc][0m
-[0m[1mmodule.vpc.aws_subnet.public[1]: Refreshing state... [id=subnet-0620c2c5bf13a6022][0m
-[0m[1mmodule.vpc.aws_subnet.public[2]: Refreshing state... [id=subnet-02659b477d353ef59][0m
-[0m[1mmodule.vpc.aws_subnet.public[0]: Refreshing state... [id=subnet-0c59ff082609faad7][0m
-[0m[1mmodule.vpc.aws_route_table.public[0]: Refreshing state... [id=rtb-023306b602f4cd387][0m
-[0m[1mmodule.eks.aws_security_group_rule.cluster_egress_internet[0]: Refreshing state... [id=sgrule-1206435288][0m
-[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_cluster_https[0]: Refreshing state... [id=sgrule-2610075943][0m
-[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_cluster[0]: Refreshing state... [id=sgrule-2149201354][0m
-[0m[1mmodule.eks.aws_security_group_rule.workers_egress_internet[0]: Refreshing state... [id=sgrule-2163027342][0m
-[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_self[0]: Refreshing state... [id=sgrule-580937013][0m
-[0m[1mmodule.eks.aws_security_group_rule.cluster_https_worker_ingress[0]: Refreshing state... [id=sgrule-316299378][0m
-[0m[1mmodule.vpc.aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-0d682256176c593b6][0m
-[0m[1mmodule.vpc.aws_route_table_association.private[2]: Refreshing state... [id=rtbassoc-076c970464275a4ab][0m
-[0m[1mmodule.vpc.aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-0906f804da0aab824][0m
-[0m[1mmodule.vpc.aws_route.public_internet_gateway[0]: Refreshing state... [id=r-rtb-023306b602f4cd3871080289494][0m
-[0m[1mmodule.vpc.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-095c8b8d577cd0fc5][0m
-[0m[1mmodule.vpc.aws_route_table_association.public[2]: Refreshing state... [id=rtbassoc-0cd3c3353605fc984][0m
-[0m[1mmodule.vpc.aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-07e7e7c4d5b19d468][0m
-[0m[1mmodule.vpc.aws_nat_gateway.this[0]: Refreshing state... [id=nat-011dff8ad57fbcc29][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy[0]: Refreshing state... [id=prow-ztwaOEOw20200811225058826300000001-20200811225101991800000008][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_AmazonEKSServicePolicy[0]: Refreshing state... [id=prow-ztwaOEOw20200811225058826300000001-20200811225102011800000009][0m
-[0m[1mmodule.eks.aws_iam_role_policy.cluster_elb_sl_role_creation[0]: Refreshing state... [id=prow-ztwaOEOw20200811225058826300000001:prow-ztwaOEOw-elb-sl-role-creation20200811225101142200000007][0m
-[0m[1mmodule.vpc.aws_route.private_nat_gateway[0]: Refreshing state... [id=r-rtb-0dcbb1cbc4b0899211080289494][0m
-[0m[1mmodule.eks.aws_eks_cluster.this[0]: Refreshing state... [id=prow-ztwaOEOw][0m
-[0m[1mmodule.eks.null_resource.wait_for_cluster[0]: Refreshing state... [id=4405186387864945330][0m
-[0m[1mmodule.eks.aws_iam_role.workers[0]: Refreshing state... [id=prow-ztwaOEOw2020081123020467170000000a][0m
-[0m[1mmodule.eks.local_file.kubeconfig[0]: Refreshing state... [id=3d0a8ea60f5c443d53dce377968b0d6f4a713aa9][0m
+[0m[1mmodule.eks.aws_iam_role.cluster[0]: Refreshing state... [id=prow-LltO5Bjk20200812222903294900000001][0m
+[0m[1mmodule.vpc.aws_eip.nat[0]: Refreshing state... [id=eipalloc-04f368257ae04a2fa][0m
+[0m[1maws_security_group.worker_group_mgmt_two: Refreshing state... [id=sg-0bd3aa5672137dc03][0m
+[0m[1maws_security_group.worker_group_mgmt_one: Refreshing state... [id=sg-0d4868fb64127f4a1][0m
+[0m[1mmodule.vpc.aws_subnet.private[2]: Refreshing state... [id=subnet-0be504594b2a78a36][0m
+[0m[1mmodule.vpc.aws_subnet.private[1]: Refreshing state... [id=subnet-0bf4e84bad0e23893][0m
+[0m[1mmodule.vpc.aws_subnet.private[0]: Refreshing state... [id=subnet-01251ccc120922b48][0m
+[0m[1maws_security_group.all_worker_mgmt: Refreshing state... [id=sg-06f8b04807befabcc][0m
+[0m[1mmodule.eks.aws_security_group.cluster[0]: Refreshing state... [id=sg-0d5254d97e6db591a][0m
+[0m[1mmodule.vpc.aws_route_table.private[0]: Refreshing state... [id=rtb-085a56baae765804a][0m
+[0m[1mmodule.eks.aws_security_group.workers[0]: Refreshing state... [id=sg-021ba2be4f2a0ab87][0m
+[0m[1mmodule.vpc.aws_internet_gateway.this[0]: Refreshing state... [id=igw-02dc1a374ba95a39a][0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Refreshing state... [id=subnet-04300261bb4312442][0m
+[0m[1mmodule.vpc.aws_subnet.public[2]: Refreshing state... [id=subnet-089feff990c777bd1][0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Refreshing state... [id=subnet-008eeea70dd16a5c8][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-038de8b104541e340][0m
+[0m[1mmodule.vpc.aws_route_table.public[0]: Refreshing state... [id=rtb-0173741bfb847d73b][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[2]: Refreshing state... [id=rtbassoc-0a4bc06a3a1dd2c8c][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-0f5c6764abf4e5cf0][0m
+[0m[1mmodule.eks.aws_security_group_rule.cluster_egress_internet[0]: Refreshing state... [id=sgrule-2805772256][0m
+[0m[1mmodule.vpc.aws_route.public_internet_gateway[0]: Refreshing state... [id=r-rtb-0173741bfb847d73b1080289494][0m
+[0m[1mmodule.vpc.aws_nat_gateway.this[0]: Refreshing state... [id=nat-046fac08e0d8ea7bd][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-0e2aaeb5dda29616a][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[2]: Refreshing state... [id=rtbassoc-0ac04abc9c4479e7b][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-019abe7545c1fe08d][0m
+[0m[1mmodule.eks.aws_security_group_rule.workers_egress_internet[0]: Refreshing state... [id=sgrule-274804179][0m
+[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_cluster_https[0]: Refreshing state... [id=sgrule-1864869229][0m
+[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_cluster[0]: Refreshing state... [id=sgrule-2820932053][0m
+[0m[1mmodule.eks.aws_security_group_rule.workers_ingress_self[0]: Refreshing state... [id=sgrule-2302196620][0m
+[0m[1mmodule.eks.aws_security_group_rule.cluster_https_worker_ingress[0]: Refreshing state... [id=sgrule-2097213772][0m
+[0m[1mmodule.eks.aws_iam_role_policy.cluster_elb_sl_role_creation[0]: Refreshing state... [id=prow-LltO5Bjk20200812222903294900000001:prow-LltO5Bjk-elb-sl-role-creation20200812222905470700000007][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_AmazonEKSServicePolicy[0]: Refreshing state... [id=prow-LltO5Bjk20200812222903294900000001-20200812222906236100000008][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy[0]: Refreshing state... [id=prow-LltO5Bjk20200812222903294900000001-20200812222906287800000009][0m
+[0m[1mmodule.vpc.aws_route.private_nat_gateway[0]: Refreshing state... [id=r-rtb-085a56baae765804a1080289494][0m
+[0m[1mmodule.eks.aws_eks_cluster.this[0]: Refreshing state... [id=prow-LltO5Bjk][0m
+[0m[1mmodule.eks.aws_iam_role.workers[0]: Refreshing state... [id=prow-LltO5Bjk2020081222390856740000000a][0m
+[0m[1mmodule.eks.local_file.kubeconfig[0]: Refreshing state... [id=5fb0a653f1eaef634cb132cf08e0d3e4fedc7f0d][0m
+[0m[1mmodule.eks.null_resource.wait_for_cluster[0]: Refreshing state... [id=7027507626347449986][0m
 [0m[1mmodule.eks.data.template_file.userdata[0]: Refreshing state...[0m
 [0m[1mdata.aws_eks_cluster_auth.cluster: Refreshing state...[0m
 [0m[1mdata.aws_eks_cluster.cluster: Refreshing state...[0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEKS_CNI_Policy[0]: Refreshing state... [id=prow-ztwaOEOw2020081123020467170000000a-2020081123020729160000000e][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEC2ContainerRegistryReadOnly[0]: Refreshing state... [id=prow-ztwaOEOw2020081123020467170000000a-2020081123020728920000000c][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEKSWorkerNodePolicy[0]: Refreshing state... [id=prow-ztwaOEOw2020081123020467170000000a-2020081123020729000000000d][0m
-[0m[1mmodule.eks.aws_iam_instance_profile.workers[0]: Refreshing state... [id=prow-ztwaOEOw2020081123020645500000000b][0m
-[0m[1mmodule.eks.aws_launch_configuration.workers[0]: Refreshing state... [id=prow-ztwaOEOw-prow-worker-12020081123020909230000000f][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEKSWorkerNodePolicy[0]: Refreshing state... [id=prow-LltO5Bjk2020081222390856740000000a-2020081222391117510000000d][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEKS_CNI_Policy[0]: Refreshing state... [id=prow-LltO5Bjk2020081222390856740000000a-2020081222391117480000000c][0m
+[0m[1mmodule.eks.aws_iam_instance_profile.workers[0]: Refreshing state... [id=prow-LltO5Bjk2020081222391032010000000b][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.workers_AmazonEC2ContainerRegistryReadOnly[0]: Refreshing state... [id=prow-LltO5Bjk2020081222390856740000000a-2020081222391117900000000e][0m
 [0m[1mmodule.eks.kubernetes_config_map.aws_auth[0]: Refreshing state... [id=kube-system/aws-auth][0m
-[0m[1mmodule.eks.random_pet.workers[0]: Refreshing state... [id=driven-mutt][0m
-[0m[1mmodule.eks.aws_autoscaling_group.workers[0]: Refreshing state... [id=prow-ztwaOEOw-prow-worker-120200811230225142300000010][0m
-[0m[1mmodule.eks.kubernetes_config_map.aws_auth[0]: Modifying... [id=kube-system/aws-auth][0m[0m
-[0m[1mmodule.eks.kubernetes_config_map.aws_auth[0]: Modifications complete after 1s [id=kube-system/aws-auth][0m[0m
+[0m[1mmodule.eks.aws_launch_configuration.workers[0]: Refreshing state... [id=prow-LltO5Bjk-prow-worker-12020081222391304830000000f][0m
+[0m[1mmodule.eks.random_pet.workers[0]: Refreshing state... [id=sunny-dragon][0m
+[0m[1mmodule.eks.aws_autoscaling_group.workers[0]: Refreshing state... [id=prow-LltO5Bjk-prow-worker-120200812223929122700000010][0m
 [0m[1m[32m
-Apply complete! Resources: 0 added, 1 changed, 0 destroyed.[0m
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.[0m
 [0m[1m[32m
 Outputs:
 
-cluster_endpoint = https://7CC4ABC0CE8DD4721BA4C5073230D717.sk1.ap-southeast-2.eks.amazonaws.com
-cluster_name = prow-ztwaOEOw
-cluster_security_group_id = sg-0e822bab324fe23a8
+cluster_endpoint = https://0117183239EC17A0A80945F7978AFD2C.sk1.ap-southeast-2.eks.amazonaws.com
+cluster_name = prow-LltO5Bjk
+cluster_security_group_id = sg-0d5254d97e6db591a
 config_map_aws_auth = [
   {
     "binary_data" = {}
     "data" = {
       "mapAccounts" = "[]\n"
-      "mapRoles" = "- \"groups\":\n  - \"system:bootstrappers\"\n  - \"system:nodes\"\n  \"rolearn\": \"arn:aws:iam::928655657136:role/prow-ztwaOEOw2020081123020467170000000a\"\n  \"username\": \"system:node:{{EC2PrivateDNSName}}\"\n"
+      "mapRoles" = "- \"groups\":\n  - \"system:bootstrappers\"\n  - \"system:nodes\"\n  \"rolearn\": \"arn:aws:iam::928655657136:role/prow-LltO5Bjk2020081222390856740000000a\"\n  \"username\": \"system:node:{{EC2PrivateDNSName}}\"\n"
       "mapUsers" = "[]\n"
     }
     "id" = "kube-system/aws-auth"
@@ -975,15 +973,15 @@ config_map_aws_auth = [
         "labels" = {}
         "name" = "aws-auth"
         "namespace" = "kube-system"
-        "resource_version" = "16170"
+        "resource_version" = "760"
         "self_link" = "/api/v1/namespaces/kube-system/configmaps/aws-auth"
-        "uid" = "19745abd-2a04-495e-a247-e284c08c81e4"
+        "uid" = "edb11bf8-e56d-4817-bc80-7bc83ea80474"
       },
     ]
   },
 ]
 region = ap-southeast-2[0m
-#+end_example
+#+END_example
 
 ** Configure kubectl to use the new cluster
 
@@ -993,29 +991,46 @@ Find the cluster name:
 #+end_src
 
 #+RESULTS:
-#+begin_example
-{
-    "clusters": [
-        "prow-dev",
-        "prowManual",
-        "prow-1QQTdZBm",
-        "prow-stg",
-        "prow-ztwaOEOw"
-    ]
-}
-#+end_example
+#+BEGIN_example
+---------------------
+|   ListClusters    |
++-------------------+
+||    clusters     ||
+|+-----------------+|
+||  prow-dev       ||
+||  prow-LltO5Bjk  ||
+||  prow-stg       ||
+||  prow-ztwaOEOw  ||
+|+-----------------+|
+#+END_example
 
 Set current context to be the newly created cluster
 #+begin_src shell
-  aws eks --region ap-southeast-2 update-kubeconfig --name prow-ztwaOEOw
+  aws eks --region ap-southeast-2 update-kubeconfig --name prow-LltO5Bjk
 #+end_src
 
 #+RESULTS:
-#+begin_example
-Added new context arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-ztwaOEOw to /home/ubuntu/.kube/config
-#+end_example
+#+BEGIN_example
+Added new context arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-LltO5Bjk to /home/ubuntu/.kube/config
+#+END_example
+
+Check cluster connectivity:
+#+BEGIN_SRC shell
+kubectl cluster-info
+#+END_SRC
+
+#+RESULTS:
+#+BEGIN_example
+Kubernetes master is running at https://0117183239EC17A0A80945F7978AFD2C.sk1.ap-southeast-2.eks.amazonaws.com
+CoreDNS is running at https://0117183239EC17A0A80945F7978AFD2C.sk1.ap-southeast-2.eks.amazonaws.com/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+#+END_example
 
 ** Configure aws auth for EKS cluster
+
+Configure the user access for the cluster:
+
 #+begin_src yaml :tangle aws-auth-configmap.yaml
   data:
     mapUsers: |
@@ -1046,9 +1061,9 @@ Added new context arn:aws:eks:ap-southeast-2:928655657136:cluster/prow-ztwaOEOw 
 #+end_src
 
 #+RESULTS:
-#+begin_example
-configmap/aws-auth patched (no change)
-#+end_example
+#+BEGIN_example
+configmap/aws-auth patched
+#+END_example
 
 * Setup ELB + nginx-ingress
 #+name: add stable helm repo
@@ -1057,9 +1072,9 @@ configmap/aws-auth patched (no change)
 #+end_src
 
 #+RESULTS: add stable helm repo
-#+begin_example
+#+BEGIN_example
 "stable" has been added to your repositories
-#+end_example
+#+END_example
 
 
 #+name: nginx ingress values
@@ -1096,9 +1111,9 @@ configmap/aws-auth patched (no change)
 #+end_src
 
 #+RESULTS: create nginx-ingress namespace
-#+begin_example
+#+BEGIN_example
 namespace/nginx-ingress created
-#+end_example
+#+END_example
 
 #+name: install nginx-ingress
 #+begin_src shell
@@ -1106,9 +1121,9 @@ namespace/nginx-ingress created
 #+end_src
 
 #+RESULTS: install nginx-ingress
-#+begin_example
+#+BEGIN_example
 NAME: nginx-ingress
-LAST DEPLOYED: Wed Aug 12 01:06:26 2020
+LAST DEPLOYED: Thu Aug 13 01:27:55 2020
 NAMESPACE: nginx-ingress
 STATUS: deployed
 REVISION: 1
@@ -1153,20 +1168,32 @@ If TLS is enabled for the Ingress, a Secret containing the certificate and key m
     tls.crt: <base64 encoded cert>
     tls.key: <base64 encoded key>
   type: kubernetes.io/tls
-#+end_example
+#+END_example
 
 #+begin_src shell
   kubectl -n nginx-ingress get pods
 #+end_src
 
 #+RESULTS:
-#+begin_example
+#+BEGIN_example
 NAME                                             READY   STATUS    RESTARTS   AGE
-nginx-ingress-controller-6fd5487458-6b7kd        1/1     Running   0          19m
-nginx-ingress-controller-6fd5487458-6x952        1/1     Running   0          19m
-nginx-ingress-controller-6fd5487458-qbqm6        1/1     Running   0          19m
-nginx-ingress-default-backend-5b967cf596-5mf54   1/1     Running   0          19m
-#+end_example
+nginx-ingress-controller-6fd5487458-2tghm        1/1     Running   0          38s
+nginx-ingress-controller-6fd5487458-54dsw        1/1     Running   0          38s
+nginx-ingress-controller-6fd5487458-fnpmz        1/1     Running   0          54s
+nginx-ingress-default-backend-5b967cf596-859wm   1/1     Running   0          54s
+#+END_example
+
+#+BEGIN_SRC shell
+  kubectl -n nginx-ingress get svc
+#+END_SRC
+
+#+RESULTS:
+#+BEGIN_example
+NAME                               TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
+nginx-ingress-controller           LoadBalancer   172.20.185.44    a6db92a5df19741c8a43dc8aa8e486e2-1450765144.ap-southeast-2.elb.amazonaws.com   80:30476/TCP,443:32692/TCP   2m21s
+nginx-ingress-controller-metrics   ClusterIP      172.20.144.145   <none>                                                                         9913/TCP                     2m21s
+nginx-ingress-default-backend      ClusterIP      172.20.102.168   <none>                                                                         80/TCP                       2m21s
+#+END_example
 
 ** Cert-Manager
 
@@ -1176,8 +1203,8 @@ Download the latest cert-manager manifest:
 #+end_src
 
 #+RESULTS:
-#+begin_example
-#+end_example
+#+BEGIN_example
+#+END_example
 
 Apply:
 #+begin_src shell
@@ -1185,7 +1212,7 @@ Apply:
 #+end_src
 
 #+RESULTS:
-#+begin_example
+#+BEGIN_example
 customresourcedefinition.apiextensions.k8s.io/certificaterequests.cert-manager.io created
 customresourcedefinition.apiextensions.k8s.io/certificates.cert-manager.io created
 customresourcedefinition.apiextensions.k8s.io/challenges.acme.cert-manager.io created
@@ -1225,4 +1252,16 @@ deployment.apps/cert-manager created
 deployment.apps/cert-manager-webhook created
 mutatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
 validatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
-#+end_example
+#+END_example
+
+#+BEGIN_SRC shell
+  kubectl -n cert-manager get pods
+#+END_SRC
+
+#+RESULTS:
+#+BEGIN_example
+NAME                                       READY   STATUS    RESTARTS   AGE
+cert-manager-7ddc5b4db-jt5j6               1/1     Running   0          88s
+cert-manager-cainjector-6644dc4975-b2r7n   1/1     Running   0          88s
+cert-manager-webhook-7b887475fb-d4cmz      1/1     Running   0          88s
+#+END_example
