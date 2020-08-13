@@ -7,16 +7,18 @@ aws eks list-clusters
 #+end_src
 
 #+RESULTS:
-#+begin_example
-{
-    "clusters": [
-        "prow-dev",
-        "prowManual",
-        "prow-1QQTdZBm",
-        "prow-stg"
-    ]
-}
-#+end_example
+#+BEGIN_example
+---------------------
+|   ListClusters    |
++-------------------+
+||    clusters     ||
+|+-----------------+|
+||  prow-dev       ||
+||  prow-LltO5Bjk  ||
+||  prow-stg       ||
+||  prow-ztwaOEOw  ||
+|+-----------------+|
+#+END_example
 
 ** Set current context to be the newly created cluster
 #+begin_src shell
@@ -24,13 +26,15 @@ aws eks list-clusters
 #+end_src
 
 #+RESULTS:
-#+begin_example
-{
-    "UserId": "AIDA5QOBQZCYOSBXDQBV2",
-    "Account": "928655657136",
-    "Arn": "arn:aws:iam::928655657136:user/prow.cncf.io"
-}
-#+end_example
+#+BEGIN_example
+----------------------------------------------------------
+|                    GetCallerIdentity                   |
++---------+----------------------------------------------+
+|  Account|  928655657136                                |
+|  Arn    |  arn:aws:iam::928655657136:user/zz@ii.coop   |
+|  UserId |  AIDA5QOBQZCYJLLBQL4OI                       |
++---------+----------------------------------------------+
+#+END_example
 
 # Set current context to be the newly created cluster
 #+begin_src shell
@@ -123,7 +127,17 @@ kubectl apply -f manifests/cluster-issuer.yaml -f manifests/cert.yaml
 #+RESULTS:
 #+begin_example
 clusterissuer.cert-manager.io/letsencrypt-prod-prow-cncf-io created
-certificate.cert-manager.io/letsencrypt-prod-prow-cncf-io created
+certificate.cert-manager.io/letsencrypt-prod-prow-cncf-io configured
+#+end_example
+
+#+begin_src shell
+  kubectl get certs
+#+end_src
+
+#+RESULTS:
+#+begin_example
+NAME                            READY   SECRET                          AGE
+letsencrypt-prod-prow-cncf-io   False   letsencrypt-prod-prow-cncf-io   11m
 #+end_example
 
 * Add github secrets, to the cluster
@@ -137,6 +151,7 @@ These secrets gets generated in github, we manually add them to local file syste
 
  #+RESULTS:
  #+begin_example
+ secret "hmac-token" deleted
  secret/hmac-token created
  #+end_example
 
@@ -148,6 +163,7 @@ These secrets gets generated in github, we manually add them to local file syste
 
  #+RESULTS:
  #+begin_example
+ secret "oauth-token" deleted
  secret/oauth-token created
  #+end_example
 
@@ -160,48 +176,48 @@ https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy
 
 #+RESULTS:
 #+begin_example
-configmap/plugins created
-configmap/config created
-customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io created
-deployment.apps/hook created
-service/hook created
-deployment.apps/plank created
-deployment.apps/sinker created
-deployment.apps/deck created
-service/deck created
-deployment.apps/horologium created
-deployment.apps/tide created
-service/tide created
-ingress.extensions/ing created
-deployment.apps/statusreconciler created
-namespace/test-pods created
-serviceaccount/deck created
-rolebinding.rbac.authorization.k8s.io/deck created
-rolebinding.rbac.authorization.k8s.io/deck created
-role.rbac.authorization.k8s.io/deck created
-role.rbac.authorization.k8s.io/deck created
-serviceaccount/horologium created
-role.rbac.authorization.k8s.io/horologium created
-rolebinding.rbac.authorization.k8s.io/horologium created
-serviceaccount/plank created
-role.rbac.authorization.k8s.io/plank created
-role.rbac.authorization.k8s.io/plank created
-rolebinding.rbac.authorization.k8s.io/plank created
-rolebinding.rbac.authorization.k8s.io/plank created
-serviceaccount/sinker created
-role.rbac.authorization.k8s.io/sinker created
-role.rbac.authorization.k8s.io/sinker created
-rolebinding.rbac.authorization.k8s.io/sinker created
-rolebinding.rbac.authorization.k8s.io/sinker created
-serviceaccount/hook created
-role.rbac.authorization.k8s.io/hook created
-rolebinding.rbac.authorization.k8s.io/hook created
-serviceaccount/tide created
-role.rbac.authorization.k8s.io/tide created
-rolebinding.rbac.authorization.k8s.io/tide created
-serviceaccount/statusreconciler created
-role.rbac.authorization.k8s.io/statusreconciler created
-rolebinding.rbac.authorization.k8s.io/statusreconciler created
+configmap/plugins unchanged
+configmap/config unchanged
+customresourcedefinition.apiextensions.k8s.io/prowjobs.prow.k8s.io unchanged
+deployment.apps/hook unchanged
+service/hook unchanged
+deployment.apps/plank unchanged
+deployment.apps/sinker unchanged
+deployment.apps/deck unchanged
+service/deck unchanged
+deployment.apps/horologium unchanged
+deployment.apps/tide unchanged
+service/tide unchanged
+ingress.extensions/ing configured
+deployment.apps/statusreconciler unchanged
+namespace/test-pods unchanged
+serviceaccount/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+rolebinding.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+role.rbac.authorization.k8s.io/deck unchanged
+serviceaccount/horologium unchanged
+role.rbac.authorization.k8s.io/horologium unchanged
+rolebinding.rbac.authorization.k8s.io/horologium unchanged
+serviceaccount/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+role.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+rolebinding.rbac.authorization.k8s.io/plank unchanged
+serviceaccount/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+role.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+rolebinding.rbac.authorization.k8s.io/sinker unchanged
+serviceaccount/hook unchanged
+role.rbac.authorization.k8s.io/hook unchanged
+rolebinding.rbac.authorization.k8s.io/hook unchanged
+serviceaccount/tide unchanged
+role.rbac.authorization.k8s.io/tide unchanged
+rolebinding.rbac.authorization.k8s.io/tide unchanged
+serviceaccount/statusreconciler unchanged
+role.rbac.authorization.k8s.io/statusreconciler unchanged
+rolebinding.rbac.authorization.k8s.io/statusreconciler unchanged
 #+end_example
 * Verify components
 ** services
@@ -211,12 +227,12 @@ rolebinding.rbac.authorization.k8s.io/statusreconciler created
 
 #+RESULTS:
 #+begin_example
-NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)           AGE
-deck         NodePort    172.20.96.68    <none>        80:32347/TCP      18m
-ghproxy      ClusterIP   172.20.142.74   <none>        80/TCP,9090/TCP   16m
-hook         NodePort    172.20.171.32   <none>        8888:30856/TCP    18m
-kubernetes   ClusterIP   172.20.0.1      <none>        443/TCP           4h23m
-tide         NodePort    172.20.171.4    <none>        80:32767/TCP      18m
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)           AGE
+deck         NodePort    172.20.235.175   <none>        80:30203/TCP      11s
+ghproxy      ClusterIP   172.20.85.71     <none>        80/TCP,9090/TCP   18m
+hook         NodePort    172.20.221.251   <none>        8888:32389/TCP    11s
+kubernetes   ClusterIP   172.20.0.1       <none>        443/TCP           4h3m
+tide         NodePort    172.20.30.191    <none>        80:32681/TCP      11s
 #+end_example
 
 ** pods
@@ -226,19 +242,17 @@ tide         NodePort    172.20.171.4    <none>        80:32767/TCP      18m
 
 #+RESULTS:
 #+begin_example
-NAME                                          READY   STATUS    RESTARTS   AGE
-deck-7d486fcc-2flgz                           1/1     Running   0          18m
-deck-7d486fcc-82bvg                           1/1     Running   0          18m
-ghproxy-5ccfb97b79-mqffj                      1/1     Running   0          16m
-hook-5674b4dc6b-4pnpz                         1/1     Running   1          18m
-hook-5674b4dc6b-vdhzt                         1/1     Running   1          18m
-horologium-6947d84b-xv445                     1/1     Running   0          18m
-plank-569bd9857d-sgvxk                        1/1     Running   0          18m
-sinker-5bd5749656-6fhsh                       1/1     Running   0          18m
-statusreconciler-64d56987cc-ftw6b             1/1     Running   0          18m
-tide-7f89d88467-bk4k2                         1/1     Running   0          18m
-verify-conformance-release-7468db6458-n7mq6   1/1     Running   0          9m50s
-verify-conformance-test-c76f6656d-j8vvm       1/1     Running   0          9m27s
+NAME                                READY   STATUS    RESTARTS   AGE
+deck-7d486fcc-pssgl                 1/1     Running   0          13s
+deck-7d486fcc-rqglq                 1/1     Running   0          13s
+ghproxy-5ccfb97b79-5prr9            1/1     Running   0          18m
+hook-5674b4dc6b-7qtvv               1/1     Running   0          13s
+hook-5674b4dc6b-khkn5               0/1     Running   0          14s
+horologium-6947d84b-8spsr           1/1     Running   0          14s
+plank-569bd9857d-bs62q              1/1     Running   0          14s
+sinker-5bd5749656-bbrmd             1/1     Running   0          14s
+statusreconciler-64d56987cc-8z2tb   1/1     Running   0          14s
+tide-7f89d88467-pvpc5               1/1     Running   0          14s
 #+end_example
 
 ** deployment
@@ -249,17 +263,15 @@ verify-conformance-test-c76f6656d-j8vvm       1/1     Running   0          9m27s
 
 #+RESULTS:
 #+begin_example
-NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
-deck                         2/2     2            2           18m
-ghproxy                      1/1     1            1           16m
-hook                         2/2     2            2           18m
-horologium                   1/1     1            1           18m
-plank                        1/1     1            1           18m
-sinker                       1/1     1            1           18m
-statusreconciler             1/1     1            1           18m
-tide                         1/1     1            1           18m
-verify-conformance-release   1/1     1            1           9m55s
-verify-conformance-test      1/1     1            1           9m32s
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+deck               2/2     2            2           21s
+ghproxy            1/1     1            1           18m
+hook               2/2     2            2           21s
+horologium         1/1     1            1           21s
+plank              1/1     1            1           21s
+sinker             1/1     1            1           21s
+statusreconciler   1/1     1            1           21s
+tide               1/1     1            1           21s
 #+end_example
 
 ** ingress
@@ -269,8 +281,8 @@ verify-conformance-test      1/1     1            1           9m32s
 
 #+RESULTS:
 #+begin_example
-NAME   HOSTS          ADDRESS                                                                       PORTS     AGE
-ing    prow.cncf.io   a531613ee6e6146fa8cbdc6fdb95a885-385522534.ap-southeast-2.elb.amazonaws.com   80, 443   18m
+NAME   HOSTS          ADDRESS                                                                        PORTS     AGE
+ing    prow.cncf.io   a6db92a5df19741c8a43dc8aa8e486e2-1450765144.ap-southeast-2.elb.amazonaws.com   80, 443   57s
 #+end_example
 
 #+begin_src shell
@@ -288,13 +300,13 @@ metadata:
       {"apiVersion":"extensions/v1beta1","kind":"Ingress","metadata":{"annotations":{"cert-manager.io/cluster-issuer":"letsencrypt-prod-prow-cncf-io","kubernetes.io/ingress.class":"nginx","nginx.ingress.kubernetes.io/rewrite-target":"/"},"name":"ing","namespace":"default"},"spec":{"backend":{"serviceName":"deck","servicePort":80},"rules":[{"host":"prow.cncf.io","http":{"paths":[{"backend":{"serviceName":"deck","servicePort":80},"path":"/"},{"backend":{"serviceName":"hook","servicePort":8888},"path":"/hook"}]}}],"tls":[{"hosts":["prow.cncf.io"],"secretName":"letsencrypt-prod-prow-cncf-io"}]}}
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
-  creationTimestamp: "2020-08-12T02:23:22Z"
-  generation: 1
+  creationTimestamp: "2020-08-13T02:41:27Z"
+  generation: 2
   name: ing
   namespace: default
-  resourceVersion: "25077"
+  resourceVersion: "33185"
   selfLink: /apis/extensions/v1beta1/namespaces/default/ingresses/ing
-  uid: d06eee37-ba35-4ad9-b14e-1beb6e590410
+  uid: 224e72ef-d436-4879-a83c-0b57852fdc47
 spec:
   backend:
     serviceName: deck
@@ -318,7 +330,7 @@ spec:
 status:
   loadBalancer:
     ingress:
-    - hostname: a531613ee6e6146fa8cbdc6fdb95a885-385522534.ap-southeast-2.elb.amazonaws.com
+    - hostname: a6db92a5df19741c8a43dc8aa8e486e2-1450765144.ap-southeast-2.elb.amazonaws.com
 #+end_example
 
 * Go get hook
@@ -342,16 +354,16 @@ configmap/plugins replaced
 
 #+RESULTS:
 #+begin_example
-persistentvolumeclaim/ghproxy created
-deployment.apps/ghproxy created
-service/ghproxy created
+persistentvolumeclaim/ghproxy unchanged
+deployment.apps/ghproxy unchanged
+service/ghproxy unchanged
 #+end_example
 
 * hook up
    For this to work, you will need to make sure the hook is added on the github side, you have to whitelist the hook-url in github settings, it also require
 
 #+begin_src shell :dir "~/test-infra/"
-  ./bazel-bin/experiment/update-hook/linux_amd64_stripped/update-hook '--github-endpoint=http://ghproxy/' '--github-token-path=/home/ii/prow-config/.secret-oauth' '--hmac-path=../prow-config/.secret-hook' --hook-url http://adc0c1d070fdb46b2897a567e5c017db-1395387388.ap-southeast-2.elb.amazonaws.com/hook --repo cncf-infra/k8s-conformance --repo cncf-infra/prow-config
+  ./bazel-bin/experiment/update-hook/linux_amd64_stripped/update-hook '--github-endpoint=http://ghproxy/' '--github-token-path=~/prow-config/.secret-oauth' '--hmac-path=../prow-config/.secret-hook' --hook-url http://adc0c1d070fdb46b2897a567e5c017db-1395387388.ap-southeast-2.elb.amazonaws.com/hook --repo cncf-infra/k8s-conformance --repo cncf-infra/prow-config
 #+end_src
 
 #+RESULTS:
@@ -367,7 +379,6 @@ service/ghproxy created
 
    #+RESULTS:
    #+begin_example
-   configmap "vcr-config" deleted
    configmap/vcr-config created
    #+end_example
 
