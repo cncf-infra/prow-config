@@ -35,7 +35,7 @@ spec:
         image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-tests:latest
         imagePullPolicy: Always
         args:
-        - --dry-run=false
+        - --dry-run=true
         - --github-endpoint=http://ghproxy
         - --github-endpoint=https://api.github.com
         - --dry-run=false
