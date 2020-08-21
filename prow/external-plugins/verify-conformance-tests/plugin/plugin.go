@@ -144,7 +144,7 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
 // the following labels will be added depending on the outcome of checking the tests
 // TODO add labels
 func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuration) error {
-	var queryString = "archived:false is:pr is:open label:release-documents-checked repo:\"cncf-infra/k8s-conformance\""
+	var queryString = "archived:false is:pr is:open label:release-documents-checked"
 	//	var queryString = "1026 repo:\"cncf-infra/k8s-conformance\""
 	pullRequests, err := getPullRequests(log, ghc, queryString)
 	if err != nil {
