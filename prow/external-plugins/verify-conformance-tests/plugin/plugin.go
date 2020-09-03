@@ -90,6 +90,7 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
                         "v1.16": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.16.yaml",
                         "v1.17": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.17.yaml",
                         "v1.18": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml",
+                        "v1.19": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.19/test/conformance/testdata/conformance.yaml",
                         "master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
                 }
 
