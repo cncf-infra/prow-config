@@ -39,7 +39,7 @@ plugins:
   - dog
   # - verify-conformance-request
 
-xternal_plugins:
+external_plugins:
   cncf-infra/k8s-conformance:
   - name: verify-conformance-release
     events:
