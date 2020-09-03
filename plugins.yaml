@@ -22,7 +22,6 @@ plugins:
   - label
   - lgtm
   # - owners-label
-  - pony
   - shrug
   - size
   - skip
@@ -33,6 +32,7 @@ plugins:
 
   cncf-infra/prow-config:
   - config-updater
+  - pony
 
   cncf-infra/k8s-conformance:
   - cat
