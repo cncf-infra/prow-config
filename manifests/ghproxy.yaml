@@ -1,7 +1,6 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  namespace: default
   labels:
     app: ghproxy
   name: ghproxy
@@ -10,13 +9,11 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
-  storageClassName: gp2
+      storage: 100Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: default
   name: ghproxy
   labels:
     app: ghproxy
@@ -53,7 +50,6 @@ kind: Service
 metadata:
   labels:
     app: ghproxy
-  namespace: default
   name: ghproxy
 spec:
   ports:
