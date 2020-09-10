@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-plank
+  labels:
+    app: plank
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.plank.replicaCount }}
+  selector:
+    matchLabels:
+      app: plank
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.plank.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.plank.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: plank
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-plank
+      securityContext:
+        {{- toYaml .Values.plank.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-plank
+          securityContext:
+            {{- toYaml .Values.plank.securityContext | nindent 12 }}
+          image: "{{ .Values.plank.image.repository }}:{{ .Values.plank.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.plank.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.plank.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {{- toYaml .Values.plank.resources | nindent 12 }}
+      {{- with .Values.plank.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.plank.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.plank.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config

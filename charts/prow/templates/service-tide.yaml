@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "prow.fullname" . }}-tide
+  labels:
+    app: tide
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.tide.service.type }}
+  ports:
+    - port: {{ .Values.tide.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: tide
+    {{- include "prow.selectorLabels" . | nindent 4 }}

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-sinker
+  labels:
+    app: sinker
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.sinker.replicaCount }}
+  selector:
+    matchLabels:
+      app: sinker
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.sinker.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.sinker.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: sinker
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-sinker
+      securityContext:
+        {{- toYaml .Values.sinker.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-sinker
+          securityContext:
+            {{- toYaml .Values.sinker.securityContext | nindent 12 }}
+          image: "{{ .Values.sinker.image.repository }}:{{ .Values.sinker.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.sinker.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.sinker.image.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {{- toYaml .Values.sinker.resources | nindent 12 }}
+      {{- with .Values.sinker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.sinker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.sinker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config

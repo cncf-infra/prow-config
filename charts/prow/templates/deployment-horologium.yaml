@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-horologium
+  labels:
+    app: horologium
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.horologium.replicaCount }}
+  selector:
+    matchLabels:
+      app: horologium
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.horologium.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.horologium.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: horologium
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-horologium
+      securityContext:
+        {{- toYaml .Values.horologium.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.horologium.terminationGracePeriodSeconds }}
+      containers:
+        - name: {{ .Chart.Name }}-horologium
+          securityContext:
+            {{- toYaml .Values.horologium.securityContext | nindent 12 }}
+          image: "{{ .Values.horologium.image.repository }}:{{ .Values.horologium.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.horologium.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.horologium.image.pullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {{- toYaml .Values.horologium.resources | nindent 12 }}
+      {{- with .Values.horologium.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.horologium.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.horologium.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config

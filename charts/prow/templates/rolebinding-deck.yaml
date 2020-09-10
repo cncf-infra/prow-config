@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ include "prow.fullname" . }}-deck
+  labels:
+    {{- include "prow.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "prow.fullname" . }}-deck
+subjects:
+- kind: ServiceAccount
+  name: {{ include "prow.fullname" . }}-deck
+  namespace: {{ .Release.Namespace }}

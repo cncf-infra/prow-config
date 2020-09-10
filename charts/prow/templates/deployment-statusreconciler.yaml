@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-statusreconciler
+  labels:
+    app: statusreconciler
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/plugins: {{ include (print $.Template.BasePath "/plugins.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.statusreconciler.replicaCount }}
+  selector:
+    matchLabels:
+      app: statusreconciler
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.statusreconciler.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.statusreconciler.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: statusreconciler
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-statusreconciler
+      terminationGracePeriodSeconds: {{ .Values.statusreconciler.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.statusreconciler.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-statusreconciler
+          securityContext:
+            {{- toYaml .Values.statusreconciler.securityContext | nindent 12 }}
+          image: "{{ .Values.statusreconciler.image.repository }}:{{ .Values.statusreconciler.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.statusreconciler.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.statusreconciler.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+          resources:
+            {{- toYaml .Values.statusreconciler.resources | nindent 12 }}
+      {{- with .Values.statusreconciler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.statusreconciler.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.statusreconciler.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+      - name: plugins
+        configMap:
+          name: {{ include "prow.fullname" . }}-plugins

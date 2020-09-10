@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-deck
+  labels:
+    app: deck
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/plugins: {{ include (print $.Template.BasePath "/plugins.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+spec:
+{{- if not .Values.deck.autoscaling.enabled }}
+  replicas: {{ .Values.deck.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      app: deck
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.deck.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.deck.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: deck
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-deck
+      terminationGracePeriodSeconds: {{ .Values.deck.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.deck.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-deck
+          securityContext:
+            {{- toYaml .Values.deck.securityContext | nindent 12 }}
+          image: "{{ .Values.deck.image.repository }}:{{ .Values.deck.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.deck.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.deck.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.deck.resources | nindent 12 }}
+      {{- with .Values.deck.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deck.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deck.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+      - name: plugins
+        configMap:
+          name: {{ include "prow.fullname" . }}-plugins

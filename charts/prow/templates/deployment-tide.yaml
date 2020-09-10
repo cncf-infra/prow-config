@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-tide
+  labels:
+    app: tide
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.tide.replicaCount }}
+  selector:
+    matchLabels:
+      app: tide
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.tide.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.tide.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: tide
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-tide
+      terminationGracePeriodSeconds: {{ .Values.tide.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.tide.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-tide
+          securityContext:
+            {{- toYaml .Values.tide.securityContext | nindent 12 }}
+          image: "{{ .Values.tide.image.repository }}:{{ .Values.tide.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.tide.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.tide.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {{- toYaml .Values.tide.resources | nindent 12 }}
+      {{- with .Values.tide.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tide.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tide.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+      - name: plugins
+        configMap:
+          name: {{ include "prow.fullname" . }}-plugins

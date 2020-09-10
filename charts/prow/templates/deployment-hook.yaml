@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-hook
+  labels:
+    app: hook
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/plugins: {{ include (print $.Template.BasePath "/plugins.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+spec:
+{{- if not .Values.hook.autoscaling.enabled }}
+  replicas: {{ .Values.hook.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      app: hook
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.hook.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.hook.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: hook
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-hook
+      terminationGracePeriodSeconds: {{ .Values.hook.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.hook.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-hook
+          securityContext:
+            {{- toYaml .Values.hook.securityContext | nindent 12 }}
+          image: "{{ .Values.hook.image.repository }}:{{ .Values.hook.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.hook.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.hook.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/webhook/hmac
+              subPath: hmac
+              readOnly: true
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+          ports:
+            - name: http
+              containerPort: 8888
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.hook.resources | nindent 12 }}
+      {{- with .Values.hook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+      - name: plugins
+        configMap:
+          name: {{ include "prow.fullname" . }}-plugins
