@@ -33,6 +33,21 @@ plugins:
 
   cncf-infra/prow-config:
   - config-updater
+  - pony
 
   cncf-infra/k8s-conformance:
-  - verify-conformance-request
+  - cat
+  - dog
+  # - verify-conformance-request
+
+external_plugins:
+  cncf-infra/k8s-conformance:
+  - name: verify-conformance-release
+    events:
+      - issue_comment
+      - pull_request
+  - name: verify-conformance-tests
+    events:
+      - issue_comment
+      - pull_request
+

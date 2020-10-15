@@ -1,10 +1,42 @@
 prowjob_namespace: default
 pod_namespace: test-pods
+# plank:
+#   default_decoration_configs:
+#     '*':
+#       timeout: 2h
+#       grace_period: 15m
+#       utility_images:
+#         clonerefs: "gcr.io/k8s-prow/clonerefs:v20201013-3e48dad509"
+#         initupload: "gcr.io/k8s-prow/initupload:v20201013-3e48dad509"
+#         entrypoint: "gcr.io/k8s-prow/entrypoint:v20201013-3e48dad509"
+#         sidecar: "gcr.io/k8s-prow/sidecar:v20201013-3e48dad509"
+#       gcs_configuration:
+#         bucket: s3://prow-logs
+#         path_strategy: explicit # or legacy
+#         default_org: "cncf-infra"
+#         default_repo: "prow-config"
+#       s3_credentials_secret: s3-credentials
+#       # gcs_credentials_secret: "service-account"
+#       resources:
+#         clonerefs:
+#           requests:
+#             cpu: 100m
+#         initupload:
+#           requests:
+#             cpu: 100m
+#         place_entrypoint:
+#           requests:
+#             cpu: 100m
+#         sidecar:
+#           requests:
+#             cpu: 100m
 periodics:
 - interval: 1h
-  agent: kubernetes
-  name: echo-test
+  name: apisnoop-conformance-gate
+  # decorate: true
   spec:
     containers:
-    - image: alpine
-      command: ["/bin/date"]
+    - name: apisnoop-gate
+      image: gcr.io/k8s-staging-apisnoop/snoopdb:v20200923-v2020.09.23-1-gb3afc41
+      args:
+      - postgres

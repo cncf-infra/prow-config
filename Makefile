@@ -1,11 +1,11 @@
 # AWS cluster variables
 # PROJECT ?= cncf-apisnoop
 # ZONE ?= ap-southeast-2
-CLUSTER ?= prow-dev
+CLUSTER ?= prow-LltO5Bjk
 
 # prow docker image variables
 REPO ?= gcr.io/k8s-prow
-TAG ?= v20200507-36c6a27f0
+TAG ?= v20201013-3e48dad509
 # v20200423-af610499d
 
 CWD = $(shell pwd)
