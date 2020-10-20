@@ -354,7 +354,10 @@ func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullR
 	type TestCase struct {
 		XMLName xml.Name `xml:"testcase"`
 		Name    string   `xml:"name,attr"`
+		Skipped *struct{}   `xml:"skipped"`
 	}
+
+
 	var conformanceRequirement struct {
 		TestSuite []TestCase `xml:"testcase"`
 	}
@@ -365,12 +368,14 @@ func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullR
 
 	submittedTestMap := make([]string, len(conformanceRequirement.TestSuite))
 	for _, testcase := range conformanceRequirement.TestSuite {
-		if strings.Contains(testcase.Name, "[Conformance]") {
-			testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
-			testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
-			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
-			testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-			submittedTestMap = append(submittedTestMap, testcase.Name)
+		if testcase.Skipped == nil {
+			if strings.Contains(testcase.Name, "[Conformance]") {
+				testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
+				testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
+				testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
+				testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
+				submittedTestMap = append(submittedTestMap, testcase.Name)
+			}
 		}
 	}
 
