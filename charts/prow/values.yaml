@@ -41,6 +41,7 @@ config:
   - interval: 1m
     agent: kubernetes
     name: echo-test
+    decorate: true
     spec:
       containers:
       - image: alpine
