@@ -90,5 +90,9 @@ spec:
       {{- end }}
       volumes:
         - name: data
+      {{- if .Values.minio.persistentVolumeClaim.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "prow.fullname" . }}-minio
+      {{- else }}
+          emptyDir: {}
+      {{- end }}

@@ -541,6 +541,7 @@ minio:
   #   memory: 128Mi
 
   persistentVolumeClaim:
+    enabled: false
     accessModes:
       - ReadWriteOnce
     resources:
