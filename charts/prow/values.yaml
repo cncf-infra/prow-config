@@ -38,7 +38,7 @@ config:
             - started.json|finished.json
         - lens:
             config:
-              name: buildlog
+            name: buildlog
           required_files:
             - build-log.txt
         - lens:
@@ -460,6 +460,7 @@ deck:
     - --github-token-path=/etc/github/oauth
     - --plugin-config=/etc/plugins/plugins.yaml
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
+    - --spyglass=true
 
   terminationGracePeriodSeconds: 30
 
