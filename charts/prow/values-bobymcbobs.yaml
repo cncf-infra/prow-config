@@ -1,0 +1,50 @@
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod-prow-cncf-io
+  hosts:
+    - host: prow.caleb.sharing.io
+  tls:
+    - secretName: letsencrypt-prod-prow-cncf-io
+      hosts:
+        - prow.caleb.sharing.io
+
+plugins:
+  # config-updater
+  # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+  config_updater:
+    maps:
+      config.yaml:
+        name: config
+      plugins.yaml:
+        name: plugins
+      jobs/**/*.yaml:
+        name: job-config
+
+  # which plugins should be enabled for which orgs or org/repos
+  plugins:
+    cncf-infra:
+      # - approve
+      - assign
+      #- cat
+      #- dog
+      - hold
+      - label
+      - lgtm
+      # - owners-label
+      - shrug
+      - size
+      - skip
+      - trigger
+      - wip
+      # - verify-owners
+      - yuks
+
+  cncf-infra/prow-config:
+    - config-updater
+    - pony
+
+  cncf-infra/k8s-conformance:
+    - cat
+    - dog
+    # - verify-conformance-request

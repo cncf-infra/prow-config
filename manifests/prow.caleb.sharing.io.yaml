@@ -1,0 +1,1689 @@
+---
+# Source: prow/templates/namespace-prow-test-pods.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-crier.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-crier
+  labels:
+    app: crier
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-deck.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-deck
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-hook.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-hook
+  labels:
+    app: hook
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-horologium.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-horologium
+  labels:
+    app: horologium
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-plank.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-plank
+  labels:
+    app: hook
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-sinker.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-sinker
+  labels:
+    app: sinker
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-statusreconciler.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-statusreconciler
+  labels:
+    app: statusreconciler
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/serviceaccount-tide.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-tide
+  labels:
+    app: tide
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prow/templates/secret-github.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prow-github-secrets
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  hmac: ZTBkZjhhNzgyNzg1MGQxMWI4ZDllNmY2NWNmMzgzN2JhNGE2ZDlhZA==
+  oauth:
+---
+# Source: prow/templates/secret-s3-credentials-test-pods.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prow-s3-credentials
+  namespace: prow-test-pods
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  service-account.json: |
+    {
+      "region": "minio",
+      "access_key": "prow-minio",
+      "endpoint": "prow-minio.prow.svc.cluster.local:9000",
+      "insecure": true,
+      "s3_force_path_style": true,
+      "secret_key": "prow-minio"
+    }
+---
+# Source: prow/templates/secret-s3-credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prow-s3-credentials
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  service-account.json: |
+    {
+      "region": "minio",
+      "access_key": "prow-minio",
+      "endpoint": "prow-minio.prow.svc.cluster.local:9000",
+      "insecure": true,
+      "s3_force_path_style": true,
+      "secret_key": "prow-minio"
+    }
+---
+# Source: prow/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prow-config
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    
+    deck:
+      spyglass:
+        lenses:
+        - lens:
+            name: metadata
+          required_files:
+          - started.json|finished.json
+        - lens:
+            config:
+              name: buildlog
+          required_files:
+          - build-log.txt
+        - lens:
+            name: junit
+          required_files:
+          - .*/junit.*\.xml
+        - lens:
+            name: podinfo
+          required_files:
+          - podinfo.json
+    decorate_all_jobs: true
+    in_repo_config:
+      enabled:
+        '*': true
+    periodics:
+    - agent: kubernetes
+      decorate: true
+      interval: 1m
+      name: echo-test
+      spec:
+        containers:
+        - command:
+          - /bin/date
+          image: alpine
+    plank:
+      default_decoration_configs:
+        '*':
+          gcs_configuration:
+            bucket: s3://prow-logs
+            path_strategy: explicit
+          s3_credentials_secret: prow-s3-credentials
+          utility_images:
+            clonerefs: gcr.io/k8s-prow/clonerefs:v20201019-3b28521b87
+            entrypoint: gcr.io/k8s-prow/entrypoint:v20201019-3b28521b87
+            initupload: gcr.io/k8s-prow/initupload:v20201019-3b28521b87
+            sidecar: gcr.io/k8s-prow/sidecar:v20201019-3b28521b87
+      job_url_prefix_config:
+        '*': https://prow.caleb.sharing.io/view/
+      job_url_template: |
+        {{if .Spec.Refs}}
+          {{if eq .Spec.Refs.Org "kubernetes-security"}}https://console.cloud.google.com/storage/browser/kubernetes-security-prow/{{else}}https://prow.caleb.sharing.io/view/gcs/kubernetes-jenkins/{{end}}
+        {{else}}https://prow.caleb.sharing.io/view/gcs/kubernetes-jenkins/{{end}}
+        {{if eq .Spec.Type "presubmit"}}pr-logs/pull{{else if eq .Spec.Type "batch"}}pr-logs/pull{{else}}logs{{end}}
+        {{if .Spec.Refs}}
+          {{if ne .Spec.Refs.Org ""}}{{if ne .Spec.Refs.Org "kubernetes"}}/{{if and (eq .Spec.Refs.Org "kubernetes-sigs") (ne .Spec.Refs.Repo "poseidon")}}sigs.k8s.io{{else}}{{.Spec.Refs.Org}}{{end}}_{{.Spec.Refs.Repo}}{{else if ne .Spec.Refs.Repo "kubernetes"}}/{{.Spec.Refs.Repo}}{{end}}{{end}}{{end}}{{if eq .Spec.Type "presubmit"}}/{{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}{{else if eq .Spec.Type "batch"}}/batch{{end}}/{{.Spec.Job}}/{{.Status.BuildID}}/
+      report_templates:
+        '*': '[Full PR test history](https://prow.caleb.sharing.io/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with
+          index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}). [Your PR dashboard](https://prow.caleb.sharing.io/pr?query=is:pr+state:open+author:{{with
+          index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).'
+    pod_namespace: prow-test-pods
+    prowjob_namespace: prow
+---
+# Source: prow/templates/plugins.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prow-plugins
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+data:
+  plugins.yaml: |
+    
+    cncf-infra/k8s-conformance:
+    - cat
+    - dog
+    cncf-infra/prow-config:
+    - config-updater
+    - pony
+    config_updater:
+      maps:
+        config.yaml:
+          name: config
+        jobs/**/*.yaml:
+          name: job-config
+        plugins.yaml:
+          name: plugins
+    plugins:
+      cncf-infra:
+      - assign
+      - hold
+      - label
+      - lgtm
+      - shrug
+      - size
+      - skip
+      - trigger
+      - wip
+      - yuks
+---
+# Source: prow/templates/role-crier-test-pods.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-crier
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+      - "events"
+    verbs:
+      - "get"
+      - "list"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+    verbs:
+      - "patch"
+---
+# Source: prow/templates/role-crier.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-crier
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+---
+# Source: prow/templates/role-deck-test-pods.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-deck
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get
+---
+# Source: prow/templates/role-deck.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-deck
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - get
+      - list
+      - watch
+      # Required when deck runs with `--rerun-creates-job=true`
+      # **Warning:** Only use this for non-public deck instances, this allows
+      # anyone with access to your Deck instance to create new Prowjobs
+      # - create
+---
+# Source: prow/templates/role-hook.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-hook
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - create
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - get
+      - update
+---
+# Source: prow/templates/role-horologium.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-horologium
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - create
+      - list
+---
+# Source: prow/templates/role-plank-test-pods.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-plank
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - create
+      - list
+---
+# Source: prow/templates/role-plank.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-plank
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - get
+      - create
+      - list
+      - watch
+      - update
+      - patch
+---
+# Source: prow/templates/role-sinker-test-pods.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-sinker
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - delete
+      - list
+      - watch
+      - get
+      - patch
+---
+# Source: prow/templates/role-sinker.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-sinker
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - delete
+      - list
+      - watch
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - prow-sinker-leaderlock
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - events
+    verbs:
+      - create
+---
+# Source: prow/templates/role-statusreconciler.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-statusreconciler
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - create
+---
+# Source: prow/templates/role-tide.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prow-tide
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - create
+      - list
+      - get
+      - watch
+---
+# Source: prow/templates/rolebinding-crier-test-pods.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-crier
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-crier
+subjects:
+- kind: ServiceAccount
+  name: prow-crier
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-crier.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-crier
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-crier
+subjects:
+- kind: ServiceAccount
+  name: prow-crier
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-deck-test-pods.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-deck
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-deck
+subjects:
+- kind: ServiceAccount
+  name: prow-deck
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-deck.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-deck
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-deck
+subjects:
+- kind: ServiceAccount
+  name: prow-deck
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-hook.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-hook
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-hook
+subjects:
+- kind: ServiceAccount
+  name: prow-hook
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-horologium.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-horologium
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-horologium
+subjects:
+- kind: ServiceAccount
+  name: prow-horologium
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-plank-test-pods.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-plank
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-plank
+subjects:
+- kind: ServiceAccount
+  name: prow-plank
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-plank.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-plank
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-plank
+subjects:
+- kind: ServiceAccount
+  name: prow-plank
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-sinker-test-pods.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-sinker
+  namespace: prow-test-pods
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-sinker
+subjects:
+- kind: ServiceAccount
+  name: prow-sinker
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-sinker.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-sinker
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-sinker
+subjects:
+- kind: ServiceAccount
+  name: prow-sinker
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-statusreconciler.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-statusreconciler
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-statusreconciler
+subjects:
+- kind: ServiceAccount
+  name: prow-statusreconciler
+  namespace: prow
+---
+# Source: prow/templates/rolebinding-tide.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: prow-tide
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-tide
+subjects:
+- kind: ServiceAccount
+  name: prow-tide
+  namespace: prow
+---
+# Source: prow/templates/service-deck.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-deck
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: deck
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+---
+# Source: prow/templates/service-hook.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-hook
+  labels:
+    app: hook
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8888
+      protocol: TCP
+      name: http
+  selector:
+    app: hook
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+---
+# Source: prow/templates/service-minio.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-minio
+  labels:
+    app: minio
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: http
+  selector:
+    app: minio
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+---
+# Source: prow/templates/service-tide.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prow-tide
+  labels:
+    app: tide
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8888
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: tide
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+---
+# Source: prow/templates/deployment-crier.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-crier
+  labels:
+    app: crier
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+    checksum/secret-s3: fbe61b060e6e09433d7bba95d350aeba86ab8a451c8246cfce9a24a393756982
+    checksum/secret-s3-test-pods: 6322e7e4db5e6e2897179a0218edbddbd7ef9eb7679d59c056f8120a2e4d4db1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crier
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: crier
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-crier
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {}
+      containers:
+        - name: prow-crier
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/crier:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/oauth
+            - --s3-credentials-file=/etc/s3-credentials/service-account.json
+            - --blob-storage-workers=10
+            - --github-workers=10
+            - --kubernetes-blob-storage-workers=10
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+      - name: plugins
+        configMap:
+          name: prow-plugins
+      - name: s3-credentials
+        secret:
+          secretName: prow-s3-credentials
+---
+# Source: prow/templates/deployment-deck.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-deck
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/plugins: fe8ed3388d20d63e0a5c39bdcebf1ef48ae974a12e50ffbb7a1441d3d7e0a137
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+    checksum/secret-s3: fbe61b060e6e09433d7bba95d350aeba86ab8a451c8246cfce9a24a393756982
+    checksum/secret-s3-test-pods: 6322e7e4db5e6e2897179a0218edbddbd7ef9eb7679d59c056f8120a2e4d4db1
+spec:
+  selector:
+    matchLabels:
+      app: deck
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: deck
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-deck
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {}
+      containers:
+        - name: prow-deck
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/deck:v20201019-3b28521b87"
+          args:
+            - --config-path=/etc/config/config.yaml
+            - --plugin-config=/etc/plugins/plugins.yaml
+            - --tide-url=http://tide/
+            - --hook-url=http://hook:8888/plugin-help
+            - --github-token-path=/etc/github/oauth
+            - --plugin-config=/etc/plugins/plugins.yaml
+            - --s3-credentials-file=/etc/s3-credentials/service-account.json
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+      - name: plugins
+        configMap:
+          name: prow-plugins
+      - name: s3-credentials
+        secret:
+          secretName: prow-s3-credentials
+---
+# Source: prow/templates/deployment-hook.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-hook
+  labels:
+    app: hook
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/plugins: fe8ed3388d20d63e0a5c39bdcebf1ef48ae974a12e50ffbb7a1441d3d7e0a137
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+spec:
+  selector:
+    matchLabels:
+      app: hook
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: hook
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-hook
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        {}
+      containers:
+        - name: prow-hook
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/hook:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-endpoint=http://ghproxy
+            - --github-token-path=/etc/github/oauth
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/webhook/hmac
+              subPath: hmac
+              readOnly: true
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 600
+          ports:
+            - name: http
+              containerPort: 8888
+              protocol: TCP
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+      - name: plugins
+        configMap:
+          name: prow-plugins
+---
+# Source: prow/templates/deployment-horologium.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-horologium
+  labels:
+    app: horologium
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: horologium
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: horologium
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-horologium
+      securityContext:
+        {}
+      terminationGracePeriodSeconds: 
+      containers:
+        - name: prow-horologium
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/horologium:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: config
+        configMap:
+          name: prow-config
+---
+# Source: prow/templates/deployment-minio.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-minio
+  labels:
+    app: minio
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: minio
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: prow-minio
+          securityContext:
+            {}
+          image: "minio/minio:latest"
+          args:
+            - server
+            - /data
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MINIO_ACCESS_KEY
+              value: prow-minio
+            - name: MINIO_SECRET_KEY
+              value: prow-minio
+            - name: MINIO_REGION_NAME
+              value: minio
+          volumeMounts:
+            - name: data
+              mountPath: "/data"
+          livenessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            periodSeconds: 20
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {}
+      initContainers:
+        - name: prow-minio-init-buckets
+          image: "minio/minio:latest"
+          command:
+            - mkdir
+            - -p
+            - /data/prow-logs
+            - /data/tide
+            - /data/status-reconciler
+          volumeMounts:
+            - name: data
+              mountPath: "/data"
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+# Source: prow/templates/deployment-plank.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-plank
+  labels:
+    app: plank
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plank
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: plank
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-plank
+      securityContext:
+        {}
+      containers:
+        - name: prow-plank
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/plank:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+---
+# Source: prow/templates/deployment-sinker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-sinker
+  labels:
+    app: sinker
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sinker
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: sinker
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-sinker
+      securityContext:
+        {}
+      containers:
+        - name: prow-sinker
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/sinker:v20201019-3b28521b87"
+          args:
+            - --config-path=/etc/config/config.yaml
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: config
+        configMap:
+          name: prow-config
+---
+# Source: prow/templates/deployment-statusreconciler.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-statusreconciler
+  labels:
+    app: statusreconciler
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/plugins: fe8ed3388d20d63e0a5c39bdcebf1ef48ae974a12e50ffbb7a1441d3d7e0a137
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+    checksum/secret-s3: fbe61b060e6e09433d7bba95d350aeba86ab8a451c8246cfce9a24a393756982
+    checksum/secret-s3-test-pods: 6322e7e4db5e6e2897179a0218edbddbd7ef9eb7679d59c056f8120a2e4d4db1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statusreconciler
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: statusreconciler
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-statusreconciler
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        {}
+      containers:
+        - name: prow-statusreconciler
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/status-reconciler:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --continue-on-error=true
+            - --plugin-config=/etc/plugins/plugins.yaml
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/oauth
+            - --s3-credentials-file=/etc/s3-credentials/service-account.json
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+      - name: plugins
+        configMap:
+          name: prow-plugins
+      - name: s3-credentials
+        secret:
+          secretName: prow-s3-credentials
+---
+# Source: prow/templates/deployment-tide.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prow-tide
+  labels:
+    app: tide
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/config: 08a5068cf33037c5052ff8a71a5da700f2d4e3953b194635b56bd8af03e254dd
+    checksum/secret-github: d3e1c353b9f744c3134de7c0c45b99114db0378618795ab28f55ae54f3d113fe
+    checksum/secret-s3: fbe61b060e6e09433d7bba95d350aeba86ab8a451c8246cfce9a24a393756982
+    checksum/secret-s3-test-pods: 6322e7e4db5e6e2897179a0218edbddbd7ef9eb7679d59c056f8120a2e4d4db1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tide
+      app.kubernetes.io/name: prow
+      app.kubernetes.io/instance: prow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: tide
+        app.kubernetes.io/name: prow
+        app.kubernetes.io/instance: prow
+    spec:
+      serviceAccountName: prow-tide
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        {}
+      containers:
+        - name: prow-tide
+          securityContext:
+            {}
+          image: "gcr.io/k8s-prow/tide:v20201019-3b28521b87"
+          args:
+            - --dry-run=false
+            - --config-path=/etc/config/config.yaml
+            - --github-token-path=/etc/github/oauth
+            - --s3-credentials-file=/etc/s3-credentials/service-account.json
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
+          resources:
+            {}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: prow-github-secrets
+      - name: config
+        configMap:
+          name: prow-config
+      - name: plugins
+        configMap:
+          name: prow-plugins
+      - name: s3-credentials
+        secret:
+          secretName: prow-s3-credentials
+---
+# Source: prow/templates/hpa-deck.yaml
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: prow-deck
+  labels:
+    app: deck
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: prow-deck
+  minReplicas: 2
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: 80
+---
+# Source: prow/templates/hpa-hook.yaml
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: prow-hook
+  labels:
+    app: hook
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: prow-hook
+  minReplicas: 2
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: 80
+---
+# Source: prow/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: prow
+  labels:
+    helm.sh/chart: prow-1.0.0
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/version: "v20201019-3b28521b87"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod-prow-cncf-io
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - "prow.caleb.sharing.io"
+      secretName: letsencrypt-prod-prow-cncf-io
+  rules:
+    - host: "prow.caleb.sharing.io"
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: prow-deck
+              servicePort: 80
+          - path: /hook
+            backend:
+              serviceName: prow-hook
+              servicePort: 80
