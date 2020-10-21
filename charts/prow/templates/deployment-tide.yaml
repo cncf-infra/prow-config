@@ -8,6 +8,7 @@ metadata:
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+    checksum/secret-s3: {{ include (print $.Template.BasePath "/secret-s3-credentials.yaml") . | sha256sum }}
 spec:
   replicas: {{ .Values.tide.replicaCount }}
   selector:
@@ -50,6 +51,9 @@ spec:
             - name: config
               mountPath: /etc/config
               readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
           resources:
             {{- toYaml .Values.tide.resources | nindent 12 }}
       {{- with .Values.tide.nodeSelector }}
@@ -74,3 +78,6 @@ spec:
       - name: plugins
         configMap:
           name: {{ include "prow.fullname" . }}-plugins
+      - name: s3-credentials
+        secret:
+          secretName: {{ include "prow.fullname" . }}-s3-credentials
