@@ -21,8 +21,11 @@ ingress:
 plugins: {}
 
 config:
+  # prowjob_namespace must match installed namespace
+  prowjob_namespace: prow
+  pod_namespace: prow-test-pods
   periodics:
-  - interval: 10m
+  - interval: 1m
     agent: kubernetes
     name: echo-test
     spec:
@@ -389,7 +392,7 @@ statusreconciler:
 deck:
   replicaCount: 2
 
-  bindPort: 8888
+  bindPort: 8080
 
   args:
     - --config-path=/etc/config/config.yaml

@@ -6,4 +6,4 @@ metadata:
     {{- include "prow.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    {{ toYaml .Values.plugins | nindent 4 }}
+    {{ toYaml .Values.config | nindent 4 }}
