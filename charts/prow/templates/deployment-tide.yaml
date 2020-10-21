@@ -9,6 +9,7 @@ metadata:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
     checksum/secret-s3: {{ include (print $.Template.BasePath "/secret-s3-credentials.yaml") . | sha256sum }}
+    checksum/secret-s3-test-pods: {{ include (print $.Template.BasePath "/secret-s3-credentials-test-pods.yaml") . | sha256sum }}
 spec:
   replicas: {{ .Values.tide.replicaCount }}
   selector:
