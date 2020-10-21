@@ -1,0 +1,8 @@
+{{- if .Values.config.pod_namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.config.pod_namespace }}
+  labels:
+    {{- include "prow.labels" . | nindent 4 }}
+{{- end }}
