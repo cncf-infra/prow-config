@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-crier
+  labels:
+    app: crier
+    {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+    checksum/secret-s3: {{ include (print $.Template.BasePath "/secret-s3-credentials.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.crier.replicaCount }}
+  selector:
+    matchLabels:
+      app: crier
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.crier.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.crier.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: crier
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-crier
+      terminationGracePeriodSeconds: {{ .Values.crier.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.crier.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-crier
+          securityContext:
+            {{- toYaml .Values.crier.securityContext | nindent 12 }}
+          image: "{{ .Values.crier.image.repository }}:{{ .Values.crier.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.crier.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.crier.image.pullPolicy }}
+          volumeMounts:
+            - name: github-secrets
+              mountPath: /etc/github/oauth
+              subPath: oauth
+              readOnly: true
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: s3-credentials
+              mountPath: /etc/s3-credentials
+              readOnly: true
+          resources:
+            {{- toYaml .Values.crier.resources | nindent 12 }}
+      {{- with .Values.crier.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.crier.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.crier.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+      - name: plugins
+        configMap:
+          name: {{ include "prow.fullname" . }}-plugins
+      - name: s3-credentials
+        secret:
+          secretName: {{ include "prow.fullname" . }}-s3-credentials
