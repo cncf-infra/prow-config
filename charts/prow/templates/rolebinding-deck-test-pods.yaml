@@ -12,3 +12,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ include "prow.fullname" . }}-deck
+  namespace: {{ .Release.Namespace }}
