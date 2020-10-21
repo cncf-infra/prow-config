@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-minio
+  labels:
+    app: minio
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+{{- if not .Values.minio.autoscaling.enabled }}
+  replicas: {{ .Values.minio.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      app: minio
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.minio.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.minio.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: minio
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.minio.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-minio
+          securityContext:
+            {{- toYaml .Values.minio.securityContext | nindent 12 }}
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.minio.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          env:
+            - name: MINIO_ACCESS_KEY
+              value: {{ .Values.minio.accessKey | toString }}
+            - name: MINIO_SECRET_KEY
+              value: {{ .Values.minio.secretKey | toString }}
+            - name: MINIO_REGION_NAME
+              value: {{ .Values.minio.regionName | toString }}
+          volumeMounts:
+            - name: data
+              mountPath: "/data"
+          livenessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            periodSeconds: 20
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+      initContainers:
+        - name: {{ .Chart.Name }}-minio-init-buckets
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag | default .Chart.AppVersion }}"
+          command:
+            - mkdir
+            - -p
+            - /data/prow-logs
+            - /data/tide
+            - /data/status-reconciler
+          volumeMounts:
+            - name: data
+              mountPath: "/data"
+      {{- with .Values.minio.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.minio.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.minio.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "prow.fullname" . }}-minio

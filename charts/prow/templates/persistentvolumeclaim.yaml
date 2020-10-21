@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "prow.fullname" . }}-minio
+  labels:
+    app: minio
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+{{- with .Values.minio.persistentVolumeClaim.accessModes }}
+  accessModes:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+{{- with .Values.minio.persistentVolumeClaim.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
