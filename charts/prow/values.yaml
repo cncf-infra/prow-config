@@ -53,18 +53,18 @@ config:
   plank:
     job_url_template: |
         {{if .Spec.Refs}}
-          {{if eq .Spec.Refs.Org "kubernetes-security"}}https://console.cloud.google.com/storage/browser/kubernetes-security-prow/{{else}}https://prow.caleb.sharing.io/view/gcs/kubernetes-jenkins/{{end}}
-        {{else}}https://prow.caleb.sharing.io/view/gcs/kubernetes-jenkins/{{end}}
+          {{if eq .Spec.Refs.Org "kubernetes-security"}}https://console.cloud.google.com/storage/browser/kubernetes-security-prow/{{else}}https://{{ my host here }}/view/gcs/kubernetes-jenkins/{{end}}
+        {{else}}https://{{ my host here }}/view/gcs/kubernetes-jenkins/{{end}}
         {{if eq .Spec.Type "presubmit"}}pr-logs/pull{{else if eq .Spec.Type "batch"}}pr-logs/pull{{else}}logs{{end}}
         {{if .Spec.Refs}}
           {{if ne .Spec.Refs.Org ""}}{{if ne .Spec.Refs.Org "kubernetes"}}/{{if and (eq .Spec.Refs.Org "kubernetes-sigs") (ne .Spec.Refs.Repo "poseidon")}}sigs.k8s.io{{else}}{{.Spec.Refs.Org}}{{end}}_{{.Spec.Refs.Repo}}{{else if ne .Spec.Refs.Repo "kubernetes"}}/{{.Spec.Refs.Repo}}{{end}}{{end}}{{end}}{{if eq .Spec.Type "presubmit"}}/{{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}{{else if eq .Spec.Type "batch"}}/batch{{end}}/{{.Spec.Job}}/{{.Status.BuildID}}/
     report_templates:
       '*': >-
-            [Full PR test history](https://prow.caleb.sharing.io/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}).
-            [Your PR dashboard](https://prow.caleb.sharing.io/pr?query=is:pr+state:open+author:{{with
+            [Full PR test history](https://{{ my host here }}/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}).
+            [Your PR dashboard](https://{{ my host here }}/pr?query=is:pr+state:open+author:{{with
             index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).
     job_url_prefix_config:
-      '*': https://prow.caleb.sharing.io/view/
+      '*': https://{{ my host here }}/view/
     default_decoration_configs:
       "*":
         gcs_configuration:
