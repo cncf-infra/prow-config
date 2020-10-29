@@ -3,16 +3,16 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+  name: {{ include "prow.fullname" . }}-letsencrypt
   labels:
-    app.kubernetes.io/part-of: sharingio-pair
-    {{- include "sharingio-pair.labels" . | nindent 4 }}
+    app.kubernetes.io/part-of: prow
+    {{- include "prow.labels" . | nindent 4 }}
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: {{ .Values.ingress.certmanager.email | default "sharingio@ii.coop" }}
+    email: {{ .Values.ingress.certmanager.email | default "prow@ii.coop" }}
     privateKeySecretRef:
-      name: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+      name: {{ include "prow.fullname" . }}-letsencrypt
     solvers:
       - http01:
           ingress:

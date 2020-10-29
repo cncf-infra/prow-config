@@ -15,7 +15,7 @@ metadata:
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- if .Values.ingress.certmanager.enabled }}
-    cert-manager.io/cluster-issuer: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+    cert-manager.io/cluster-issuer: {{ include "prow.fullname" . }}-letsencrypt
     {{- end }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -26,7 +26,7 @@ spec:
     {{- range .Values.ingress.hosts }}
         - {{ .host | quote }}
     {{- end }}
-      secretName: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+      secretName: {{ include "prow.fullname" . }}-letsencrypt
   {{- else if .Values.ingress.tls }}
   tls:
     {{- range .Values.ingress.tls }}

@@ -1,0 +1,117 @@
+#+TITLE: Deployment
+
+** Lifecycle
+Create a namespace:
+#+begin_src bash :dir ../.././ :results silent
+  kubectl create ns prow
+#+end_src
+
+** Values
+Set env to pass into Helm set commands
+#+begin_src elisp :results none
+  (setenv "PROW_HOST" (read-from-minibuffer "PROW_HOST: "))
+  (setenv "PROW_GITHUB_HMAC" (read-from-minibuffer "PROW_GITHUB_HMAC: "))
+  (setenv "PROW_GITHUB_TOKEN" (read-from-minibuffer "PROW_GITHUB_TOKEN: "))
+  (setenv "GITHUB_USER" (read-from-minibuffer "GITHUB_USER: "))
+#+end_src
+
+#+name: get-host
+#+begin_src elisp :results raw
+  (getenv "PROW_HOST")
+#+end_src
+
+#+name: get-github-hmac
+#+begin_src elisp :results raw
+  (getenv "PROW_GITHUB_HMAC")
+#+end_src
+
+#+name: get-github-token
+#+begin_src elisp :results raw
+  (getenv "PROW_GITHUB_TOKEN")
+#+end_src
+
+#+name: get-github-user
+#+begin_src elisp :results raw
+  (getenv "GITHUB_USER")
+#+end_src
+
+* Helm
+** Configuration
+#+begin_src yaml :tangle ./values.yaml :noweb yes
+  plugins:
+    # config-updater
+    # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+    config_updater:
+      maps:
+        config.yaml:
+          name: config
+        plugins.yaml:
+          name: plugins
+        jobs/**/*.yaml:
+          name: job-config
+
+    # which plugins should be enabled for which orgs or org/repos
+    plugins:
+      <<get-github-user()>>/cncf-infra:
+        # - approve
+        - assign
+        #- cat
+        #- dog
+        - hold
+        - label
+        - lgtm
+        # - owners-label
+        - shrug
+        - size
+        - skip
+        - trigger
+        - wip
+        # - verify-owners
+        - yuks
+
+    <<get-github-user()>>/prow-config:
+      - config-updater
+      - pony
+
+  config:
+    plank:
+      job_url_prefix_config:
+        '*': "https://<<get-host()>>"
+      job_url_template: |
+        {{if .Spec.Refs}}
+          {{if eq .Spec.Refs.Org "kubernetes-security"}}https://console.cloud.google.com/storage/browser/kubernetes-security-prow/{{else}}https://<<get-host()>>/view/gcs/kubernetes-jenkins/{{end}}
+        {{else}}https://<<get-host()>>/view/gcs/kubernetes-jenkins/{{end}}
+        {{if eq .Spec.Type "presubmit"}}pr-logs/pull{{else if eq .Spec.Type "batch"}}pr-logs/pull{{else}}logs{{end}}
+        {{if .Spec.Refs}}
+          {{if ne .Spec.Refs.Org ""}}{{if ne .Spec.Refs.Org "kubernetes"}}/{{if and (eq .Spec.Refs.Org "kubernetes-sigs") (ne .Spec.Refs.Repo "poseidon")}}sigs.k8s.io{{else}}{{.Spec.Refs.Org}}{{end}}_{{.Spec.Refs.Repo}}{{else if ne .Spec.Refs.Repo "kubernetes"}}/{{.Spec.Refs.Repo}}{{end}}{{end}}{{end}}{{if eq .Spec.Type "presubmit"}}/{{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}{{else if eq .Spec.Type "batch"}}/batch{{end}}/{{.Spec.Job}}/{{.Status.BuildID}}/
+      report_templates:
+        '*': >-
+            [Full PR test history](https://<<get-host()>>/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}).
+            [Your PR dashboard](https://<<get-host()>>/pr?query=is:pr+state:open+author:{{with
+            index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).
+#+end_src
+
+** Install
+#+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
+  helm install prow -n prow \
+    -f ./org/values.yaml \
+    --set ingress.hosts[0].host=<<get-host()>> \
+    --set github.hmac=<<get-github-hmac()>> \
+    --set github.oauth=<<get-github-token()>> \
+    charts/prow
+#+end_src
+
+** Upgrade
+#+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
+  helm upgrade prow -n prow \
+    -f ./org/values.yaml \
+    --set ingress.hosts[0].host=<<get-host()>> \
+    --set github.hmac=<<get-github-hmac()>> \
+    --set github.oauth=<<get-github-token()>> \
+    charts/prow
+#+end_src
+
+** Uninstall
+#+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
+  helm uninstall prow -n prow
+#+end_src
