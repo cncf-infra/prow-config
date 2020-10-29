@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prow.fullname" . }}-ghproxy
+  labels:
+    app: ghproxy
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: ghproxy
+      {{- include "prow.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.ghproxy.deploymentStrategy | nindent 4 }}
+  template:
+    metadata:
+    {{- with .Values.ghproxy.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: ghproxy
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.ghproxy.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.ghproxy.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-ghproxy
+          securityContext:
+            {{- toYaml .Values.ghproxy.securityContext | nindent 12 }}
+          image: "{{ .Values.ghproxy.image.repository }}:{{ .Values.ghproxy.image.tag | default .Chart.AppVersion }}"
+          args:
+            {{- toYaml .Values.ghproxy.args | nindent 12 }}
+          imagePullPolicy: {{ .Values.ghproxy.image.pullPolicy }}
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+          ports:
+            - name: http
+              containerPort: {{ .Values.ghproxy.bindPort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.ghproxy.resources | nindent 12 }}
+      {{- with .Values.ghproxy.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ghproxy.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ghproxy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: cache
+        emptyDir: {}

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "prow.fullname" . }}-ghproxy
+  labels:
+    app: ghproxy
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.ghproxy.service.type }}
+  ports:
+    - port: {{ .Values.ghproxy.service.port }}
+      targetPort: {{ .Values.ghproxy.bindPort }}
+      protocol: TCP
+      name: http
+    - name: metrics
+      port: 9090
+  selector:
+    app: ghproxy
+    {{- include "prow.selectorLabels" . | nindent 4 }}

@@ -650,6 +650,69 @@ statusreconciler:
 
   affinity: {}
 
+ghproxy:
+  replicaCount: 1
+
+  bindPort: 8888
+
+  args:
+    - --cache-dir=/cache
+    - --cache-sizeGB=99
+    - --push-gateway=pushgateway
+    - --serve-metrics=true
+
+  terminationGracePeriodSeconds: 180
+
+  deploymentStrategy:
+    type: Recreate
+
+  image:
+    repository: gcr.io/k8s-prow/ghproxy
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: {}
+
+  podAnnotations: {}
+
+  podSecurityContext: {}
+  # fsGroup: 2000
+
+  securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
 minio:
   replicaCount: 1
 
