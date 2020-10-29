@@ -14,10 +14,20 @@ metadata:
     {{- include "prow.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
+    {{- if .Values.ingress.certmanager.enabled }}
+    cert-manager.io/cluster-issuer: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+    {{- end }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingress.tls }}
+  {{- if .Values.ingress.certmanager }}
+  tls:
+    - hosts:
+    {{- range .Values.ingress.hosts }}
+        - {{ .host | quote }}
+    {{- end }}
+      secretName: {{ include "sharingio-pair.fullname" . }}-letsencrypt
+  {{- else if .Values.ingress.tls }}
   tls:
     {{- range .Values.ingress.tls }}
     - hosts:
