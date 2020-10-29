@@ -76,7 +76,7 @@ Set env to pass into Helm set commands
   config:
     plank:
       job_url_prefix_config:
-        '*': "https://<<get-host()>>"
+        '*': "https://<<get-host()>>/view/"
       job_url_template: |
         {{if .Spec.Refs}}
           {{if eq .Spec.Refs.Org "kubernetes-security"}}https://console.cloud.google.com/storage/browser/kubernetes-security-prow/{{else}}https://<<get-host()>>/view/gcs/kubernetes-jenkins/{{end}}
@@ -114,4 +114,12 @@ Set env to pass into Helm set commands
 ** Uninstall
 #+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
   helm uninstall prow -n prow
+#+end_src
+
+* Misc
+#+begin_src shell :eval never
+  #stuff we need
+  sudo apt-get install python2-dev
+  ln -s /usr/bin/python2 /usr/local/bin/python
+  bazel run //experiment/update-hook
 #+end_src
