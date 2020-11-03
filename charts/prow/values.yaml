@@ -28,6 +28,12 @@ config:
   prowjob_namespace: prow
   pod_namespace: prow-test-pods
 
+  managed_webhooks:
+    respect_legacy_global_token: true
+    org_repo_config:
+      USERNAME_HERE/prow-config:
+        token_created_after: 2020-06-24T00:10:00Z
+
   in_repo_config:
     enabled:
       "*": true
@@ -104,6 +110,7 @@ hook:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
     - --github-endpoint=http://ghproxy
+    - --github-endpoint=https://api.github.com
     - --github-token-path=/etc/github/oauth
 
   terminationGracePeriodSeconds: 180
@@ -167,6 +174,28 @@ hook:
   tolerations: []
 
   affinity: {}
+
+  setupJob:
+    enabled: true
+
+    securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+    serviceAccount:
+      # Specifies whether a service account should be created
+      create: true
+      # Annotations to add to the service account
+      annotations: {}
+
+    image:
+      repository: gcr.io/k8s-prow/hmac
+      pullPolicy: IfNotPresent
+      tag: ""
 
 plank:
   replicaCount: 1

@@ -1,0 +1,79 @@
+{{- if .Values.hook.setupJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "prow.fullname" . }}-hook-setup
+  labels:
+    {{- include "prow.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+    {{- with .Values.hook.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: hook
+        {{- include "prow.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prow.fullname" . }}-hook-setupjob
+      containers:
+      - name: {{ .Chart.Name }}-hook-setupjob
+        image: "{{ .Values.hook.setupJob.image.repository }}:{{ .Values.hook.setupJob.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.hook.setupJob.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.hook.setupJob.podSecurityContext | nindent 10 }}
+        command:
+        - /hmac
+        args:
+        - --config-path=/etc/config/config.yaml
+        {{ range $index, $host := .Values.ingress.hosts }}
+        - --hook-url=https://{{ $host.host }}/hook
+        {{- end }}
+        - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets
+        - --hmac-token-secret-namespace={{ .Release.Namespace }}
+        - --hmac-token-key=hmac
+        - --github-token-path=/etc/github/oauth
+        - --github-endpoint=http://ghproxy.{{ .Release.Namespace }}
+        - --github-endpoint=https://api.github.com
+        - --kubeconfig-context=default
+        - --dry-run=false
+        volumeMounts:
+          - name: github-secrets
+            mountPath: /etc/github/oauth
+            subPath: oauth
+            readOnly: true
+          - name: github-secrets
+            mountPath: /etc/github/hmac
+            subPath: hmac
+            readOnly: true
+          - name: config
+            mountPath: /etc/config
+            readOnly: true
+      {{- with .Values.hook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: github-secrets
+        secret:
+          defaultMode: 420
+          secretName: {{ include "prow.fullname" . }}-github-secrets
+      - name: config
+        configMap:
+          name: {{ include "prow.fullname" . }}-config
+  backoffLimit: 4
+{{- end }}

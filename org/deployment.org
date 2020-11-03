@@ -91,6 +91,16 @@ Set env to pass into Helm set commands
             index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).
 #+end_src
 
+** Lint
+#+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
+  helm template prow -n prow \
+    -f ./org/values.yaml \
+    --set ingress.hosts[0].host=<<get-host()>> \
+    --set github.hmac=<<get-github-hmac()>> \
+    --set github.oauth=<<get-github-token()>> \
+    charts/prow
+#+end_src
+
 ** Install
 #+begin_src bash :dir .././ :noweb yes :prologue "(" :epilogue ") 2>&1\n:" :results silent
   helm install prow -n prow \
