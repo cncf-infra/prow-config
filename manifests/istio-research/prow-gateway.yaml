@@ -1,0 +1,62 @@
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: prow
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - prow.hh.sharing.io
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: prow-letsencrypt
+    hosts:
+    - prow.hh.sharing.io
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: prow-deck
+spec:
+  hosts:
+  - prow.hh.sharing.io
+  gateways:
+  - prow
+  http:
+  - match:
+    - uri:
+        exact: /
+    route:
+    - destination:
+        host: prow-deck
+        port:
+          number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: prow-hook
+spec:
+  hosts:
+  - prow.hh.sharing.io
+  gateways:
+  - prow
+  http:
+  - match:
+    - uri:
+        exact: /hook
+    route:
+    - destination:
+        host: prow-hook
+        port:
+          number: 80

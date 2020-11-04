@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kiali
+  namespace: istio-system
+spec:
+  ingressClassName: istio
+  rules:
+  - host: kiali.hh.sharing.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: kiali
+            port:
+              number: 20001
+        path: /*
+        pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: kiali
+            port:
+              number: 20001
+        path: /kiali/*
+        pathType: ImplementationSpecific

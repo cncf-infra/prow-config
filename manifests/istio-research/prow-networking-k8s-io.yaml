@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    meta.helm.sh/release-name: prow
+    meta.helm.sh/release-namespace: prow
+  creationTimestamp: "2020-11-03T20:41:17Z"
+  labels:
+    app.kubernetes.io/instance: prow
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: prow
+    app.kubernetes.io/version: v20201019-3b28521b87
+    helm.sh/chart: prow-1.0.0
+  name: prow
+  namespace: prow
+spec:
+  ingressClassName: istio
+  rules:
+  - host: prow.hh.sharing.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: prow-deck
+            port:
+              number: 80
+        path: /*
+        pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: prow-hook
+            port:
+              number: 80
+        path: /hook
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - prow.hh.sharing.io
+    secretName: prow-letsencrypt
+status:
+  loadBalancer:
+    ingress:
+    - ip: 139.178.89.144
