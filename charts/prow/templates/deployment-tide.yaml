@@ -7,7 +7,7 @@ metadata:
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
-    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+    checksum/secret-github-token: {{ include (print $.Template.BasePath "/secret-github-token.yaml") . | sha256sum }}
     checksum/secret-s3: {{ include (print $.Template.BasePath "/secret-s3-credentials.yaml") . | sha256sum }}
     checksum/secret-s3-test-pods: {{ include (print $.Template.BasePath "/secret-s3-credentials-test-pods.yaml") . | sha256sum }}
 spec:
@@ -45,7 +45,7 @@ spec:
             {{- toYaml .Values.tide.args | nindent 12 }}
           imagePullPolicy: {{ .Values.tide.image.pullPolicy }}
           volumeMounts:
-            - name: github-secrets
+            - name: github-secrets-token
               mountPath: /etc/github/oauth
               subPath: oauth
               readOnly: true
@@ -70,9 +70,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: github-secrets
+      - name: github-secrets-token
         secret:
-          secretName: {{ include "prow.fullname" . }}-github-secrets
+          secretName: {{ include "prow.fullname" . }}-github-secrets-token
       - name: config
         configMap:
           name: {{ include "prow.fullname" . }}-config

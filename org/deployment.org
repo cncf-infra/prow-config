@@ -10,7 +10,7 @@ Create a namespace:
 Set env to pass into Helm set commands
 #+begin_src elisp :results none
   (setenv "PROW_HOST" (read-from-minibuffer "PROW_HOST: "))
-  (setenv "PROW_GITHUB_HMAC" (read-from-minibuffer "PROW_GITHUB_HMAC: "))
+  (setenv "PROW_GITHUB_HMAC" (shell-command-to-string "openssl rand -hex 20 | tr -d '\n'"))
   (setenv "PROW_GITHUB_TOKEN" (read-from-minibuffer "PROW_GITHUB_TOKEN: "))
   (setenv "GITHUB_USER" (read-from-minibuffer "GITHUB_USER: "))
 #+end_src

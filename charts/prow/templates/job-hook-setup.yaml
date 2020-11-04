@@ -35,7 +35,7 @@ spec:
         {{ range $index, $host := .Values.ingress.hosts }}
         - --hook-url=https://{{ $host.host }}/hook
         {{- end }}
-        - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets
+        - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets-hmac
         - --hmac-token-secret-namespace={{ .Release.Namespace }}
         - --hmac-token-key=hmac
         - --github-token-path=/etc/github/oauth
@@ -44,11 +44,11 @@ spec:
         - --kubeconfig-context=default
         - --dry-run=false
         volumeMounts:
-          - name: github-secrets
+          - name: github-secrets-token
             mountPath: /etc/github/oauth
             subPath: oauth
             readOnly: true
-          - name: github-secrets
+          - name: github-secrets-hmac
             mountPath: /etc/github/hmac
             subPath: hmac
             readOnly: true
@@ -68,10 +68,14 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: github-secrets
+      - name: github-secrets-token
         secret:
           defaultMode: 420
-          secretName: {{ include "prow.fullname" . }}-github-secrets
+          secretName: {{ include "prow.fullname" . }}-github-secrets-token
+      - name: github-secrets-hmac
+        secret:
+          defaultMode: 420
+          secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
       - name: config
         configMap:
           name: {{ include "prow.fullname" . }}-config

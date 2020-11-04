@@ -8,7 +8,8 @@ metadata:
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     checksum/plugins: {{ include (print $.Template.BasePath "/plugins.yaml") . | sha256sum }}
-    checksum/secret-github: {{ include (print $.Template.BasePath "/secret-github.yaml") . | sha256sum }}
+    checksum/secret-github-token: {{ include (print $.Template.BasePath "/secret-github-token.yaml") . | sha256sum }}
+    checksum/secret-github-hmac: {{ include (print $.Template.BasePath "/secret-github-hmac.yaml") . | sha256sum }}
 spec:
 {{- if not .Values.hook.autoscaling.enabled }}
   replicas: {{ .Values.hook.replicaCount }}
@@ -46,11 +47,11 @@ spec:
             {{- toYaml .Values.hook.args | nindent 12 }}
           imagePullPolicy: {{ .Values.hook.image.pullPolicy }}
           volumeMounts:
-            - name: github-secrets
-              mountPath: /etc/webhook/hmac
+            - name: github-secrets-hmac
+              mountPath: /etc/github/hmac
               subPath: hmac
               readOnly: true
-            - name: github-secrets
+            - name: github-secrets-token
               mountPath: /etc/github/oauth
               subPath: oauth
               readOnly: true
@@ -92,9 +93,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: github-secrets
+      - name: github-secrets-token
         secret:
-          secretName: {{ include "prow.fullname" . }}-github-secrets
+          secretName: {{ include "prow.fullname" . }}-github-secrets-token
+      - name: github-secrets-hmac
+        secret:
+          secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
       - name: config
         configMap:
           name: {{ include "prow.fullname" . }}-config
