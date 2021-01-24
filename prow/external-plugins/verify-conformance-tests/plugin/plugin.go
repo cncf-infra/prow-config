@@ -430,7 +430,7 @@ func checkAllRequiredTestsArePresent(required map[string]bool, submitted []strin
 func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequestChange) (bool, error) {
 	zeroTestFailures := false
 	e2eNoTestsFailed := "\"failed\":0"
-	e2eMainTestSuite := "\"Test Suite starting\""
+	e2eMainTestSuite := "\"Test Suite completed\""
 
 	fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
 	resp, err := http.Get(fileUrl)
