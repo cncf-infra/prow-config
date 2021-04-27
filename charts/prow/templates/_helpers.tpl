@@ -49,3 +49,13 @@ Selector labels
 app.kubernetes.io/name: {{ include "prow.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{- define "prow.configmap.volume" -}}
+- name: config
+  configMap:
+    {{- if .Values.configFromConfigMap.enabled }}
+    name: {{ .Values.configFromConfigMap.name }}
+    {{- else }}
+    name: {{ include "prow.fullname" . }}-config
+    {{- end }}
+{{- end }}

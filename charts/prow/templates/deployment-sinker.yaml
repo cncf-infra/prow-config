@@ -59,6 +59,4 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: config
-        configMap:
-          name: {{ include "prow.fullname" . }}-config
+      {{- include "prow.configmap.volume" . | nindent 6 }}

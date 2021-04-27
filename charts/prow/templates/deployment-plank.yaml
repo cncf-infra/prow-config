@@ -67,6 +67,4 @@ spec:
       - name: github-secrets-token
         secret:
           secretName: {{ include "prow.fullname" . }}-github-secrets-token
-      - name: config
-        configMap:
-          name: {{ include "prow.fullname" . }}-config
+      {{- include "prow.configmap.volume" . | nindent 6 }}

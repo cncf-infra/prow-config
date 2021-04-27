@@ -76,8 +76,6 @@ spec:
         secret:
           defaultMode: 420
           secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
-      - name: config
-        configMap:
-          name: {{ include "prow.fullname" . }}-config
+      {{- include "prow.configmap.volume" . | nindent 6 }}
   backoffLimit: 4
 {{- end }}

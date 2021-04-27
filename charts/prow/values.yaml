@@ -23,6 +23,11 @@ ingress:
 
 plugins: {}
 
+configFromConfigMap:
+  enabled: false
+  # will use key 'config.yaml'
+  name: ""
+  
 config:
   # prowjob_namespace must match installed namespace
   prowjob_namespace: prow
