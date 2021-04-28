@@ -103,6 +103,13 @@ config:
       - image: alpine
         command: ["/bin/date"]
 
+githubFromSecretRef:
+  enabled: false
+  oauth:
+    name: ""
+  hmac:
+    name: ""
+
 github:
   hmac: ''
   oauth: ''

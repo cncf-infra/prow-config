@@ -59,3 +59,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     name: {{ include "prow.fullname" . }}-config
     {{- end }}
 {{- end }}
+
+{{- define "prow.github-token.volume" -}}
+- name: github-secrets-token
+  secret:
+    {{- if .Values.githubFromSecretRef.enabled }}
+    secretName: {{ include "prow.fullname" . }}-github-secrets-token
+    {{- else }}
+     secretName: {{ .Values.githubFromSecretRef.oauth.name }}
+    {{- end }}
+{{- end }}
+
+{{- define "prow.github-hmac.volume" -}}
+- name: github-secrets-hmac
+  secret:
+    defaultMode: 420
+    {{- if .Values.githubFromSecretRef.enabled }}
+    secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
+    {{- else }}
+    secretName: {{ .Values.githubFromSecretRef.hmac.name }}
+    {{- end }}
+{{- end }}

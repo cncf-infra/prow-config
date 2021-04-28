@@ -68,14 +68,8 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: github-secrets-token
-        secret:
-          defaultMode: 420
-          secretName: {{ include "prow.fullname" . }}-github-secrets-token
-      - name: github-secrets-hmac
-        secret:
-          defaultMode: 420
-          secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
+      {{- include "prow.github-token.volume" . | nindent 6 }}
+      {{- include "prow.github-hmac.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
   backoffLimit: 4
 {{- end }}
