@@ -64,9 +64,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: github-secrets-token
   secret:
     {{- if .Values.githubFromSecretRef.enabled }}
-    secretName: {{ include "prow.fullname" . }}-github-secrets-token
+    secretName: {{ .Values.githubFromSecretRef.oauth.name }}
     {{- else }}
-     secretName: {{ .Values.githubFromSecretRef.oauth.name }}
+    secretName: {{ include "prow.fullname" . }}-github-secrets-token
     {{- end }}
 {{- end }}
 
@@ -75,8 +75,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   secret:
     defaultMode: 420
     {{- if .Values.githubFromSecretRef.enabled }}
-    secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
-    {{- else }}
     secretName: {{ .Values.githubFromSecretRef.hmac.name }}
+    {{- else }}
+    secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
     {{- end }}
 {{- end }}
