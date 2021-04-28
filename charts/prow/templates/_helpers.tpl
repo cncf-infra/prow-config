@@ -63,6 +63,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "prow.github-token.volume" -}}
 - name: github-secrets-token
   secret:
+    defaultMode: 420
     {{- if .Values.githubFromSecretRef.enabled }}
     secretName: {{ .Values.githubFromSecretRef.oauth.name }}
     {{- else }}
