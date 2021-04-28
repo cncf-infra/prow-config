@@ -1,0 +1,71 @@
+# #+TITLE: Deploy To Pair
+
+# Create the values for the deployment:
+
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: prow-${SHARINGIO_PAIR_NAME}
+spec:
+  chart:
+    git: https://github.com/cncf-infra/prow-config
+    path: charts/prow
+    ref: e9054773418c87309086a24f1babb5145131e908
+  releaseName: prow-${SHARINGIO_PAIR_NAME}
+  values:
+    githubFromSecretRef:
+      enabled: true
+      oauth:
+        name: "prow-github-oauth"
+      hmac:
+        name: "prow-github-hmac"
+    
+    ingress:
+      certmanager:
+        enabled: false
+      hosts:
+        - host: prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+          tls:
+            - secretName: letsencrypt-prod
+              hosts:
+                - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+          
+    plugins:
+      # config-updater
+      # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+      config_updater:
+        maps:
+          config.yaml:
+            name: config
+          plugins.yaml:
+            name: plugins
+          jobs/**/*.yaml:
+            name: job-config
+    
+      # which plugins should be enabled for which orgs or org/repos
+      plugins:
+        cncf-infra:
+          # - approve
+          - assign
+          #- cat
+          #- dog
+          - hold
+          - label
+          - lgtm
+          # - owners-label
+          - shrug
+          - size
+          - skip
+          - trigger
+          - wip
+          # - verify-owners
+          - yuks
+    
+      cncf-infra/prow-config:
+        - config-updater
+        - pony
+    
+      cncf-infra/k8s-conformance:
+        - cat
+        - dog
+        # - verify-conformance-request

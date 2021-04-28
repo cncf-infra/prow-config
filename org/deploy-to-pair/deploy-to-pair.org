@@ -1,0 +1,93 @@
+#+TITLE: Deploy To Pair
+
+Create the values for the deployment:
+#+BEGIN_SRC yaml :tangle ./prow.yaml
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: prow-${SHARINGIO_PAIR_NAME}
+spec:
+  chart:
+    git: https://github.com/cncf-infra/prow-config
+    path: charts/prow
+    ref: 317a6a733d709451b0e1995b5d0883f3fa1b1db9
+  releaseName: prow-${SHARINGIO_PAIR_NAME}
+  values:
+    githubFromSecretRef:
+      enabled: true
+      oauth:
+        name: "prow-github-oauth"
+      hmac:
+        name: "prow-github-hmac"
+    
+    ingress:
+      certmanager:
+        enabled: false
+      hosts:
+        - host: prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+          tls:
+            - secretName: letsencrypt-prod
+              hosts:
+                - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+          
+    plugins:
+      # config-updater
+      # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
+      config_updater:
+        maps:
+          config.yaml:
+            name: config
+          plugins.yaml:
+            name: plugins
+          jobs/**/*.yaml:
+            name: job-config
+    
+      # which plugins should be enabled for which orgs or org/repos
+      plugins:
+        cncf-infra:
+          # - approve
+          - assign
+          #- cat
+          #- dog
+          - hold
+          - label
+          - lgtm
+          # - owners-label
+          - shrug
+          - size
+          - skip
+          - trigger
+          - wip
+          # - verify-owners
+          - yuks
+    
+      cncf-infra/prow-config:
+        - config-updater
+        - pony
+    
+      cncf-infra/k8s-conformance:
+        - cat
+        - dog
+        # - verify-conformance-request
+#+END_SRC
+
+Create HMAC
+#+BEGIN_SRC shell :results silent
+export HMAC=$(openssl rand -hex 20)
+kubectl -n prow-$SHARINGIO_PAIR_NAME create secret generic prow-github-hmac --from-literal=hmac="$HMAC" --dry-run=client -o yaml | kubectl apply -f -
+#+END_SRC
+
+Create the oAuth secret
+#+BEGIN_SRC shell :results silent
+kubectl -n prow-$SHARINGIO_PAIR_NAME create secret generic prow-github-oauth --from-literal=oauth="$GITHUB_TOKEN" --dry-run=client -o yaml | kubectl apply -f -
+#+END_SRC
+
+Deploy prow
+#+BEGIN_SRC shell :results silent
+envsubst < prow.yaml | kubectl -n prow-$SHARINGIO_PAIR_NAME apply -f -
+#+END_SRC
+
+Delete prow
+#+BEGIN_SRC shell :results silent
+envsubst < prow.yaml | kubectl -n prow-$SHARINGIO_PAIR_NAME delete -f -
+#+END_SRC
