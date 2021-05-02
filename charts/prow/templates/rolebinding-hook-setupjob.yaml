@@ -12,5 +12,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ include "prow.fullname" . }}-hook-setupjob
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.prowjobNamespace | default .Release.Namespace }}
 {{- end }}
