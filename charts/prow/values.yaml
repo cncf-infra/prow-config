@@ -6,6 +6,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+prowjobNamespace: ""
+
 ingress:
   enabled: true
   certmanager:

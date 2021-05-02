@@ -1,4 +1,4 @@
-# #+TITLE: Deploy To Pair
+
 
 # Create the values for the deployment:
 
@@ -10,7 +10,7 @@ spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
-    ref: e9054773418c87309086a24f1babb5145131e908
+    ref: e063bb6ca15b52fd6525608c2781064cc16bc36b
   releaseName: prow-${SHARINGIO_PAIR_NAME}
   values:
     githubFromSecretRef:
@@ -19,17 +19,21 @@ spec:
         name: "prow-github-oauth"
       hmac:
         name: "prow-github-hmac"
-    
+
     ingress:
       certmanager:
         enabled: false
       hosts:
         - host: prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
-          tls:
-            - secretName: letsencrypt-prod
-              hosts:
-                - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
-          
+      tls:
+        - secretName: letsencrypt-prod
+          hosts:
+            - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+
+    configFromConfigMap:
+      enabled: true
+      name: "prow-config"
+
     plugins:
       # config-updater
       # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
@@ -41,7 +45,7 @@ spec:
             name: plugins
           jobs/**/*.yaml:
             name: job-config
-    
+
       # which plugins should be enabled for which orgs or org/repos
       plugins:
         cncf-infra:
@@ -60,11 +64,11 @@ spec:
           - wip
           # - verify-owners
           - yuks
-    
+
       cncf-infra/prow-config:
         - config-updater
         - pony
-    
+
       cncf-infra/k8s-conformance:
         - cat
         - dog
