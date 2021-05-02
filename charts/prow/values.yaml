@@ -7,6 +7,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 prowjobNamespace: ""
+podNamespace: ""
 
 ingress:
   enabled: true

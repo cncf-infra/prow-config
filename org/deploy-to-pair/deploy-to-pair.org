@@ -108,7 +108,7 @@ envsubst < prow.yaml | kubectl -n prow-$SHARINGIO_PAIR_NAME apply -f -
 Configure the deployment
 #+BEGIN_SRC yaml :tangle prow-config.yaml
 prowjob_namespace: prow-${SHARINGIO_PAIR_NAME}
-pod_namespace: prow-${SHARINGIO_PAIR_NAME}
+pod_namespace: prow-${SHARINGIO_PAIR_NAME}-workloads
 managed_webhooks:
   respect_legacy_global_token: true
   org_repo_config:
