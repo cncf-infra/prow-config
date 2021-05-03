@@ -13,6 +13,7 @@ spec:
     ref: e063bb6ca15b52fd6525608c2781064cc16bc36b
   releaseName: prow-${SHARINGIO_PAIR_NAME}
   values:
+    podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
     githubFromSecretRef:
       enabled: true
       oauth:

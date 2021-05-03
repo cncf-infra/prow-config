@@ -3,7 +3,7 @@
 # Configure the deployment
 
 prowjob_namespace: prow-${SHARINGIO_PAIR_NAME}
-pod_namespace: prow-${SHARINGIO_PAIR_NAME}
+pod_namespace: prow-${SHARINGIO_PAIR_NAME}-workloads
 managed_webhooks:
   respect_legacy_global_token: true
   org_repo_config:
@@ -50,7 +50,7 @@ plank:
         bucket: s3://prow-logs
         path_strategy: explicit
       # secret must be set to RELEASE_NAME-s3-credentials
-      s3_credentials_secret: prow-s3-credentials
+      s3_credentials_secret: prow-${SHARINGIO_PAIR_NAME}-s3-credentials
       utility_images:
         clonerefs: gcr.io/k8s-prow/clonerefs:v20201019-3b28521b87
         entrypoint: gcr.io/k8s-prow/entrypoint:v20201019-3b28521b87

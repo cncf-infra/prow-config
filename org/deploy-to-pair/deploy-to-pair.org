@@ -27,6 +27,7 @@ spec:
     ref: e063bb6ca15b52fd6525608c2781064cc16bc36b
   releaseName: prow-${SHARINGIO_PAIR_NAME}
   values:
+    podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
     githubFromSecretRef:
       enabled: true
       oauth:
@@ -155,7 +156,7 @@ plank:
         bucket: s3://prow-logs
         path_strategy: explicit
       # secret must be set to RELEASE_NAME-s3-credentials
-      s3_credentials_secret: prow-s3-credentials
+      s3_credentials_secret: prow-${SHARINGIO_PAIR_NAME}-s3-credentials
       utility_images:
         clonerefs: gcr.io/k8s-prow/clonerefs:v20201019-3b28521b87
         entrypoint: gcr.io/k8s-prow/entrypoint:v20201019-3b28521b87
@@ -201,12 +202,12 @@ helm upgrade -i prow-${SHARINGIO_PAIR_NAME} \
 
 #+RESULTS:
 #+begin_example
-Release "prow-bobymcbobs" does not exist. Installing it now.
+Release "prow-bobymcbobs" has been upgraded. Happy Helming!
 NAME: prow-bobymcbobs
-LAST DEPLOYED: Mon May  3 11:39:19 2021
+LAST DEPLOYED: Mon May  3 13:57:16 2021
 NAMESPACE: prow-bobymcbobs
 STATUS: deployed
-REVISION: 1
+REVISION: 2
 TEST SUITE: None
 NOTES:
 1. Get the application URL by running these commands:
