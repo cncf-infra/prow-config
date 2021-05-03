@@ -1,0 +1,41 @@
+#!/bin/bash
+
+GIT_ROOT=$(git rev-parse --show-toplevel)
+GIT_LAST_COMMIT=$(git rev-parse HEAD)
+
+FOLDER="$GIT_ROOT/.sharing.io"
+
+if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
+    /usr/local/bin/tmate-wait-for-socket.sh
+
+    kubectl create ns prow-${SHARINGIO_PAIR_NAME}
+    kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
+    kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
+    
+    HMAC=$(openssl rand -hex 20)
+    kubectl \
+        -n prow-$SHARINGIO_PAIR_NAME \
+        create secret generic prow-github-hmac \
+        --from-literal=hmac="$HMAC" \
+        --dry-run=client -o yaml \
+        | kubectl apply -f -
+
+    kubectl \
+        -n prow-$SHARINGIO_PAIR_NAME \
+        create secret generic prow-github-oauth \
+        --from-literal=oauth="$GITHUB_TOKEN" \
+        --dry-run=client -o yaml \
+        | kubectl apply -f -
+
+    kubectl -n prow-${SHARINGIO_PAIR_NAME} \
+        create configmap prow-config \
+        --from-file=config\.yaml=<(envsubst < $FOLDER/prow-config-basic.yaml) \
+        --dry-run=client \
+        -o yaml \
+        | kubectl apply -f -
+
+    envsubst < $FOLDER/prow-helmrelease.yaml \
+        | kubectl \
+        -n prow-$SHARINGIO_PAIR_NAME \
+        apply -f -
+fi
