@@ -2,6 +2,7 @@
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
 GIT_UPSTREAM_URL=$(gh api repos/:owner/:repo --jq '.' | jq -r '.ssh_url' 2>&1)
+GIT_BRANCH_CURRENT=$(git branch --show-current)
 rm -f $GIT_ROOT/.sharing.io/setup-complete
 
 FOLDER="$GIT_ROOT/.sharing.io"
@@ -41,6 +42,7 @@ GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.ssh
 git remote rm origin
 git remote add origin "$GIT_FORK_REMOTE"
 git remote add upstream "$GIT_UPSTREAM_URL"
+git pull origin $(GIT_BRANCH_CURRENT)
 
 if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     /usr/local/bin/tmate-wait-for-socket.sh
