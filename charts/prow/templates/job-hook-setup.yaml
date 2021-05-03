@@ -6,6 +6,8 @@ metadata:
   labels:
     {{- include "prow.labels" . | nindent 4 }}
 spec:
+  ttlSecondsAfterFinished: {{ .Values.hook.setupJob.ttlSecondsAfterFinished | default 200 }}
+  backoffLimit: {{ .Values.hook.setupJob.backoffLimit | default 50 }}
   template:
     metadata:
     {{- with .Values.hook.podAnnotations }}
