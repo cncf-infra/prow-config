@@ -1,7 +1,7 @@
 #!/bin/bash
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
-GIT_UPSTREAM_URL=$(gh api repos/:owner/:repo --jq '.' | jq -r '.svn_url' 2>&1)
+GIT_UPSTREAM_URL=$(gh api repos/:owner/:repo --jq '.' | jq -r '.ssh_url' 2>&1)
 rm -f $GIT_ROOT/.sharing.io/setup-complete
 
 FOLDER="$GIT_ROOT/.sharing.io"
@@ -37,7 +37,7 @@ fi
 #     echo "Using your existing fork."
 # fi
 
-GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.svn_url' 2>&1)
+GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.ssh_url' 2>&1)
 git remote rm origin
 git remote add origin "$GIT_FORK_REMOTE"
 git remote add upstream "$GIT_UPSTREAM_URL"
