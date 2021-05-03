@@ -1,6 +1,8 @@
 #!/bin/bash
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
+GIT_REMOTE_URL=$(git ls-remote --get-url origin)
+rm -f $GIT_ROOT/.sharing.io/setup-complete
 
 FOLDER="$GIT_ROOT/.sharing.io"
 
@@ -11,12 +13,50 @@ else
     HMAC=$(cat $FOLDER/.hmac)
 fi
 
+if [ ! -f $FOLDER/.cookie ] ; then
+    COOKIE=$(openssl rand -base64 32)
+    echo $COOKIE > $FOLDER/.cookie
+else
+    COOKIE=$(cat $FOLDER/.cookie)
+fi
+
+# PROW_CONFIG_IS_FORKED_NOTIFIED=false
+# PROW_IS_FORKED=true
+# while ! gh repo list --fork | grep -q -E "^${SHARINGIO_PAIR_USER}/prow-config\W+"; do
+#     PROW_IS_FORKED=false
+#     if [ ! $PROW_CONFIG_IS_FORKED_NOTIFIED = "true" ]; then
+#         echo "Please fork '${GIT_REMOTE_URL}' to continue."
+#         PROW_CONFIG_IS_FORKED_NOTIFIED=true
+#     fi
+#     sleep 3s
+# done
+
+# if [ ! $PROW_IS_FORKED = "true" ]; then
+#     echo "Success! You forked '${GIT_REMOTE_URL}'."
+# else
+#     echo "Using your existing fork."
+# fi
+
+git remote rename origin upstream
+GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq ".full_name")
+git remote add origin https://github.com/$GIT_FORK_REMOTE
+
 if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     /usr/local/bin/tmate-wait-for-socket.sh
 
     kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}
     kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
     kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
+
+    # tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
+
+    # PROW_COMPLETE_SETUP_NOTIFIED=false
+    # while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
+    #     if [ $PROW_COMPLETE_SETUP_NOTIFIED = "true" ]; then
+    #         echo "Waiting for Prow setup to complete"
+    #     fi
+    #     sleep 1s
+    # done
     
     kubectl \
         -n prow-$SHARINGIO_PAIR_NAME \
@@ -24,7 +64,7 @@ if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
         --from-literal=hmac="$HMAC" \
         --dry-run=client -o yaml \
         | kubectl apply -f -
-
+    
     kubectl \
         -n prow-$SHARINGIO_PAIR_NAME \
         create secret generic prow-github-oauth \
