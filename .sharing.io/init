@@ -1,18 +1,23 @@
 #!/bin/bash
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
-GIT_LAST_COMMIT=$(git rev-parse HEAD)
 
 FOLDER="$GIT_ROOT/.sharing.io"
+
+if [ ! -f $FOLDER/.hmac ] ; then
+    HMAC=$(openssl rand -hex 20)
+    echo $HMAC > $FOLDER/.hmac
+else
+    HMAC=$(cat $FOLDER/.hmac)
+fi
 
 if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     /usr/local/bin/tmate-wait-for-socket.sh
 
-    kubectl create ns prow-${SHARINGIO_PAIR_NAME}
+    kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}
     kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
-    kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
+    kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
     
-    HMAC=$(openssl rand -hex 20)
     kubectl \
         -n prow-$SHARINGIO_PAIR_NAME \
         create secret generic prow-github-hmac \
