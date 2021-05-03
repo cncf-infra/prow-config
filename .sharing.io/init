@@ -42,7 +42,7 @@ GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.ssh
 git remote rm origin
 git remote add origin "$GIT_FORK_REMOTE"
 git remote add upstream "$GIT_UPSTREAM_URL"
-git pull origin $(GIT_BRANCH_CURRENT)
+git pull origin ${GIT_BRANCH_CURRENT}
 
 if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     /usr/local/bin/tmate-wait-for-socket.sh
