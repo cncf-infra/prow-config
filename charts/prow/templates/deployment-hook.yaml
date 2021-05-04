@@ -44,6 +44,7 @@ spec:
             {{- toYaml .Values.hook.securityContext | nindent 12 }}
           image: "{{ .Values.hook.image.repository }}:{{ .Values.hook.image.tag | default .Chart.AppVersion }}"
           args:
+            - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.hook.args | nindent 12 }}
           imagePullPolicy: {{ .Values.hook.image.pullPolicy }}
           volumeMounts:
