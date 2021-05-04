@@ -38,6 +38,7 @@ spec:
             {{- toYaml .Values.sinker.securityContext | nindent 12 }}
           image: "{{ .Values.sinker.image.repository }}:{{ .Values.sinker.image.tag | default .Chart.AppVersion }}"
           args:
+            - -deck-url=http://deck.{{ .Release.Namespace }}
             {{- toYaml .Values.sinker.args | nindent 12 }}
           imagePullPolicy: {{ .Values.sinker.image.pullPolicy }}
           volumeMounts:

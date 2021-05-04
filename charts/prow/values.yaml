@@ -227,7 +227,7 @@ plank:
     repository: gcr.io/k8s-prow/plank
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
+    tag: v20200820-86c379653b
 
   serviceAccount:
     # Specifies whether a service account should be created
@@ -583,6 +583,7 @@ crier:
     - --blob-storage-workers=10
     - --github-workers=10
     - --kubernetes-blob-storage-workers=10
+    - --github-endpoint=https://api.github.com
 
   terminationGracePeriodSeconds: 30
 
