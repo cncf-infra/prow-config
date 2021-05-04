@@ -34,38 +34,40 @@ spec:
     plugins:
       # config-updater
       # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
-      config_updater:
-        maps:
-          config.yaml:
-            name: config
-          plugins.yaml:
-            name: plugins
-          jobs/**/*.yaml:
-            name: job-config
+      # config_updater:
+      #   maps:
+      #     config.yaml:
+      #       name: config
+      #     plugins.yaml:
+      #       name: plugins
+      #     jobs/**/*.yaml:
+      #       name: job-config
 
       # which plugins should be enabled for which orgs or org/repos
       plugins:
         ${SHARINGIO_PAIR_USER}:
-          # - approve
-          - assign
-          #- cat
-          #- dog
-          - hold
-          - label
-          - lgtm
-          # - owners-label
-          - shrug
-          - size
-          - skip
-          - trigger
-          - wip
-          # - verify-owners
-          - yuks
+          plugins:
+            # - approve
+            - assign
+            #- cat
+            #- dog
+            - hold
+            - label
+            - lgtm
+            # - owners-label
+            - shrug
+            - size
+            - skip
+            - trigger
+            - wip
+            # - verify-owners
+            - yuks
 
-      ${SHARINGIO_PAIR_USER}/prow-config:
-        - config-updater
-        - pony
-        - cat
-        - dog
-        - goose
+        ${SHARINGIO_PAIR_USER}/prow-config:
+          plugins:
+            - trigger
+            - pony
+            - cat
+            - dog
+            - goose
 
