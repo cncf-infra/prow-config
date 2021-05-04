@@ -6,7 +6,7 @@ spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
-    ref: 1d78dc78faff6e7190951f7509335fcc238ef2d6
+    ref: c78d365e752f0f9ffc2bf0ab54f8b0b268a3c6e8
   releaseName: prow-${SHARINGIO_PAIR_NAME}
   values:
     podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
