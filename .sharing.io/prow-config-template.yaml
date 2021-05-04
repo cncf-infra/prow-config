@@ -1,3 +1,4 @@
+log_level: debug
 prowjob_namespace: prow-${SHARINGIO_PAIR_NAME}
 pod_namespace: prow-${SHARINGIO_PAIR_NAME}-workloads
 managed_webhooks:
