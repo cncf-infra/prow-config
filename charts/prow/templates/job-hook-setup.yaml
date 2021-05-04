@@ -42,7 +42,6 @@ spec:
         {{- else }}
         - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets-hmac
         {{- end }}
-        - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets-hmac
         - --hmac-token-secret-namespace={{ .Release.Namespace }}
         - --hmac-token-key=hmac
         - --github-token-path=/etc/github/oauth
