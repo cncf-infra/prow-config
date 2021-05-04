@@ -4,3 +4,4 @@
 tmp/
 
 .sharing.io/.hmac
+.sharing.io/.cookie
