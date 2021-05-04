@@ -10,7 +10,6 @@ FOLDER="$GIT_ROOT/.sharing.io"
 # ensure the same hmac
 if [ ! -f $FOLDER/.hmac ] ; then
     HMAC=$(openssl rand -hex 20)
-    echo $HMAC > $FOLDER/.hmac
 else
     HMAC=$(cat $FOLDER/.hmac)
 fi
@@ -70,11 +69,16 @@ if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     #     fi
     #     sleep 1s
     # done
+
+    kubectl -n prow-${SHARINGIO_PAIR_NAME} get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
+    if [ $? -eq 0 ]; then
+        mv $FOLDER/.hmac-live $FOLDER/.hmac
+    fi
     
     kubectl \
         -n prow-$SHARINGIO_PAIR_NAME \
         create secret generic prow-github-hmac \
-        --from-literal=hmac="$HMAC" \
+        --from-file=hmac=<(yq e -P < $FOLDER/.hmac) \
         --dry-run=client -o yaml \
         | kubectl apply -f -
     
@@ -85,15 +89,22 @@ if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
         --dry-run=client -o yaml \
         | kubectl apply -f -
 
+    envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml
     kubectl -n prow-${SHARINGIO_PAIR_NAME} \
         create configmap prow-config \
-        --from-file=config\.yaml=<(envsubst < $FOLDER/prow-config-basic.yaml) \
+        --from-file=config\.yaml=$FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml \
         --dry-run=client \
         -o yaml \
         | kubectl apply -f -
 
-    envsubst < $FOLDER/prow-helmrelease.yaml \
-        | kubectl \
-        -n prow-$SHARINGIO_PAIR_NAME \
-        apply -f -
+    envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
+    helm template prow-${SHARINGIO_PAIR_NAME} \
+        -n prow-${SHARINGIO_PAIR_NAME} \
+        -f <(envsubst < <(cat $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml | yq e '.spec.values' -P -)) \
+        ~/prow-config/charts/prow/ \
+          > $FOLDER/prow-rendered-${SHARINGIO_PAIR_NAME}.yaml
+
+    kubectl \
+      -n prow-$SHARINGIO_PAIR_NAME \
+      apply -f $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
 fi
