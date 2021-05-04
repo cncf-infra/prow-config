@@ -45,7 +45,7 @@ spec:
 
       # which plugins should be enabled for which orgs or org/repos
       plugins:
-        cncf-infra:
+        ${SHARINGIO_PAIR_USER}:
           # - approve
           - assign
           #- cat
@@ -62,11 +62,10 @@ spec:
           # - verify-owners
           - yuks
 
-      cncf-infra/prow-config:
+      ${SHARINGIO_PAIR_USER}/prow-config:
         - config-updater
         - pony
-
-      cncf-infra/k8s-conformance:
         - cat
         - dog
-        # - verify-conformance-request
+        - goose
+

@@ -3,7 +3,7 @@ pod_namespace: prow-${SHARINGIO_PAIR_NAME}-workloads
 managed_webhooks:
   respect_legacy_global_token: true
   org_repo_config:
-    ${SHARINGIO_PAIR_NAME}/prow-config:
+    ${SHARINGIO_PAIR_USER}/prow-config:
       token_created_after: 2020-06-24T00:10:00Z
 in_repo_config:
   enabled:
