@@ -54,7 +54,7 @@ plank:
         sidecar: gcr.io/k8s-prow/sidecar:v20201019-3b28521b87
 decorate_all_jobs: true
 periodics:
-  - interval: 1m
+  - interval: 5m
     agent: kubernetes
     name: echo-test
     decorate: true
