@@ -124,7 +124,6 @@ hook:
   args:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
-    - --github-endpoint=http://ghproxy
     - --github-endpoint=https://api.github.com
     - --github-token-path=/etc/github/oauth
     - --hmac-secret-file=/etc/github/hmac
@@ -270,6 +269,7 @@ sinker:
   replicaCount: 1
 
   args:
+    - --dry-run=false
     - --config-path=/etc/config/config.yaml
 
   deploymentStrategy:
@@ -503,8 +503,6 @@ deck:
   args:
     - --config-path=/etc/config/config.yaml
     - --plugin-config=/etc/plugins/plugins.yaml
-    - --tide-url=http://tide/
-    - --hook-url=http://hook:8888/plugin-help
     - --github-token-path=/etc/github/oauth
     - --plugin-config=/etc/plugins/plugins.yaml
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
