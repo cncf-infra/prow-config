@@ -7,6 +7,7 @@ rm -f $GIT_ROOT/.sharing.io/setup-complete
 
 FOLDER="$GIT_ROOT/.sharing.io"
 
+# ensure the same hmac
 if [ ! -f $FOLDER/.hmac ] ; then
     HMAC=$(openssl rand -hex 20)
     echo $HMAC > $FOLDER/.hmac
@@ -14,6 +15,7 @@ else
     HMAC=$(cat $FOLDER/.hmac)
 fi
 
+# ensure the same cookie
 if [ ! -f $FOLDER/.cookie ] ; then
     COOKIE=$(openssl rand -base64 32)
     echo $COOKIE > $FOLDER/.cookie
@@ -38,11 +40,19 @@ fi
 #     echo "Using your existing fork."
 # fi
 
+# ensure a fork of the project is used for management instead of the primary repo
 GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.ssh_url' 2>&1)
 git remote rm origin
 git remote add origin "$GIT_FORK_REMOTE"
 git remote add upstream "$GIT_UPSTREAM_URL"
 git pull origin ${GIT_BRANCH_CURRENT}
+
+# ensure communication with minio cli to the bucket
+mc alias set \
+    prow-${SHARINGIO_PAIR_NAME} \
+    http://prow-${SHARINGIO_PAIR_NAME}-minio.prow-${SHARINGIO_PAIR_NAME}.svc.cluster.local:9000 \
+    prow-minio \
+    prow-minio
 
 if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     /usr/local/bin/tmate-wait-for-socket.sh
