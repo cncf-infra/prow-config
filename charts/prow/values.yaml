@@ -128,7 +128,7 @@ hook:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
     - --github-endpoint=https://api.github.com
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --hmac-secret-file=/etc/github/hmac
 
   terminationGracePeriodSeconds: 180
@@ -380,7 +380,7 @@ tide:
   args:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
 
   terminationGracePeriodSeconds: 180
@@ -443,7 +443,7 @@ statusreconciler:
     - --continue-on-error=true
     - --plugin-config=/etc/plugins/plugins.yaml
     - --config-path=/etc/config/config.yaml
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
 
   terminationGracePeriodSeconds: 180
@@ -506,7 +506,7 @@ deck:
   args:
     - --config-path=/etc/config/config.yaml
     - --plugin-config=/etc/plugins/plugins.yaml
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --plugin-config=/etc/plugins/plugins.yaml
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
     - --spyglass=true
@@ -583,7 +583,7 @@ crier:
   args:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
     - --blob-storage-workers=10
     - --github-workers=10
@@ -646,7 +646,7 @@ statusreconciler:
     - --continue-on-error=true
     - --plugin-config=/etc/plugins/plugins.yaml
     - --config-path=/etc/config/config.yaml
-    - --github-token-path=/etc/github/oauth
+    - --github-token-path=/etc/github/secret
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
 
   terminationGracePeriodSeconds: 180
