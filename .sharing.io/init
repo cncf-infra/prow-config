@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
+    echo "Error: Running prow-config in Pair requires Kubernetes."
+fi
+/usr/local/bin/tmate-wait-for-socket.sh
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
 GIT_UPSTREAM_URL=$(gh api repos/:owner/:repo --jq '.' | jq -r '.ssh_url' 2>&1)
@@ -22,29 +27,22 @@ else
     COOKIE=$(cat $FOLDER/.cookie)
 fi
 
-# PROW_CONFIG_IS_FORKED_NOTIFIED=false
-# PROW_IS_FORKED=true
-# while ! gh repo list --fork | grep -q -E "^${SHARINGIO_PAIR_USER}/prow-config\W+"; do
-#     PROW_IS_FORKED=false
-#     if [ ! $PROW_CONFIG_IS_FORKED_NOTIFIED = "true" ]; then
-#         echo "Please fork '${GIT_REMOTE_URL}' to continue."
-#         PROW_CONFIG_IS_FORKED_NOTIFIED=true
-#     fi
-#     sleep 3s
-# done
+PROW_CONFIG_IS_FORKED_NOTIFIED=false
+PROW_IS_FORKED=true
+while ! gh repo list --fork | grep -q -E "^${SHARINGIO_PAIR_USER}/prow-config\W+"; do
+    PROW_IS_FORKED=false
+    if [ ! $PROW_CONFIG_IS_FORKED_NOTIFIED = "true" ]; then
+        echo "Please fork '${GIT_REMOTE_URL}' to continue."
+        PROW_CONFIG_IS_FORKED_NOTIFIED=true
+    fi
+    sleep 3s
+done
 
-# if [ ! $PROW_IS_FORKED = "true" ]; then
-#     echo "Success! You forked '${GIT_REMOTE_URL}'."
-# else
-#     echo "Using your existing fork."
-# fi
-
-# ensure a fork of the project is used for management instead of the primary repo
-GIT_FORK_REMOTE=$(gh api -X POST repos/:owner/:repo/forks --jq '.' | jq -r '.ssh_url' 2>&1)
-git remote rm origin
-git remote add origin "$GIT_FORK_REMOTE"
-git remote add upstream "$GIT_UPSTREAM_URL"
-git pull origin ${GIT_BRANCH_CURRENT}
+if [ ! $PROW_IS_FORKED = "true" ]; then
+    echo "Success! You forked '${GIT_REMOTE_URL}'."
+else
+    echo "Using your existing fork."
+fi
 
 # ensure communication with minio cli to the bucket
 mc alias set \
@@ -53,65 +51,61 @@ mc alias set \
     prow-minio \
     prow-minio
 
-if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
-    /usr/local/bin/tmate-wait-for-socket.sh
+kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}
+kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
+kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
 
-    kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}
-    kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
-    kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
+tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
 
-    # tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
-
-    # PROW_COMPLETE_SETUP_NOTIFIED=false
-    # while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
-    #     if [ $PROW_COMPLETE_SETUP_NOTIFIED = "true" ]; then
-    #         echo "Waiting for Prow setup to complete"
-    #     fi
-    #     sleep 1s
-    # done
-
-    kubectl -n prow-${SHARINGIO_PAIR_NAME} get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
-    if [ $? -eq 0 ]; then
-        mv $FOLDER/.hmac-live $FOLDER/.hmac
+PROW_COMPLETE_SETUP_NOTIFIED=false
+while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
+    if [ $PROW_COMPLETE_SETUP_NOTIFIED = "true" ]; then
+        echo "Waiting for Prow setup to complete"
     fi
-    
-    kubectl \
-        -n prow-$SHARINGIO_PAIR_NAME \
-        create secret generic prow-github-hmac \
-        --from-file=hmac=<(yq e -P < $FOLDER/.hmac) \
-        --dry-run=client -o yaml \
-        | kubectl apply -f -
-    
-    kubectl \
-        -n prow-$SHARINGIO_PAIR_NAME \
-        create secret generic prow-github-cookie \
-        --from-literal=cookie="$COOKIE" \
-        --dry-run=client -o yaml \
-        | kubectl apply -f -
-    
-    kubectl \
-        -n prow-$SHARINGIO_PAIR_NAME \
-        create secret generic prow-github-oauth \
-        --from-literal=secret="$GITHUB_TOKEN" \
-        --dry-run=client -o yaml \
-        | kubectl apply -f -
+    sleep 1s
+done
 
-    envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml
-    kubectl -n prow-${SHARINGIO_PAIR_NAME} \
-        create configmap prow-config \
-        --from-file=config\.yaml=$FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml \
-        --dry-run=client \
-        -o yaml \
-        | kubectl apply -f -
-
-    envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
-    helm template prow-${SHARINGIO_PAIR_NAME} \
-        -n prow-${SHARINGIO_PAIR_NAME} \
-        -f <(envsubst < <(cat $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml | yq e '.spec.values' -P -)) \
-        ~/prow-config/charts/prow/ \
-          > $FOLDER/prow-rendered-${SHARINGIO_PAIR_NAME}.yaml
-
-    kubectl \
-      -n prow-$SHARINGIO_PAIR_NAME \
-      apply -f $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
+kubectl -n prow-${SHARINGIO_PAIR_NAME} get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
+if [ $? -eq 0 ]; then
+    mv $FOLDER/.hmac-live $FOLDER/.hmac
 fi
+
+kubectl \
+    -n prow-$SHARINGIO_PAIR_NAME \
+    create secret generic prow-github-hmac \
+    --from-file=hmac=<(yq e -P < $FOLDER/.hmac) \
+    --dry-run=client -o yaml \
+    | kubectl apply -f -
+
+kubectl \
+    -n prow-$SHARINGIO_PAIR_NAME \
+    create secret generic prow-github-cookie \
+    --from-literal=cookie="$COOKIE" \
+    --dry-run=client -o yaml \
+    | kubectl apply -f -
+
+kubectl \
+    -n prow-$SHARINGIO_PAIR_NAME \
+    create secret generic prow-github-oauth \
+    --from-literal=secret="$GITHUB_TOKEN" \
+    --dry-run=client -o yaml \
+    | kubectl apply -f -
+
+envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml
+kubectl -n prow-${SHARINGIO_PAIR_NAME} \
+    create configmap prow-config \
+    --from-file=config\.yaml=$FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml \
+    --dry-run=client \
+    -o yaml \
+    | kubectl apply -f -
+
+envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
+helm template prow-${SHARINGIO_PAIR_NAME} \
+    -n prow-${SHARINGIO_PAIR_NAME} \
+    -f <(envsubst < <(cat $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml | yq e '.spec.values' -P -)) \
+    ~/prow-config/charts/prow/ \
+      > $FOLDER/prow-rendered-${SHARINGIO_PAIR_NAME}.yaml
+
+kubectl \
+  -n prow-$SHARINGIO_PAIR_NAME \
+  apply -f $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
