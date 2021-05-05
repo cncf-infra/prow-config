@@ -48,6 +48,7 @@ spec:
           args:
             - --tide-url=http://{{ .Release.Name }}-tide.{{ .Release.Namespace }}:8888/
             - --hook-url=http://{{ .Release.Name }}-hook.{{ .Release.Namespace }}:8888/plugin-help
+            - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.deck.args | nindent 12 }}
           imagePullPolicy: {{ .Values.deck.image.pullPolicy }}
           volumeMounts:
@@ -63,6 +64,9 @@ spec:
               readOnly: true
             - name: s3-credentials
               mountPath: /etc/s3-credentials
+              readOnly: true
+            - name: github-secrets-cookie
+              mountPath: /etc/cookie
               readOnly: true
           livenessProbe:
             httpGet:
@@ -97,6 +101,7 @@ spec:
       {{- end }}
       volumes:
       {{- include "prow.github-token.volume" . | nindent 6 }}
+      {{- include "prow.github-cookie.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
       - name: plugins
         configMap:

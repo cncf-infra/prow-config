@@ -81,3 +81,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     secretName: {{ include "prow.fullname" . }}-github-secrets-hmac
     {{- end }}
 {{- end }}
+
+{{- define "prow.github-cookie.volume" -}}
+- name: github-secrets-cookie
+  secret:
+    defaultMode: 420
+    {{- if .Values.githubFromSecretRef.enabled }}
+    secretName: {{ .Values.githubFromSecretRef.cookie.name }}
+    {{- else }}
+    secretName: {{ include "prow.fullname" . }}-github-secrets-cookie
+    {{- end }}
+{{- end }}

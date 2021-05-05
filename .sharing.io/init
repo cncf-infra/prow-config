@@ -84,8 +84,15 @@ if [ -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     
     kubectl \
         -n prow-$SHARINGIO_PAIR_NAME \
+        create secret generic prow-github-cookie \
+        --from-literal=cookie="$COOKIE" \
+        --dry-run=client -o yaml \
+        | kubectl apply -f -
+    
+    kubectl \
+        -n prow-$SHARINGIO_PAIR_NAME \
         create secret generic prow-github-oauth \
-        --from-literal=oauth="$GITHUB_TOKEN" \
+        --from-literal=secret="$GITHUB_TOKEN" \
         --dry-run=client -o yaml \
         | kubectl apply -f -
 

@@ -112,10 +112,13 @@ githubFromSecretRef:
     name: ""
   hmac:
     name: ""
+  cookie:
+    name: ""
 
 github:
-  hmac: ''
-  oauth: ''
+  hmac: ""
+  oauth: ""
+  cookie: ""
 
 hook:
   replicaCount: 1
@@ -507,6 +510,10 @@ deck:
     - --plugin-config=/etc/plugins/plugins.yaml
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
     - --spyglass=true
+    - --oauth-url=/github-login
+    - --rerun-creates-job
+    - --github-endpoint=https://api.github.com
+    - --cookie-secret=/etc/cookie/secret
 
   terminationGracePeriodSeconds: 30
 

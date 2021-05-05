@@ -13,9 +13,11 @@ spec:
     githubFromSecretRef:
       enabled: true
       oauth:
-        name: "prow-github-oauth"
+        name: prow-github-oauth
       hmac:
-        name: "prow-github-hmac"
+        name: prow-github-hmac
+      cookie:
+        name: prow-github-cookie
 
     ingress:
       certmanager:
@@ -44,8 +46,7 @@ spec:
       #       name: job-config
 
       # which plugins should be enabled for which orgs or org/repos
-      plugins:
-        ${SHARINGIO_PAIR_USER}:
+        ${SHARINGIO_PAIR_USER}/prow-config:
           plugins:
             # - approve
             - assign
@@ -62,9 +63,6 @@ spec:
             - wip
             # - verify-owners
             - yuks
-
-        ${SHARINGIO_PAIR_USER}/prow-config:
-          plugins:
             - trigger
             - pony
             - cat
