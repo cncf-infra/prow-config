@@ -6,6 +6,6 @@ echo "===="
 echo "Prow"
 echo "===="
 echo
-echo "Using prow-config on Pair will fork itself into your GitHub user account's projects"
+echo "Please fork this repo to continue."
 read -r -p "Press enter to continue, or C-c to cancel"
 
