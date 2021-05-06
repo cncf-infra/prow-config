@@ -46,8 +46,8 @@ spec:
           imagePullPolicy: {{ .Values.tide.image.pullPolicy }}
           volumeMounts:
             - name: github-secrets-token
-              mountPath: /etc/github/oauth
-              subPath: oauth
+              mountPath: /etc/github/secret
+              subPath: secret
               readOnly: true
             - name: config
               mountPath: /etc/config
