@@ -44,7 +44,7 @@ spec:
           volumeMounts:
             - name: github-secrets-token
               mountPath: /etc/github
-              subPath: secret
+              subPath: oauth
               readOnly: true
             - name: config
               mountPath: /etc/config

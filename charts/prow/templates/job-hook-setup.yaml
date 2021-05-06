@@ -44,15 +44,15 @@ spec:
         {{- end }}
         - --hmac-token-secret-namespace={{ .Release.Namespace }}
         - --hmac-token-key=hmac
-        - --github-token-path=/etc/github/secret
+        - --github-token-path=/etc/github/oauth
         - --github-endpoint=http://ghproxy.{{ .Release.Namespace }}
         - --github-endpoint=https://api.github.com
         - --kubeconfig-context=default
         - --dry-run=false
         volumeMounts:
           - name: github-secrets-token
-            mountPath: /etc/github/secret
-            subPath: secret
+            mountPath: /etc/github/oauth
+            subPath: oauth
             readOnly: true
           - name: github-secrets-hmac
             mountPath: /etc/github/hmac

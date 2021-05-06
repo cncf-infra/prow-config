@@ -53,8 +53,8 @@ spec:
               subPath: hmac
               readOnly: true
             - name: github-secrets-token
-              mountPath: /etc/github/secret
-              subPath: secret
+              mountPath: /etc/github/oauth
+              subPath: oauth
               readOnly: true
             - name: config
               mountPath: /etc/config
@@ -97,6 +97,4 @@ spec:
       {{- include "prow.github-token.volume" . | nindent 6 }}
       {{- include "prow.github-hmac.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
-      - name: plugins
-        configMap:
-          name: {{ include "prow.fullname" . }}-plugins
+      {{- include "prow.plugins.volume" . | nindent 6 }}

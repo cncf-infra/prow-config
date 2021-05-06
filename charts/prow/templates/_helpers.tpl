@@ -60,6 +60,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     {{- end }}
 {{- end }}
 
+{{- define "prow.plugins.volume" -}}
+- name: plugins
+  configMap:
+    {{- if .Values.pluginsFromConfigMap.enabled }}
+    name: {{ .Values.pluginsFromConfigMap.name }}
+    {{- else }}
+    name: {{ include "prow.fullname" . }}-plugins
+    {{- end }}
+{{- end }}
+
 {{- define "prow.github-token.volume" -}}
 - name: github-secrets-token
   secret:
