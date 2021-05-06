@@ -31,8 +31,11 @@ spec:
 
     configFromConfigMap:
       enabled: true
-      name: "prow-config"
+      name: prow-config
 
+    pluginsFromConfigMap:
+      enabled: true
+      name: prow-plugins
     plugins:
       # config-updater
       # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo

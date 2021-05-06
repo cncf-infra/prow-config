@@ -80,14 +80,14 @@ kubectl \
 kubectl \
     -n prow-$SHARINGIO_PAIR_NAME \
     create secret generic prow-github-cookie \
-    --from-literal=cookie="$COOKIE" \
+    --from-literal=secret="$COOKIE" \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
 kubectl \
     -n prow-$SHARINGIO_PAIR_NAME \
     create secret generic prow-github-oauth \
-    --from-literal=secret="$GITHUB_TOKEN" \
+    --from-literal=oauth="$GITHUB_TOKEN" \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
@@ -95,6 +95,14 @@ envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-${SHARINGIO_P
 kubectl -n prow-${SHARINGIO_PAIR_NAME} \
     create configmap prow-config \
     --from-file=config\.yaml=$FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml \
+    --dry-run=client \
+    -o yaml \
+    | kubectl apply -f -
+
+envsubst < $FOLDER/prow-plugins-template.yaml > $FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml
+kubectl -n prow-${SHARINGIO_PAIR_NAME} \
+    create  prow-plugins \
+    --from-file=plugins\.yaml=$FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml \
     --dry-run=client \
     -o yaml \
     | kubectl apply -f -
