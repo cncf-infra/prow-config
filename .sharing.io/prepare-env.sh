@@ -8,4 +8,5 @@ echo "===="
 echo
 echo "Please fork this repo to continue."
 read -r -p "Press enter to continue, or C-c to cancel"
+touch $GIT_ROOT/.sharing.io/setup-complete
 
