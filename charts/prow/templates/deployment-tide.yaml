@@ -55,6 +55,9 @@ spec:
             - name: s3-credentials
               mountPath: /etc/s3-credentials
               readOnly: true
+          ports:
+          - name: http
+            containerPort: 8888
           resources:
             {{- toYaml .Values.tide.resources | nindent 12 }}
       {{- with .Values.tide.nodeSelector }}
