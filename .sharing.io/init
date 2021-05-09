@@ -101,7 +101,7 @@ kubectl -n prow-${SHARINGIO_PAIR_NAME} \
 
 envsubst < $FOLDER/prow-plugins-template.yaml > $FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml
 kubectl -n prow-${SHARINGIO_PAIR_NAME} \
-    create  prow-plugins \
+    create configmap prow-plugins \
     --from-file=plugins\.yaml=$FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml \
     --dry-run=client \
     -o yaml \
