@@ -22,6 +22,9 @@ spec:
       annotations:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+        {{- if .Values.restartAllDeploymentsOnChange }}
+        prow/release-revision: {{ .Release.Revision | toString | quote }}
+        {{- end }}
       labels:
         app.kubernetes.io/component: ghproxy
         {{- include "prow.selectorLabels" . | nindent 8 }}

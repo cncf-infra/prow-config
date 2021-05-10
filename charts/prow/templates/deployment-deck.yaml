@@ -27,10 +27,13 @@ spec:
     {{- toYaml .Values.deck.deploymentStrategy | nindent 4 }}
   template:
     metadata:
-    {{- with .Values.deck.podAnnotations }}
       annotations:
+        {{- with .Values.deck.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
+        {{- if .Values.restartAllDeploymentsOnChange }}
+        prow/release-revision: {{ .Release.Revision | toString | quote }}
+        {{- end }}
       labels:
         app.kubernetes.io/component: deck
         {{- include "prow.selectorLabels" . | nindent 8 }}
