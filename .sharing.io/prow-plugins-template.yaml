@@ -13,23 +13,21 @@
 plugins:
   ${SHARINGIO_PAIR_USER}/prow-config:
     plugins:
-      # - approve
+      - approve
       - assign
-      #- cat
-      #- dog
+      - cat
+      - dog
+      - goose
       - hold
       - label
       - lgtm
-      # - owners-label
+      - lifecycle
+      - owners-label
+      - pony
       - shrug
       - size
       - skip
       - trigger
+      - verify-owners
       - wip
-      # - verify-owners
       - yuks
-      - trigger
-      - pony
-      - cat
-      - dog
-      - goose
