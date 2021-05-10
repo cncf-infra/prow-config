@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "prow.labels" . | nindent 4 }}
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "*/10 * * * *"
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: {{ .Values.hook.setupJob.ttlSecondsAfterFinished | default 200 }}
