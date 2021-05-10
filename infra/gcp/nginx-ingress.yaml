@@ -1,0 +1,34 @@
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: nginx-ingress
+  namespace: nginx-ingress
+spec:
+  chart:
+    repository: https://kubernetes.github.io/ingress-nginx
+    name: ingress-nginx
+    version: 3.30.0
+  values:
+    controller:
+      service:
+        externalTrafficPolicy: Local
+      publishService:
+        enabled: true
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 5
+        targetCPUUtilizationPercentage: 80
+      minAvailable: 3
+      metrics:
+        enabled: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - controller
+              topologyKey: "kubernetes.io/hostname"

@@ -1,0 +1,233 @@
+#+TITLE: Prow-Config GCP
+
+* Authenticate
+
+#+BEGIN_SRC shell
+gcloud auth login
+#+END_SRC
+
+#+BEGIN_SRC shell
+gcloud auth application-default login
+#+END_SRC
+
+* Prepare
+#+BEGIN_SRC shell :dir (concat pwd "clusters/projects/k8s-infra-ii-sandbox/")
+terraform init
+#+END_SRC
+
+* Apply
+#+BEGIN_SRC shell :dir (concat pwd "clusters/projects/k8s-infra-ii-sandbox/")
+terraform apply
+#+END_SRC
+
+* Deploy
+** Helm-Operator
+#+BEGIN_SRC shell :async yes
+helm repo add fluxcd https://charts.fluxcd.io
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/1.2.0/deploy/crds.yaml
+kubectl create ns helm-operator
+helm upgrade -i \
+    helm-operator \
+    --namespace helm-operator \
+    --set helm.versions=v3 \
+    fluxcd/helm-operator
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+"fluxcd" has been added to your repositories
+customresourcedefinition.apiextensions.k8s.io/helmreleases.helm.fluxcd.io created
+namespace/helm-operator created
+Release "helm-operator" does not exist. Installing it now.
+NAME: helm-operator
+LAST DEPLOYED: Mon May 10 10:01:39 2021
+NAMESPACE: helm-operator
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+Flux Helm Operator docs https://docs.fluxcd.io
+
+Example:
+
+AUTH_VALUES=$(cat <<-END
+usePassword: true
+password: "redis_pass"
+usePasswordFile: true
+END
+)
+
+kubectl create secret generic redis-auth --from-literal=values.yaml="$AUTH_VALUES"
+
+cat <<EOF | kubectl apply -f -
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: redis
+  namespace: default
+spec:
+  releaseName: redis
+  chart:
+    repository: https://kubernetes-charts.storage.googleapis.com
+    name: redis
+    version: 10.5.7
+  valuesFrom:
+  - secretKeyRef:
+      name: redis-auth
+  values:
+    master:
+      persistence:
+        enabled: false
+    volumePermissions:
+      enabled: true
+    metrics:
+      enabled: true
+    cluster:
+      enabled: false
+EOF
+
+watch kubectl get hr
+#+end_example
+
+** nginx-ingress
+
+#+BEGIN_SRC shell :results silent
+kubectl get ns nginx-ingress 2> /dev/null || kubectl create ns nginx-ingress
+#+END_SRC
+
+#+BEGIN_SRC yaml :tangle nginx-ingress.yaml
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: nginx-ingress
+  namespace: nginx-ingress
+spec:
+  chart:
+    repository: https://kubernetes.github.io/ingress-nginx
+    name: ingress-nginx
+    version: 3.30.0
+  values:
+    controller:
+      service:
+        externalTrafficPolicy: Local
+      publishService:
+        enabled: true
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 5
+        targetCPUUtilizationPercentage: 80
+      minAvailable: 3
+      metrics:
+        enabled: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - controller
+              topologyKey: "kubernetes.io/hostname"
+#+END_SRC
+
+#+BEGIN_SRC shell :results silent
+kubectl apply -f nginx-ingress.yaml
+#+END_SRC
+
+** cert-manager
+#+BEGIN_SRC shell :results silent
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.yaml
+#+END_SRC
+
+** Namespaces
+
+#+BEGIN_SRC shell :results silent
+for ns in prow prow-workloads ; do
+  kubectl get ns $ns 2> /dev/null || kubectl create ns $ns
+done
+#+END_SRC
+
+** Certificate + cluster issuer
+#+BEGIN_SRC yaml :tangle cluster-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: caleb@ii.coop
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+      selector:
+        dnsNames:
+        - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+#+END_SRC
+
+#+BEGIN_SRC yaml :tangle cert.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: prow
+spec:
+  commonName: prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  dnsNames:
+  - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
+#+END_SRC
+
+#+BEGIN_SRC shell :results silent
+kubectl apply -f cluster-issuer.yaml -f cert.yaml
+#+END_SRC
+
+** Prow
+#+BEGIN_SRC yaml :tangle prow.yaml
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: prow-${SHARINGIO_PAIR_NAME}
+spec:
+  chart:
+    git: https://github.com/cncf-infra/prow-config
+    path: charts/prow
+    ref: a3797509135a7e11abe1225b6cff6c34cfa0e4b3
+  releaseName: prow-${SHARINGIO_PAIR_NAME}
+  values:
+    podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
+    githubFromSecretRef:
+      enabled: true
+      oauth:
+        name: prow-github-oauth
+      hmac:
+        name: prow-github-hmac
+      cookie:
+        name: prow-github-cookie
+
+    ingress:
+      certmanager:
+        enabled: false
+      hosts:
+        - host: prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      tls:
+        - secretName: letsencrypt-prod
+          hosts:
+            - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+
+    configFromConfigMap:
+      enabled: true
+      name: prow-config
+
+    pluginsFromConfigMap:
+      enabled: true
+      name: prow-plugins
+#+END_SRC
