@@ -55,15 +55,16 @@ kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns
 kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
 kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
 
-tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
-
-PROW_COMPLETE_SETUP_NOTIFIED=false
-while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
-    if [ $PROW_COMPLETE_SETUP_NOTIFIED = "true" ]; then
-        echo "Waiting for Prow setup to complete"
-    fi
-    sleep 1s
-done
+if [ ! -f $GIT_ROOT/.sharing.io/.oauth-env ]; then
+    tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
+    PROW_COMPLETE_SETUP_NOTIFIED=false
+    while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
+        if [ $PROW_COMPLETE_SETUP_NOTIFIED = "true" ]; then
+            echo "Waiting for Prow setup to complete"
+        fi
+        sleep 1s
+    done
+fi
 
 export $(cat $FOLDER/.oauth-env | xargs)
 
