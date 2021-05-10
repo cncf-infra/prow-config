@@ -884,6 +884,7 @@ minio:
 
   persistentVolumeClaim:
     enabled: false
+    name: ""
     accessModes:
       - ReadWriteOnce
     resources:

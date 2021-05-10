@@ -105,7 +105,11 @@ spec:
         - name: data
       {{- if .Values.minio.persistentVolumeClaim.enabled }}
           persistentVolumeClaim:
+            {{- if .Values.minio.persistentVolumeClaim.name }}
+            claimName: {{ .Values.minio.persistentVolumeClaim.name }}
+            {{- else }}
             claimName: {{ include "prow.fullname" . }}-minio
+            {{- end }}
       {{- else }}
           emptyDir: {}
       {{- end }}
