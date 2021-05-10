@@ -9,7 +9,7 @@ spec:
   type: {{ .Values.tide.service.type }}
   ports:
     - port: {{ .Values.tide.service.port }}
-      targetPort: http
+      targetPort: 8888
       protocol: TCP
       name: http
   selector:

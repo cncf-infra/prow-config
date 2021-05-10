@@ -46,8 +46,8 @@ spec:
             {{- toYaml .Values.deck.securityContext | nindent 12 }}
           image: "{{ .Values.deck.image.repository }}:{{ .Values.deck.image.tag | default .Chart.AppVersion }}"
           args:
-            - --tide-url=http://{{ .Release.Name }}-tide.{{ .Release.Namespace }}:8888/
-            - --hook-url=http://{{ .Release.Name }}-hook.{{ .Release.Namespace }}:8888/plugin-help
+            - --tide-url=http://{{ .Release.Name }}-tide.{{ .Release.Namespace }}:{{ .Values.tide.service.port }}/
+            - --hook-url=http://{{ .Release.Name }}-hook.{{ .Release.Namespace }}:{{ .Values.hook.service.port }}/plugin-help
             - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.deck.args | nindent 12 }}
           imagePullPolicy: {{ .Values.deck.image.pullPolicy }}
