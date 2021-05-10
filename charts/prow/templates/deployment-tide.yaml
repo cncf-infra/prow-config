@@ -42,6 +42,7 @@ spec:
             {{- toYaml .Values.tide.securityContext | nindent 12 }}
           image: "{{ .Values.tide.image.repository }}:{{ .Values.tide.image.tag | default .Chart.AppVersion }}"
           args:
+            - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.tide.args | nindent 12 }}
           imagePullPolicy: {{ .Values.tide.image.pullPolicy }}
           volumeMounts:
