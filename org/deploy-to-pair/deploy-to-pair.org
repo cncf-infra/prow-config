@@ -215,7 +215,7 @@ NOTES:
 
 Template what's applied in cluster:
 #+BEGIN_SRC shell
-helm template prow-${SHARINGIO_PAIR_NAME} \
+helm template --debug prow-${SHARINGIO_PAIR_NAME} \
     -n prow-${SHARINGIO_PAIR_NAME} \
     -f <(\
       kubectl -n prow-${SHARINGIO_PAIR_NAME} \
@@ -223,3 +223,26 @@ helm template prow-${SHARINGIO_PAIR_NAME} \
       -o=jsonpath='{.spec.values}' | yq e -P \
     ) ~/prow-config/charts/prow/
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+Rollout restart
+#+BEGIN_SRC shell
+kubectl -n prow-${SHARINGIO_PAIR_NAME} rollout restart $(kubectl -n prow-${SHARINGIO_PAIR_NAME} get deployments -o=jsonpath='{range .items[*]}{.kind}/{.metadata.name} {end}')
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+deployment.apps/prow-bobymcbobs-sdfg-crier restarted
+deployment.apps/prow-bobymcbobs-sdfg-deck restarted
+deployment.apps/prow-bobymcbobs-sdfg-ghproxy restarted
+deployment.apps/prow-bobymcbobs-sdfg-hook restarted
+deployment.apps/prow-bobymcbobs-sdfg-horologium restarted
+deployment.apps/prow-bobymcbobs-sdfg-minio restarted
+deployment.apps/prow-bobymcbobs-sdfg-plank restarted
+deployment.apps/prow-bobymcbobs-sdfg-sinker restarted
+deployment.apps/prow-bobymcbobs-sdfg-statusreconciler restarted
+deployment.apps/prow-bobymcbobs-sdfg-tide restarted
+#+end_example
