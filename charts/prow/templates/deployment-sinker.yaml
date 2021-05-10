@@ -7,6 +7,9 @@ metadata:
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    {{- if .Values.restartAllDeploymentsOnChange }}
+    prow/release-revision: {{ .Release.Revision }}
+    {{- end }}
 spec:
   replicas: {{ .Values.sinker.replicaCount }}
   selector:

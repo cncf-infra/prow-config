@@ -5,6 +5,10 @@ metadata:
   labels:
     app.kubernetes.io/component: ghproxy
     {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.restartAllDeploymentsOnChange }}
+    prow/release-revision: {{ .Release.Revision }}
+    {{- end }}
 spec:
   selector:
     matchLabels:

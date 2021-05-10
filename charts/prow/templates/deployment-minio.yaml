@@ -5,6 +5,10 @@ metadata:
   labels:
     app.kubernetes.io/component: minio
     {{- include "prow.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.restartAllDeploymentsOnChange }}
+    prow/release-revision: {{ .Release.Revision }}
+    {{- end }}
 spec:
 {{- if not .Values.minio.autoscaling.enabled }}
   replicas: {{ .Values.minio.replicaCount }}

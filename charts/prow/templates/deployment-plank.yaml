@@ -8,6 +8,9 @@ metadata:
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     checksum/secret-github-token: {{ include (print $.Template.BasePath "/secret-github-token.yaml") . | sha256sum }}
+    {{- if .Values.restartAllDeploymentsOnChange }}
+    prow/release-revision: {{ .Release.Revision }}
+    {{- end }}
 spec:
   replicas: {{ .Values.plank.replicaCount }}
   selector:

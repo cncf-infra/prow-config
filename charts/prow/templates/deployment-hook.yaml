@@ -10,6 +10,9 @@ metadata:
     checksum/plugins: {{ include (print $.Template.BasePath "/plugins.yaml") . | sha256sum }}
     checksum/secret-github-token: {{ include (print $.Template.BasePath "/secret-github-token.yaml") . | sha256sum }}
     checksum/secret-github-hmac: {{ include (print $.Template.BasePath "/secret-github-hmac.yaml") . | sha256sum }}
+    {{- if .Values.restartAllDeploymentsOnChange }}
+    prow/release-revision: {{ .Release.Revision }}
+    {{- end }}
 spec:
 {{- if not .Values.hook.autoscaling.enabled }}
   replicas: {{ .Values.hook.replicaCount }}
