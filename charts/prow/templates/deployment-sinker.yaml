@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-sinker
   labels:
-    app: sinker
+    app.kubernetes.io/component: sinker
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -11,7 +11,7 @@ spec:
   replicas: {{ .Values.sinker.replicaCount }}
   selector:
     matchLabels:
-      app: sinker
+      app.kubernetes.io/component: sinker
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.sinker.deploymentStrategy | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: sinker
+        app.kubernetes.io/component: sinker
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

@@ -3,12 +3,12 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-ghproxy
   labels:
-    app: ghproxy
+    app.kubernetes.io/component: ghproxy
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: ghproxy
+      app.kubernetes.io/component: ghproxy
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.ghproxy.deploymentStrategy | nindent 4 }}
@@ -19,7 +19,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: ghproxy
+        app.kubernetes.io/component: ghproxy
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

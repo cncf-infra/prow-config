@@ -4,7 +4,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "prow.fullname" . }}-hook
   labels:
-    app: hook
+    app.kubernetes.io/component: hook
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-minio
   labels:
-    app: minio
+    app.kubernetes.io/component: minio
     {{- include "prow.labels" . | nindent 4 }}
 spec:
 {{- if not .Values.minio.autoscaling.enabled }}
@@ -11,7 +11,7 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      app: minio
+      app.kubernetes.io/component: minio
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.minio.deploymentStrategy | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: minio
+        app.kubernetes.io/component: minio
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

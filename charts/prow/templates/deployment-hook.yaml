@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-hook
   labels:
-    app: hook
+    app.kubernetes.io/component: hook
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -16,7 +16,7 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      app: hook
+      app.kubernetes.io/component: hook
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.hook.deploymentStrategy | nindent 4 }}
@@ -27,7 +27,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: hook
+        app.kubernetes.io/component: hook
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

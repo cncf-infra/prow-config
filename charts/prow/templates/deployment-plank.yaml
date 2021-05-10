@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-plank
   labels:
-    app: plank
+    app.kubernetes.io/component: plank
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -12,7 +12,7 @@ spec:
   replicas: {{ .Values.plank.replicaCount }}
   selector:
     matchLabels:
-      app: plank
+      app.kubernetes.io/component: plank
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.plank.deploymentStrategy | nindent 4 }}
@@ -23,7 +23,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: plank
+        app.kubernetes.io/component: plank
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

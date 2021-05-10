@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "prow.fullname" . }}-tide
   labels:
-    app: tide
+    app.kubernetes.io/component: tide
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.tide.service.type }}
@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: tide
+    app.kubernetes.io/component: tide
     {{- include "prow.selectorLabels" . | nindent 4 }}

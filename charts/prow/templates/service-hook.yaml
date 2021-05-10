@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "prow.fullname" . }}-hook
   labels:
-    app: hook
+    app.kubernetes.io/component: hook
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.hook.service.type }}
@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: hook
+    app.kubernetes.io/component: hook
     {{- include "prow.selectorLabels" . | nindent 4 }}

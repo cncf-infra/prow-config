@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "prow.fullname" . }}-ghproxy
   labels:
-    app: ghproxy
+    app.kubernetes.io/component: ghproxy
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.ghproxy.service.type }}
@@ -15,5 +15,5 @@ spec:
     - name: metrics
       port: 9090
   selector:
-    app: ghproxy
+    app.kubernetes.io/component: ghproxy
     {{- include "prow.selectorLabels" . | nindent 4 }}

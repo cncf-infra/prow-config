@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-statusreconciler
   labels:
-    app: statusreconciler
+    app.kubernetes.io/component: statusreconciler
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -15,7 +15,7 @@ spec:
   replicas: {{ .Values.statusreconciler.replicaCount }}
   selector:
     matchLabels:
-      app: statusreconciler
+      app.kubernetes.io/component: statusreconciler
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.statusreconciler.deploymentStrategy | nindent 4 }}
@@ -26,7 +26,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: statusreconciler
+        app.kubernetes.io/component: statusreconciler
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-crier
   labels:
-    app: crier
+    app.kubernetes.io/component: crier
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -14,7 +14,7 @@ spec:
   replicas: {{ .Values.crier.replicaCount }}
   selector:
     matchLabels:
-      app: crier
+      app.kubernetes.io/component: crier
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.crier.deploymentStrategy | nindent 4 }}
@@ -25,7 +25,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: crier
+        app.kubernetes.io/component: crier
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "prow.fullname" . }}-horologium
   labels:
-    app: horologium
+    app.kubernetes.io/component: horologium
     {{- include "prow.labels" . | nindent 4 }}
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
@@ -11,7 +11,7 @@ spec:
   replicas: {{ .Values.horologium.replicaCount }}
   selector:
     matchLabels:
-      app: horologium
+      app.kubernetes.io/component: horologium
       {{- include "prow.selectorLabels" . | nindent 6 }}
   strategy:
     {{- toYaml .Values.horologium.deploymentStrategy | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
         {{- toYaml . | nindent 8 }}
     {{- end }}
       labels:
-        app: horologium
+        app.kubernetes.io/component: horologium
         {{- include "prow.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

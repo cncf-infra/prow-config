@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "prow.fullname" . }}-minio
   labels:
-    app: minio
+    app.kubernetes.io/component: minio
     {{- include "prow.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.minio.service.type }}
@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: minio
+    app.kubernetes.io/component: minio
     {{- include "prow.selectorLabels" . | nindent 4 }}
