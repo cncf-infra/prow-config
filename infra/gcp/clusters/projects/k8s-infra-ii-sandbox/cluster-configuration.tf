@@ -39,7 +39,7 @@ resource "google_container_cluster" "cluster" {
   // GKE clusters are critical objects and should not be destroyed
   // IMPORTANT: should be false on test clusters
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   // Network config
