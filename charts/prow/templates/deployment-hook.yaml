@@ -47,6 +47,10 @@ spec:
             - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.hook.args | nindent 12 }}
           imagePullPolicy: {{ .Values.hook.image.pullPolicy }}
+          env:
+            {{- if .Values.hook.extraEnv }}
+            {{- toYaml .Values.hook.extraEnv | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: github-secrets-hmac
               mountPath: /etc/github/hmac
@@ -62,6 +66,9 @@ spec:
             - name: plugins
               mountPath: /etc/plugins
               readOnly: true
+            {{- if .Values.hook.extraVolumeMounts }}
+            {{- toYaml .Values.hook.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -98,3 +105,6 @@ spec:
       {{- include "prow.github-hmac.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
       {{- include "prow.plugins.volume" . | nindent 6 }}
+      {{- if .Values.hook.extraVolumes }}
+      {{- toYaml .Values.hook.extraVolumes | nindent 6 }}
+      {{- end }}

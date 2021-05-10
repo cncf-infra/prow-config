@@ -36,10 +36,17 @@ spec:
           image: "{{ .Values.ghproxy.image.repository }}:{{ .Values.ghproxy.image.tag | default .Chart.AppVersion }}"
           args:
             {{- toYaml .Values.ghproxy.args | nindent 12 }}
+          env:
+            {{- if .Values.ghproxy.extraEnv }}
+            {{- toYaml .Values.ghproxy.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.ghproxy.image.pullPolicy }}
           volumeMounts:
             - name: cache
               mountPath: /cache
+            {{- if .Values.ghproxy.extraVolumeMounts }}
+            {{- toYaml .Values.ghproxy.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.ghproxy.bindPort }}
@@ -61,3 +68,6 @@ spec:
       volumes:
       - name: cache
         emptyDir: {}
+      {{- if .Values.ghproxy.extraVolumes }}
+      {{- toYaml .Values.ghproxy.extraVolumes | nindent 6 }}
+      {{- end }}

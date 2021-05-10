@@ -155,6 +155,10 @@ spec:
     - --github-endpoint=https://api.github.com
     - --kubeconfig-context=default
     - --dry-run=false
+    env:
+      {{- if .Values.hook.setupJob.extraEnv }}
+      {{- toYaml .Values.hook.setupJob.extraEnv | nindent 12 }}
+      {{- end }}
     volumeMounts:
       - name: github-secrets-token
         mountPath: /etc/github/oauth

@@ -40,11 +40,18 @@ spec:
           args:
             - -deck-url=http://deck.{{ .Release.Namespace }}
             {{- toYaml .Values.sinker.args | nindent 12 }}
+          env:
+            {{- if .Values.sinker.extraEnv }}
+            {{- toYaml .Values.sinker.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.sinker.image.pullPolicy }}
           volumeMounts:
             - name: config
               mountPath: /etc/config
               readOnly: true
+            {{- if .Values.sinker.extraVolumeMounts }}
+            {{- toYaml .Values.sinker.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.sinker.resources | nindent 12 }}
       {{- with .Values.sinker.nodeSelector }}
@@ -61,3 +68,6 @@ spec:
       {{- end }}
       volumes:
       {{- include "prow.configmap.volume" . | nindent 6 }}
+      {{- if .Values.sinker.extraVolumes }}
+      {{- toYaml .Values.sinker.extraVolumes | nindent 6 }}
+      {{- end }}

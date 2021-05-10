@@ -40,11 +40,18 @@ spec:
           image: "{{ .Values.horologium.image.repository }}:{{ .Values.horologium.image.tag | default .Chart.AppVersion }}"
           args:
             {{- toYaml .Values.horologium.args | nindent 12 }}
+          env:
+            {{- if .Values.horologium.extraEnv }}
+            {{- toYaml .Values.horologium.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.horologium.image.pullPolicy }}
           volumeMounts:
             - name: config
               mountPath: /etc/config
               readOnly: true
+            {{- if .Values.horologium.extraVolumeMounts }}
+            {{- toYaml .Values.horologium.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.horologium.resources | nindent 12 }}
       {{- with .Values.horologium.nodeSelector }}
@@ -61,3 +68,6 @@ spec:
       {{- end }}
       volumes:
       {{- include "prow.configmap.volume" . | nindent 6 }}
+      {{- if .Values.horologium.extraVolumes }}
+      {{- toYaml .Values.horologium.extraVolumes | nindent 6 }}
+      {{- end }}

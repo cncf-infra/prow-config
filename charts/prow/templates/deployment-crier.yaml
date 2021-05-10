@@ -44,6 +44,10 @@ spec:
           args:
             - --github-endpoint=http://ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.crier.args | nindent 12 }}
+          env:
+            {{- if .Values.crier.extraEnv }}
+            {{- toYaml .Values.crier.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.crier.image.pullPolicy }}
           volumeMounts:
             - name: github-secrets-token
@@ -56,6 +60,9 @@ spec:
             - name: s3-credentials
               mountPath: /etc/s3-credentials
               readOnly: true
+            {{- if .Values.crier.extraVolumeMounts }}
+            {{- toYaml .Values.crier.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.crier.resources | nindent 12 }}
       {{- with .Values.crier.nodeSelector }}
@@ -77,3 +84,6 @@ spec:
       - name: s3-credentials
         secret:
           secretName: {{ include "prow.fullname" . }}-s3-credentials
+      {{- if .Values.crier.extraVolumes }}
+      {{- toYaml .Values.crier.extraVolumes | nindent 6 }}
+      {{- end }}

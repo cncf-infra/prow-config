@@ -50,6 +50,10 @@ spec:
             - --hook-url=http://{{ .Release.Name }}-hook.{{ .Release.Namespace }}:{{ .Values.hook.service.port }}/plugin-help
             - --github-endpoint=http://{{ .Release.Name }}-ghproxy.{{ .Release.Namespace }}
             {{- toYaml .Values.deck.args | nindent 12 }}
+          env:
+            {{- if .Values.deck.extraEnv }}
+            {{- toYaml .Values.deck.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.deck.image.pullPolicy }}
           volumeMounts:
             - name: github-secrets-token
@@ -71,6 +75,9 @@ spec:
             - name: github-oauth-config
               mountPath: /etc/githuboauth
               readOnly: true
+            {{- if .Values.deck.extraVolumeMounts }}
+            {{- toYaml .Values.deck.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -111,3 +118,6 @@ spec:
       - name: s3-credentials
         secret:
           secretName: {{ include "prow.fullname" . }}-s3-credentials
+      {{- if .Values.deck.extraVolumes }}
+      {{- toYaml .Values.deck.extraVolumes | nindent 6 }}
+      {{- end }}

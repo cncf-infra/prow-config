@@ -44,6 +44,10 @@ spec:
           image: "{{ .Values.statusreconciler.image.repository }}:{{ .Values.statusreconciler.image.tag | default .Chart.AppVersion }}"
           args:
             {{- toYaml .Values.statusreconciler.args | nindent 12 }}
+          env:
+            {{- if .Values.statusreconciler.extraEnv }}
+            {{- toYaml .Values.statusreconciler.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.statusreconciler.image.pullPolicy }}
           volumeMounts:
             - name: github-secrets-token
@@ -59,6 +63,9 @@ spec:
             - name: s3-credentials
               mountPath: /etc/s3-credentials
               readOnly: true
+            {{- if .Values.statusreconciler.extraVolumeMounts }}
+            {{- toYaml .Values.statusreconciler.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.statusreconciler.resources | nindent 12 }}
       {{- with .Values.statusreconciler.nodeSelector }}
@@ -80,3 +87,6 @@ spec:
       - name: s3-credentials
         secret:
           secretName: {{ include "prow.fullname" . }}-s3-credentials
+      {{- if .Values.statusreconciler.extraVolumes }}
+      {{- toYaml .Values.statusreconciler.extraVolumes | nindent 6 }}
+      {{- end }}

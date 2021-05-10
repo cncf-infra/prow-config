@@ -139,6 +139,10 @@ hook:
     - --github-token-path=/etc/github/oauth
     - --hmac-secret-file=/etc/github/hmac
 
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+
   terminationGracePeriodSeconds: 180
 
   deploymentStrategy:
@@ -218,6 +222,10 @@ hook:
       # Annotations to add to the service account
       annotations: {}
 
+    extraEnv: []
+    extraVolumes: []
+    extraVolumeMounts: []
+
     image:
       repository: gcr.io/k8s-prow/hmac
       pullPolicy: IfNotPresent
@@ -229,6 +237,10 @@ plank:
   args:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   deploymentStrategy:
     type: Recreate
@@ -283,6 +295,10 @@ sinker:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
 
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+
   deploymentStrategy:
     type: Recreate
 
@@ -335,6 +351,10 @@ horologium:
   args:
     - --dry-run=false
     - --config-path=/etc/config/config.yaml
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   deploymentStrategy:
     type: Recreate
@@ -390,6 +410,10 @@ tide:
     - --config-path=/etc/config/config.yaml
     - --github-token-path=/etc/github/oauth
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   terminationGracePeriodSeconds: 180
 
@@ -453,6 +477,10 @@ statusreconciler:
     - --config-path=/etc/config/config.yaml
     - --github-token-path=/etc/github/oauth
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   terminationGracePeriodSeconds: 180
 
@@ -522,6 +550,10 @@ deck:
     - --rerun-creates-job
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
     - --spyglass=true
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   terminationGracePeriodSeconds: 30
 
@@ -598,6 +630,10 @@ crier:
     - --kubernetes-blob-storage-workers=10
     - --github-endpoint=https://api.github.com
 
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+
   terminationGracePeriodSeconds: 30
 
   deploymentStrategy:
@@ -656,6 +692,10 @@ statusreconciler:
     - --config-path=/etc/config/config.yaml
     - --github-token-path=/etc/github/oauth
     - --s3-credentials-file=/etc/s3-credentials/service-account.json
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   terminationGracePeriodSeconds: 180
 
@@ -719,6 +759,10 @@ ghproxy:
     - --cache-sizeGB=99
     - --push-gateway=pushgateway
     - --serve-metrics=true
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   terminationGracePeriodSeconds: 180
 
@@ -790,6 +834,10 @@ minio:
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 1
+
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
 
   image:
     repository: minio/minio

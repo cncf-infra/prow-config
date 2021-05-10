@@ -40,6 +40,10 @@ spec:
           image: "{{ .Values.plank.image.repository }}:{{ .Values.plank.image.tag | default .Chart.AppVersion }}"
           args:
             {{- toYaml .Values.plank.args | nindent 12 }}
+          env:
+            {{- if .Values.plank.extraEnv }}
+            {{- toYaml .Values.plank.extraEnv | nindent 12 }}
+            {{- end }}
           imagePullPolicy: {{ .Values.plank.image.pullPolicy }}
           volumeMounts:
             - name: github-secrets-token
@@ -49,6 +53,9 @@ spec:
             - name: config
               mountPath: /etc/config
               readOnly: true
+            {{- if .Values.plank.extraVolumeMounts }}
+            {{- toYaml .Values.plank.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.plank.resources | nindent 12 }}
       {{- with .Values.plank.nodeSelector }}
@@ -66,3 +73,6 @@ spec:
       volumes:
       {{- include "prow.github-token.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
+      {{- if .Values.plank.extraVolumes }}
+      {{- toYaml .Values.plank.extraVolumes | nindent 6 }}
+      {{- end }}
