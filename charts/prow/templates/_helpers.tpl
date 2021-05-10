@@ -113,3 +113,74 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     secretName: {{ include "prow.fullname" . }}-github-oauth-config
     {{- end }}
 {{- end }}
+
+{{- define "prow.hook-setup" -}}
+metadata:
+{{- with .Values.hook.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+  labels:
+    app.kubernetes.io/component: hook
+    {{- include "prow.selectorLabels" . | nindent 4 }}
+spec:
+  restartPolicy: OnFailure
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  serviceAccountName: {{ include "prow.fullname" . }}-hook-setupjob
+  containers:
+  - name: {{ .Chart.Name }}-hook-setupjob
+    image: "{{ .Values.hook.setupJob.image.repository }}:{{ .Values.hook.setupJob.image.tag | default .Chart.AppVersion }}"
+    imagePullPolicy: {{ .Values.hook.setupJob.image.pullPolicy }}
+    securityContext:
+      {{- toYaml .Values.hook.setupJob.podSecurityContext | nindent 6 }}
+    command:
+    - /hmac
+    args:
+    - --config-path=/etc/config/config.yaml
+    {{ range $index, $host := .Values.ingress.hosts }}
+    - --hook-url=https://{{ $host.host }}/hook
+    {{- end }}
+    {{- if .Values.githubFromSecretRef.enabled }}
+    - --hmac-token-secret-name={{ .Values.githubFromSecretRef.hmac.name }}
+    {{- else }}
+    - --hmac-token-secret-name={{ include "prow.fullname" . }}-github-secrets-hmac
+    {{- end }}
+    - --hmac-token-secret-namespace={{ .Release.Namespace }}
+    - --hmac-token-key=hmac
+    - --github-token-path=/etc/github/oauth
+    - --github-endpoint=http://ghproxy.{{ .Release.Namespace }}
+    - --github-endpoint=https://api.github.com
+    - --kubeconfig-context=default
+    - --dry-run=false
+    volumeMounts:
+      - name: github-secrets-token
+        mountPath: /etc/github/oauth
+        subPath: oauth
+        readOnly: true
+      - name: github-secrets-hmac
+        mountPath: /etc/github/hmac
+        subPath: hmac
+        readOnly: true
+      - name: config
+        mountPath: /etc/config
+        readOnly: true
+  {{- with .Values.hook.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.hook.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.hook.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  volumes:
+  {{- include "prow.github-token.volume" . | nindent 4 }}
+  {{- include "prow.github-hmac.volume" . | nindent 4 }}
+  {{- include "prow.configmap.volume" . | nindent 4 }}
+{{- end }}
