@@ -21,10 +21,10 @@ spec:
     {{- toYaml .Values.minio.deploymentStrategy | nindent 4 }}
   template:
     metadata:
-    {{- with .Values.minio.podAnnotations }}
       annotations:
+        {{- with .Values.minio.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
         {{- if .Values.restartAllDeploymentsOnChange }}
         prow/release-revision: {{ .Release.Revision | toString | quote }}
         {{- end }}

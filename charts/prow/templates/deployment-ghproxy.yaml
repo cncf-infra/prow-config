@@ -18,10 +18,10 @@ spec:
     {{- toYaml .Values.ghproxy.deploymentStrategy | nindent 4 }}
   template:
     metadata:
-    {{- with .Values.ghproxy.podAnnotations }}
       annotations:
+        {{- with .Values.ghproxy.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
         {{- if .Values.restartAllDeploymentsOnChange }}
         prow/release-revision: {{ .Release.Revision | toString | quote }}
         {{- end }}
