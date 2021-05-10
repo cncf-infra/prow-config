@@ -65,6 +65,8 @@ while [ ! -f $GIT_ROOT/.sharing.io/setup-complete ]; do
     sleep 1s
 done
 
+export $(cat $FOLDER/.oauth-env | xargs)
+
 kubectl -n prow-${SHARINGIO_PAIR_NAME} get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
 if [ $? -eq 0 ]; then
     mv $FOLDER/.hmac-live $FOLDER/.hmac
@@ -88,6 +90,13 @@ kubectl \
     -n prow-$SHARINGIO_PAIR_NAME \
     create secret generic prow-github-oauth \
     --from-literal=oauth="$GITHUB_TOKEN" \
+    --dry-run=client -o yaml \
+    | kubectl apply -f -
+
+kubectl \
+    -n prow-$SHARINGIO_PAIR_NAME \
+    create secret generic prow-github-oauth-config \
+    --from-file=secret=<(envsubst < $FOLDER/github-oauth-template.yaml) \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 

@@ -6,7 +6,7 @@ spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
-    ref: 9e1b5ebcb6bf00cb4d2134471500f6b47fd67417
+    ref: a3797509135a7e11abe1225b6cff6c34cfa0e4b3
   releaseName: prow-${SHARINGIO_PAIR_NAME}
   values:
     podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
@@ -36,39 +36,4 @@ spec:
     pluginsFromConfigMap:
       enabled: true
       name: prow-plugins
-    plugins:
-      # config-updater
-      # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
-      # config_updater:
-      #   maps:
-      #     config.yaml:
-      #       name: config
-      #     plugins.yaml:
-      #       name: plugins
-      #     jobs/**/*.yaml:
-      #       name: job-config
-
-      # which plugins should be enabled for which orgs or org/repos
-        ${SHARINGIO_PAIR_USER}/prow-config:
-          plugins:
-            # - approve
-            - assign
-            #- cat
-            #- dog
-            - hold
-            - label
-            - lgtm
-            # - owners-label
-            - shrug
-            - size
-            - skip
-            - trigger
-            - wip
-            # - verify-owners
-            - yuks
-            - trigger
-            - pony
-            - cat
-            - dog
-            - goose
 

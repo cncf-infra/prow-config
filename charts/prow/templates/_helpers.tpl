@@ -102,3 +102,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     secretName: {{ include "prow.fullname" . }}-github-secrets-cookie
     {{- end }}
 {{- end }}
+
+{{- define "prow.github-oauth-config.volume" -}}
+- name: github-oauth-config
+  secret:
+    defaultMode: 420
+    {{- if .Values.githubFromSecretRef.enabled }}
+    secretName: {{ .Values.githubFromSecretRef.oauthConfig.name }}
+    {{- else }}
+    secretName: {{ include "prow.fullname" . }}-github-oauth-config
+    {{- end }}
+{{- end }}

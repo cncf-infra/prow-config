@@ -68,6 +68,9 @@ spec:
             - name: github-secrets-cookie
               mountPath: /etc/cookie
               readOnly: true
+            - name: github-oauth-config
+              mountPath: /etc/githuboauth
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -102,6 +105,7 @@ spec:
       volumes:
       {{- include "prow.github-token.volume" . | nindent 6 }}
       {{- include "prow.github-cookie.volume" . | nindent 6 }}
+      {{- include "prow.github-oauth-config.volume" . | nindent 6 }}
       {{- include "prow.configmap.volume" . | nindent 6 }}
       {{- include "prow.plugins.volume" . | nindent 6 }}
       - name: s3-credentials
