@@ -18,11 +18,13 @@ echo "        - authorization callback URL is set to 'https://prow.${SHARINGIO_P
 echo
 if [ ! -f $GIT_ROOT/.sharing.io/.oauth-env ]; then
     echo "Input:"
-    read -r -p "OAUTH_CLIENT_ID (github oauth app client id)                  : " OAUTH_CLIENT_ID
-    read -r -p "OAUTH_CLIENT_SECRET (github oauth app client generated secret): " OAUTH_CLIENT_SECRET
+    read -r -p "- OAUTH_CLIENT_ID (github oauth app client id)                  : " OAUTH_CLIENT_ID
+    read -r -p "- OAUTH_CLIENT_SECRET (github oauth app client generated secret): " OAUTH_CLIENT_SECRET
+    read -r -p "- OAUTH_BOT_TOKEN (github access token for a bit account - optional): " OAUTH_BOT_TOKEN
     cat <<EOF > $GIT_ROOT/.sharing.io/.oauth-env
 OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
 OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+OAUTH_BOT_TOKEN=${OAUTH_BOT_TOKEN:-$GITHUB_TOKEN}
 EOF
 else
     echo "There already appears to be OAuth env set, to edit: checkout '$GIT_ROOT/.sharing.io/.oauth-env'."
