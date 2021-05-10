@@ -8,7 +8,7 @@ metadata:
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     {{- if .Values.restartAllDeploymentsOnChange }}
-    prow/release-revision: {{ .Release.Revision }}
+    prow/release-revision: {{ .Release.Revision | toString | quote }}
     {{- end }}
 spec:
   replicas: {{ .Values.horologium.replicaCount }}

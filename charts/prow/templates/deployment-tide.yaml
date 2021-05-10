@@ -11,7 +11,7 @@ metadata:
     checksum/secret-s3: {{ include (print $.Template.BasePath "/secret-s3-credentials.yaml") . | sha256sum }}
     checksum/secret-s3-test-pods: {{ include (print $.Template.BasePath "/secret-s3-credentials-test-pods.yaml") . | sha256sum }}
     {{- if .Values.restartAllDeploymentsOnChange }}
-    prow/release-revision: {{ .Release.Revision }}
+    prow/release-revision: {{ .Release.Revision | toString | quote }}
     {{- end }}
 spec:
   replicas: {{ .Values.tide.replicaCount }}
