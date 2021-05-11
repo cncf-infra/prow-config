@@ -224,10 +224,6 @@ helm template --debug prow-${SHARINGIO_PAIR_NAME} \
     ) ~/prow-config/charts/prow/
 #+END_SRC
 
-#+RESULTS:
-#+begin_example
-#+end_example
-
 Rollout restart
 #+BEGIN_SRC shell
 kubectl -n prow-${SHARINGIO_PAIR_NAME} rollout restart $(kubectl -n prow-${SHARINGIO_PAIR_NAME} get deployments -o=jsonpath='{range .items[*]}{.kind}/{.metadata.name} {end}')
@@ -246,3 +242,8 @@ deployment.apps/prow-bobymcbobs-sdfg-sinker restarted
 deployment.apps/prow-bobymcbobs-sdfg-statusreconciler restarted
 deployment.apps/prow-bobymcbobs-sdfg-tide restarted
 #+end_example
+
+Clean up workloads
+#+BEGIN_SRC shell
+kubectl -n prow-${SHARINGIO_PAIR_NAME}-workloads delete pods --force --grace-period=0 --all
+#+END_SRC
