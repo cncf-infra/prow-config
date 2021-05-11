@@ -247,3 +247,18 @@ Clean up workloads
 #+BEGIN_SRC shell
 kubectl -n prow-${SHARINGIO_PAIR_NAME}-workloads delete pods --force --grace-period=0 --all
 #+END_SRC
+
+Get logs for component
+#+BEGIN_SRC shell
+kubectl -n prow-${SHARINGIO_PAIR_NAME} logs -l app.kubernetes.io/component=hook --tail=100
+#+END_SRC
+
+Get all logs
+#+BEGIN_SRC shell
+kubectl -n prow-${SHARINGIO_PAIR_NAME} logs -l app.kubernetes.io/name=prow -f --tail=100 --max-log-requests 100 --prefix
+#+END_SRC
+
+Generate a Kubeconfig for use in Prow
+#+BEGIN_SRC shell
+gencred -n 'default' --context 'in-cluster' -s ${SHARINGIO_PAIR_NAME}-humacs --overwrite -o /tmp/${SHARINGIO_PAIR_NAME}-kubeconfig-admin
+#+END_SRC
