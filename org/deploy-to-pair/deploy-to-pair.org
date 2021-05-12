@@ -258,7 +258,24 @@ Get all logs
 kubectl -n prow-${SHARINGIO_PAIR_NAME} logs -l app.kubernetes.io/name=prow -f --tail=100 --max-log-requests 100 --prefix
 #+END_SRC
 
+Get gencred
+#+BEGIN_SRC shell :results silent :dir (concat (getenv "HOME") "/test-infra")
+go install ./gencred
+#+END_SRC
+
 Generate a Kubeconfig for use in Prow
 #+BEGIN_SRC shell
-gencred -n 'default' --context 'in-cluster' -s ${SHARINGIO_PAIR_NAME}-humacs --overwrite -o /tmp/${SHARINGIO_PAIR_NAME}-kubeconfig-admin
+set -x
+CRED_NEW_CONTEXT=default
+CRED_EXISTING_CONTEXT=in-cluster
+CRED_SERVICEACCOUNT=${SHARINGIO_PAIR_NAME}-humacs
+CRED_OUTPUT=/tmp/${SHARINGIO_PAIR_NAME}-kubeconfig-admin
+gencred \
+    -n $CRED_NEW_CONTEXT \
+    --context $CRED_EXISTING_CONTEXT \
+    -s ${SHARINGIO_PAIR_NAME}-humacs \
+    --overwrite \
+    -o $CRED_OUTPUT
+ls -alh $CRED_OUTPUT
 #+END_SRC
+
