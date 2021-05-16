@@ -16,4 +16,4 @@ spec:
           class: nginx
       selector:
         dnsNames:
-        - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+        - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}

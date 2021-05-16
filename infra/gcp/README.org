@@ -20,6 +20,11 @@ terraform init
 terraform apply
 #+END_SRC
 
+* Get credentials
+#+BEGIN_SRC shell
+gcloud container clusters get-credentials ii-sandbox --region us-central1
+#+END_SRC
+
 * Deploy
 ** Helm-Operator
 #+BEGIN_SRC shell :async yes
@@ -40,7 +45,7 @@ customresourcedefinition.apiextensions.k8s.io/helmreleases.helm.fluxcd.io create
 namespace/helm-operator created
 Release "helm-operator" does not exist. Installing it now.
 NAME: helm-operator
-LAST DEPLOYED: Mon May 10 10:01:39 2021
+LAST DEPLOYED: Mon May 17 09:18:26 2021
 NAMESPACE: helm-operator
 STATUS: deployed
 REVISION: 1
@@ -149,6 +154,31 @@ for ns in prow prow-workloads ; do
 done
 #+END_SRC
 
+** DNS
+#+BEGIN_SRC yaml :tangle dnsendpoint.yaml
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}-pair-sharing-io
+  namespace: powerdns
+spec:
+  endpoints:
+  - dnsName: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    recordTTL: 60
+    recordType: A
+    targets:
+    - ${SHARINGIO_PAIR_LOAD_BALANCER_IP}
+#+END_SRC
+
+#+BEGIN_SRC shell
+envsubst < dnsendpoint.yaml | kubectl --context in-cluster apply -f -
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+dnsendpoint.externaldns.k8s.io/prow.ii-sandbox.bobymcbobs-qtyp.pair.sharing.io-pair-sharing-io created
+#+end_example
+
 ** Certificate + cluster issuer
 #+BEGIN_SRC yaml :tangle cluster-issuer.yaml
 apiVersion: cert-manager.io/v1
@@ -167,7 +197,7 @@ spec:
           class: nginx
       selector:
         dnsNames:
-        - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+        - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 #+END_SRC
 
 #+BEGIN_SRC yaml :tangle cert.yaml
@@ -177,9 +207,9 @@ metadata:
   name: letsencrypt-prod
   namespace: prow
 spec:
-  commonName: prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  commonName: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -187,23 +217,128 @@ spec:
 #+END_SRC
 
 #+BEGIN_SRC shell :results silent
-kubectl apply -f cluster-issuer.yaml -f cert.yaml
+envsubst < cluster-issuer.yaml | kubectl apply -f -
+envsubst < cert.yaml | kubectl apply -f -
 #+END_SRC
+
+** Humacs
+#+BEGIN_SRC yaml :tangle humacs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: humacs-home-ii
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: humacs
+spec:
+  chart:
+    git: https://github.com/humacs/humacs
+    path: chart/humacs
+    ref: eaf562e067faa086d3165aba659fa52b727662d8
+  releaseName: humacs
+  values:
+    initContainers:
+      - name: humacs-home-ii-fix-permissions
+        image: alpine:3.12
+        command:
+          - sh
+          - -c
+          - chown 1000:1000 -R /home/ii && chown 1000 /var/run/docker.sock /run/containerd/containerd.sock
+        extraVolumeMounts:
+          - mountPath: /home/ii
+            name: home-ii
+        extraVolumes:
+          - name: home-ii
+            persistentVolumeClaim:
+              claimName: humacs-home-ii
+    extraEnvVars:
+      - name: SHARINGIO_PAIR_USER
+        value: ${SHARINGIO_PAIR_USER}
+      - name: SHARINGIO_PAIR_LOAD_BALANCER_IP
+        value: ${LOAD_BALANCER_IP}
+      - name: HUMACS_DEBUG
+        value: "true"
+      - name: REINIT_HOME_FOLDER
+        value: "true"
+      - name: SHARINGIO_PAIR_BASE_DNS_NAME
+        value: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - name: CONTAINER_RUNTIME_ENDPOINT
+        value: unix:///var/run/containerd/containerd.sock
+      - name: CONTAINER_ADDRESS
+        value: /run/containerd/containerd.sock
+      - name: CONTAINERD_NAMESPACE
+        value: k8s.io
+      - name: K8S_NODE
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+    extraVolumeMounts:
+      - mountPath: /home/ii
+        name: home-ii
+      - mountPath: /var/run/host
+        name: host
+      - name: var-run-containerd-containerd-sock
+        mountPath: /run/containerd/containerd.sock
+    extraVolumes:
+      - name: home-ii
+        persistentVolumeClaim:
+          claimName: humacs-home-ii
+      - hostPath:
+          path: /
+        name: host
+      - name: var-run-containerd-containerd-sock
+        hostPath:
+          path: /run/containerd/containerd.sock
+    image:
+      repository: registry.gitlab.com/humacs/humacs/ii
+      tag: 2021.05.14
+    options:
+      gitEmail: ${GIT_AUTHOR_EMAIL}
+      gitName: ${GIT_AUTHOR_NAME}
+      hostDockerSocket: true
+      hostTmp: true
+      profile: ""
+      repos:
+        - https://github.com/cncf-infra/prow-config
+        - https://github.com/kubernetes/test-infra
+        - https://github.com/kubernetes/k8s.io
+      timezone: Pacific/Auckland
+#+END_SRC
+
+#+BEGIN_SRC shell
+export LOAD_BALANCER_IP=$(kubectl -n nginx-ingress get svc nginx-ingress-nginx-ingress-controller -o=jsonpath='{.status.loadBalancer.ingress[0].ip}')
+envsubst < humacs.yaml | kubectl -n default apply -f -
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+persistentvolumeclaim/humacs-home-ii unchanged
+helmrelease.helm.fluxcd.io/humacs configured
+#+end_example
 
 ** Prow
 #+BEGIN_SRC yaml :tangle prow.yaml
 apiVersion: helm.fluxcd.io/v1
 kind: HelmRelease
 metadata:
-  name: prow-${SHARINGIO_PAIR_NAME}
+  name: prow
+  namespace: prow
 spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
     ref: a3797509135a7e11abe1225b6cff6c34cfa0e4b3
-  releaseName: prow-${SHARINGIO_PAIR_NAME}
+  releaseName: prow
   values:
-    podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
+    podNamespace: prow-workloads
     githubFromSecretRef:
       enabled: true
       oauth:
@@ -217,11 +352,11 @@ spec:
       certmanager:
         enabled: false
       hosts:
-        - host: prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - host: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       tls:
         - secretName: letsencrypt-prod
           hosts:
-            - prow.${SHARINGIO_PAIR_BASE_DNS_NAME}
+            - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 
     configFromConfigMap:
       enabled: true
@@ -230,4 +365,19 @@ spec:
     pluginsFromConfigMap:
       enabled: true
       name: prow-plugins
+#+END_SRC
+
+#+BEGIN_SRC shell
+envsubst < prow.yaml | kubectl apply -f -
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+helmrelease.helm.fluxcd.io/prow created
+#+end_example
+
+* SSH key forward
+#+BEGIN_SRC tmate :window ssh-key-forward
+NODE_NAME=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.spec.nodeName}')
+gcloud compute ssh --ssh-flag="-aT" $NODE_NAME
 #+END_SRC

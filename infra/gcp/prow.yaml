@@ -1,0 +1,41 @@
+# Prow
+
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: prow
+  namespace: prow
+spec:
+  chart:
+    git: https://github.com/cncf-infra/prow-config
+    path: charts/prow
+    ref: a3797509135a7e11abe1225b6cff6c34cfa0e4b3
+  releaseName: prow
+  values:
+    podNamespace: prow-workloads
+    githubFromSecretRef:
+      enabled: true
+      oauth:
+        name: prow-github-oauth
+      hmac:
+        name: prow-github-hmac
+      cookie:
+        name: prow-github-cookie
+
+    ingress:
+      certmanager:
+        enabled: false
+      hosts:
+        - host: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      tls:
+        - secretName: letsencrypt-prod
+          hosts:
+            - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+
+    configFromConfigMap:
+      enabled: true
+      name: prow-config
+
+    pluginsFromConfigMap:
+      enabled: true
+      name: prow-plugins

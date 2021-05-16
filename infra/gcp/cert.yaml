@@ -4,9 +4,9 @@ metadata:
   name: letsencrypt-prod
   namespace: prow
 spec:
-  commonName: prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  commonName: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - prow.ii-sandbox.bobymcbobs-sdfg.pair.sharing.io
+  - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
