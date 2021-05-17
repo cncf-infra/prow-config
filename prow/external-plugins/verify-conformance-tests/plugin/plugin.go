@@ -424,7 +424,13 @@ func checkAllRequiredTestsArePresent(required map[string]bool, submitted []strin
 			missingTests = append(missingTests, test)
 		}
 	}
+	log.Info("List of missing tests:" )
+	for test in missingTests{
+		log.Info(test)
+	}	
+	
 	return allTestsPresent, missingTests
+	
 }
 
 // checkE2eLogHasZeroTestFailures returns true if the e2eLog has a zero count for failed tests
