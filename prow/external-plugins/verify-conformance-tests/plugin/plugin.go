@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
-        //"fmt"
+	//"fmt"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
 
@@ -84,20 +84,19 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
 	//var requiredConformanceSuite []ConformanceTestMetaData
 	//confTestSuiteUrl := "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml"
 
-
-	var conformanceTests = map[string]string {
-                "v1.15": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.15.yaml",
-                        "v1.16": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.16.yaml",
-                        "v1.17": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.17.yaml",
-                        "v1.18": "https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml",
-                        "v1.19": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.19/test/conformance/testdata/conformance.yaml",
-                        "v1.20": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.20/test/conformance/testdata/conformance.yaml",
-                        "v1.21": "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.21/test/conformance/testdata/conformance.yaml",
-                        "master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
-                }
+	var conformanceTests = map[string]string{
+		"v1.15":  "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.15.yaml",
+		"v1.16":  "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.16.yaml",
+		"v1.17":  "https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.17.yaml",
+		"v1.18":  "https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml",
+		"v1.19":  "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.19/test/conformance/testdata/conformance.yaml",
+		"v1.20":  "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.20/test/conformance/testdata/conformance.yaml",
+		"v1.21":  "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.21/test/conformance/testdata/conformance.yaml",
+		"master": "https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml",
+	}
 
 	var requiredConformanceSuite []ConformanceTestMetaData
-        confTestSuiteUrl := conformanceTests[k8sRelease]
+	confTestSuiteUrl := conformanceTests[k8sRelease]
 
 	resp, err := http.Get(confTestSuiteUrl)
 	if resp.StatusCode > 199 && resp.StatusCode < 300 {
@@ -118,27 +117,27 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
 	requiredConformanceSuiteForRelease := make(map[string]bool, 0)
 
 	for _, testcase := range requiredConformanceSuite {
-                if k8sRelease != ""{
-                        v1, err := version.NewVersion(k8sRelease)
-                        if err != nil {
-                                log.Errorf("Unable to parse the version string %v:  %v\n", k8sRelease , err)
-                        }
-                        testcaseRelease := strings.Split(testcase.Release, ",")
-                        if testcaseRelease[0] != ""{
-                                // testcase.Codename = strings.Replace(testcase.Codename, "\"", "`", -1)
-                                //                log.Println(testcase)
-                                v2, err := version.NewVersion(testcaseRelease[0])
-                                if err != nil {
-                                        log.Errorf("Unable to parse the testcase version string  %v:  %v\n", testcase, err)
-                                        continue
-                                }
-                                if v1.GreaterThanOrEqual(v2) {
+		if k8sRelease != "" {
+			v1, err := version.NewVersion(k8sRelease)
+			if err != nil {
+				log.Errorf("Unable to parse the version string %v:  %v\n", k8sRelease, err)
+			}
+			testcaseRelease := strings.Split(testcase.Release, ",")
+			if testcaseRelease[0] != "" {
+				// testcase.Codename = strings.Replace(testcase.Codename, "\"", "`", -1)
+				//                log.Println(testcase)
+				v2, err := version.NewVersion(testcaseRelease[0])
+				if err != nil {
+					log.Errorf("Unable to parse the testcase version string  %v:  %v\n", testcase, err)
+					continue
+				}
+				if v1.GreaterThanOrEqual(v2) {
 
-                                        requiredConformanceSuiteForRelease[testcase.Codename] = false
-                                }
-                        }
-                }
-        }
+					requiredConformanceSuiteForRelease[testcase.Codename] = false
+				}
+			}
+		}
+	}
 	return requiredConformanceSuiteForRelease
 }
 
@@ -171,7 +170,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		if err != nil {
 			prLogger.WithError(err)
 		}
-		submittedTestsPresent, missingTests := checkAllRequiredTestsArePresent(requiredTests, submittedTests)
+		submittedTestsPresent, missingTests := checkAllRequiredTestsArePresent(prLogger, requiredTests, submittedTests)
 		prLogger.Infof("submittedTestsPresent %t : missingTests are %v\n", submittedTestsPresent, missingTests)
 
 		if submittedTestsPresent {
@@ -182,52 +181,52 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			}
 			if !hasVerifiedLabel {
 				hasNoEvidenceMissingLabel, _ := HasNoEvidenceMissingLabel(log, org, repo, prNumber, ghc, "evidence-missing")
-                                hasNoRequiredTestsMissingLabel, _ := HasNoRequiredTestsMissingLabel(log, org, repo, prNumber, ghc, "required-tests-missing")
+				hasNoRequiredTestsMissingLabel, _ := HasNoRequiredTestsMissingLabel(log, org, repo, prNumber, ghc, "required-tests-missing")
 				githubClient.AddLabel(ghc, org, repo, prNumber, "tests-verified-"+releaseVersion)
 				githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed")
-                                if hasNoRequiredTestsMissingLabel {
-                                        githubClient.RemoveLabel(ghc, org, repo, prNumber, "required-tests-missing")
-                                }
-                                if hasNoEvidenceMissingLabel {
-                                        githubClient.RemoveLabel(ghc, org, repo, prNumber, "evidence-missing")
-                                }
+				if hasNoRequiredTestsMissingLabel {
+					githubClient.RemoveLabel(ghc, org, repo, prNumber, "required-tests-missing")
+				}
+				if hasNoEvidenceMissingLabel {
+					githubClient.RemoveLabel(ghc, org, repo, prNumber, "evidence-missing")
+				}
 			}
-                        // Versions v1.16 and older do not log failures in e2e log, so the testRunEvidenceCorrect check is skipped for those older versions
-                        v1, err := version.NewVersion("v1.17")
-                        if err != nil {
-                                log.Errorf("Unable to set version to 1.17 \n")
-                        }
-                        v2, err := version.NewVersion(releaseVersion)
-                        if err != nil {
-                                log.Errorf("Unable to parse the version string %v:  %v\n", releaseVersion , err)
-                        }
+			// Versions v1.16 and older do not log failures in e2e log, so the testRunEvidenceCorrect check is skipped for those older versions
+			v1, err := version.NewVersion("v1.17")
+			if err != nil {
+				log.Errorf("Unable to set version to 1.17 \n")
+			}
+			v2, err := version.NewVersion(releaseVersion)
+			if err != nil {
+				log.Errorf("Unable to parse the version string %v:  %v\n", releaseVersion, err)
+			}
 
-                        if v2.GreaterThanOrEqual(v1){
-                                if testRunEvidenceCorrect {
-                                        hasNoTestFaiLabel, err := HasNoTestFailLabel(log, org, repo, prNumber, ghc, "no-failed-tests-"+releaseVersion)
-                                        if err != nil {
-                                                prLogger.WithError(err)
-                                        }
+			if v2.GreaterThanOrEqual(v1) {
+				if testRunEvidenceCorrect {
+					hasNoTestFaiLabel, err := HasNoTestFailLabel(log, org, repo, prNumber, ghc, "no-failed-tests-"+releaseVersion)
+					if err != nil {
+						prLogger.WithError(err)
+					}
 
-                                        if !hasNoTestFaiLabel {
-                                                githubClient.AddLabel(ghc, org, repo, prNumber, "no-failed-tests-"+releaseVersion)
-                                                githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed")
-                                        }
-                                } else { // specifiedRelease not present in logs
+					if !hasNoTestFaiLabel {
+						githubClient.AddLabel(ghc, org, repo, prNumber, "no-failed-tests-"+releaseVersion)
+						githubClient.CreateComment(ghc, org, repo, prNumber, "Automatically verified as having all required tests present and passed")
+					}
+				} else { // specifiedRelease not present in logs
 
-                                        hasNoEvidenceMissingLabel, err := HasNoEvidenceMissingLabel(log, org, repo, prNumber, ghc, "evidence-missing")
-                                        if err != nil {
-                                                prLogger.WithError(err)
-                                        }
+					hasNoEvidenceMissingLabel, err := HasNoEvidenceMissingLabel(log, org, repo, prNumber, ghc, "evidence-missing")
+					if err != nil {
+						prLogger.WithError(err)
+					}
 
-                                        if !hasNoEvidenceMissingLabel {
-                                                githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
-                                                githubClient.CreateComment(ghc, org, repo, prNumber,
-                                                        "This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
-                                        }
-                                }
-                        }
-                } else {
+					if !hasNoEvidenceMissingLabel {
+						githubClient.AddLabel(ghc, org, repo, prNumber, "evidence-missing")
+						githubClient.CreateComment(ghc, org, repo, prNumber,
+							"This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed")
+					}
+				}
+			}
+		} else {
 			hasNoRequiredTestsMissingLabel, err := HasNoRequiredTestsMissingLabel(log, org, repo, prNumber, ghc, "required-tests-missing")
 			if err != nil {
 				prLogger.WithError(err)
@@ -354,11 +353,10 @@ func getSubmittedConformanceTests(prLogger *logrus.Entry, junitFile github.PullR
 	body, err := ioutil.ReadAll(resp.Body)
 
 	type TestCase struct {
-		XMLName xml.Name `xml:"testcase"`
-		Name    string   `xml:"name,attr"`
-		Skipped *struct{}   `xml:"skipped"`
+		XMLName xml.Name  `xml:"testcase"`
+		Name    string    `xml:"name,attr"`
+		Skipped *struct{} `xml:"skipped"`
 	}
-
 
 	var conformanceRequirement struct {
 		TestSuite []TestCase `xml:"testcase"`
@@ -405,7 +403,7 @@ func getChangeMap(ghc githubClient, org, repo string, prNumber int) (map[string]
 
 // checkAllRequiredTestsArePresent returns true if the test array submitted by the vendor has all tests that
 // are required for certification conformance, otherwise returns false and an array of missing tests.
-func checkAllRequiredTestsArePresent(required map[string]bool, submitted []string) (bool, []string) {
+func checkAllRequiredTestsArePresent(log *logrus.Entry, required map[string]bool, submitted []string) (bool, []string) {
 	allTestsPresent := true
 	localRequired := required
 	missingTests := []string{}
@@ -413,7 +411,7 @@ func checkAllRequiredTestsArePresent(required map[string]bool, submitted []strin
 	for _, test := range submitted {
 		if _, found := localRequired[test]; found {
 			localRequired[test] = true
-                        //		} else {
+			//		} else {
 			// tempTestCountMap[test]++
 		}
 	}
@@ -422,10 +420,11 @@ func checkAllRequiredTestsArePresent(required map[string]bool, submitted []strin
 		if val != true {
 			allTestsPresent = false
 			missingTests = append(missingTests, test)
+			log.Infof("Missing Test: i%s", test)
 		}
 	}
 	return allTestsPresent, missingTests
-	
+
 }
 
 // checkE2eLogHasZeroTestFailures returns true if the e2eLog has a zero count for failed tests
