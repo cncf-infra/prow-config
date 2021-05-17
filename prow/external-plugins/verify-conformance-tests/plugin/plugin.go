@@ -424,11 +424,6 @@ func checkAllRequiredTestsArePresent(required map[string]bool, submitted []strin
 			missingTests = append(missingTests, test)
 		}
 	}
-	log.Info("List of missing tests:" )
-	for _, test := range missingTests {
-		log.Info(test)
-	}	
-	
 	return allTestsPresent, missingTests
 	
 }
