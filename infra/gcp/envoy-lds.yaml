@@ -31,7 +31,7 @@ resources:
               inline_code: |
                 local reg1 = "k8s.gcr.io"
                 local reg2 = "registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
-                local reg2WithIP = "192.168.0.18"
+                local reg2WithIP = "${SHARINGIO_PAIR_LOAD_BALANCER_IP}"
                 function envoy_on_request(request_handle)
                   local reg = reg1
                   remoteAddr = request_handle:headers():get("x-real-ip")
