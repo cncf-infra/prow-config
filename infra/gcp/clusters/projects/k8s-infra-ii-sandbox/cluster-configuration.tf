@@ -1,5 +1,9 @@
+variable "cluster_name" {
+  type    = string
+  default = "ii-sandbox" // This is the name of the cluster defined in this file
+}
+
 locals {
-  cluster_name       = "ii-sandbox"  // This is the name of the cluster defined in this file
   cluster_location   = "us-central1" // This is the GCP location (region or zone) where the cluster should be created
   kubernetes_version = "1.18.17-gke.100"
 }
@@ -7,8 +11,8 @@ locals {
 // Create SA for nodes
 resource "google_service_account" "cluster_node_sa" {
   project      = data.google_project.project.project_id
-  account_id   = "gke-nodes-${local.cluster_name}"
-  display_name = "Nodes in GKE cluster '${local.cluster_name}'"
+  account_id   = var.cluster_name
+  display_name = "Nodes in GKE cluster '${var.cluster_name}'"
 }
 
 // Add roles for SA
@@ -30,7 +34,7 @@ resource "google_project_iam_member" "cluster_node_sa_monitoring_metricwriter" {
 
 // Create GKE cluster, but with no node pools. Node pools can be provisioned below
 resource "google_container_cluster" "cluster" {
-  name     = local.cluster_name
+  name     = var.cluster_name
   location = local.cluster_location
 
   provider = google-beta

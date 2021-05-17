@@ -19,7 +19,7 @@ resource "google_container_node_pool" "pods-go-here" {
   // by 3, as the cluster will exist in three zones
   autoscaling {
     min_node_count = 1
-    max_node_count = 2
+    max_node_count = 1
   }
 
   // Set machine type, and enable all oauth scopes tied to the service account
