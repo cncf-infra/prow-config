@@ -11,23 +11,23 @@ gcloud auth application-default login
 #+END_SRC
 
 * Prepare
-#+BEGIN_SRC shell :dir (concat pwd "clusters/projects/k8s-infra-ii-sandbox/")
+#+BEGIN_SRC shell
 terraform init
 #+END_SRC
 
 * Apply
-#+BEGIN_SRC shell :dir (concat pwd "clusters/projects/k8s-infra-ii-sandbox/")
-terraform apply
+#+BEGIN_SRC tmate :window ii-sandbox-terraform
+terraform apply -var "cluster_name=ii-sandbox-${SHARINGIO_PAIR_NAME}"
 #+END_SRC
 
 * Get credentials
 #+BEGIN_SRC shell
-gcloud container clusters get-credentials ii-sandbox --region us-central1
+gcloud container clusters get-credentials ii-sandbox-${SHARINGIO_PAIR_NAME} --region us-central1
 #+END_SRC
 
 * Deploy
 ** Helm-Operator
-#+BEGIN_SRC shell :async yes
+#+BEGIN_SRC shell :async yes :results silent
 helm repo add fluxcd https://charts.fluxcd.io
 kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/1.2.0/deploy/crds.yaml
 kubectl create ns helm-operator
@@ -37,62 +37,6 @@ helm upgrade -i \
     --set helm.versions=v3 \
     fluxcd/helm-operator
 #+END_SRC
-
-#+RESULTS:
-#+begin_example
-"fluxcd" has been added to your repositories
-customresourcedefinition.apiextensions.k8s.io/helmreleases.helm.fluxcd.io created
-namespace/helm-operator created
-Release "helm-operator" does not exist. Installing it now.
-NAME: helm-operator
-LAST DEPLOYED: Mon May 17 09:18:26 2021
-NAMESPACE: helm-operator
-STATUS: deployed
-REVISION: 1
-TEST SUITE: None
-NOTES:
-Flux Helm Operator docs https://docs.fluxcd.io
-
-Example:
-
-AUTH_VALUES=$(cat <<-END
-usePassword: true
-password: "redis_pass"
-usePasswordFile: true
-END
-)
-
-kubectl create secret generic redis-auth --from-literal=values.yaml="$AUTH_VALUES"
-
-cat <<EOF | kubectl apply -f -
-apiVersion: helm.fluxcd.io/v1
-kind: HelmRelease
-metadata:
-  name: redis
-  namespace: default
-spec:
-  releaseName: redis
-  chart:
-    repository: https://kubernetes-charts.storage.googleapis.com
-    name: redis
-    version: 10.5.7
-  valuesFrom:
-  - secretKeyRef:
-      name: redis-auth
-  values:
-    master:
-      persistence:
-        enabled: false
-    volumePermissions:
-      enabled: true
-    metrics:
-      enabled: true
-    cluster:
-      enabled: false
-EOF
-
-watch kubectl get hr
-#+end_example
 
 ** nginx-ingress
 
@@ -142,14 +86,15 @@ kubectl apply -f nginx-ingress.yaml
 #+END_SRC
 
 ** cert-manager
-#+BEGIN_SRC shell :results silent
+#+BEGIN_SRC shell :results silent :async yes
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.yaml
 #+END_SRC
 
 ** Namespaces
 
 #+BEGIN_SRC shell :results silent
-for ns in prow prow-workloads ; do
+REGISTRIES=(prow prow-workloads distribution registry-k8s-io-envoy)
+for ns in ${REGISTRIES[@]}; do
   kubectl get ns $ns 2> /dev/null || kubectl create ns $ns
 done
 #+END_SRC
@@ -159,25 +104,21 @@ done
 apiVersion: externaldns.k8s.io/v1alpha1
 kind: DNSEndpoint
 metadata:
-  name: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}-pair-sharing-io
+  name: wildcard.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}-pair-sharing-io
   namespace: powerdns
 spec:
   endpoints:
-  - dnsName: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - dnsName: "*.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
     recordTTL: 60
     recordType: A
     targets:
-    - ${SHARINGIO_PAIR_LOAD_BALANCER_IP}
+    - ${LOAD_BALANCER_IP}
 #+END_SRC
 
-#+BEGIN_SRC shell
+#+BEGIN_SRC shell :results silent
+export LOAD_BALANCER_IP=$(kubectl -n nginx-ingress get svc nginx-ingress-nginx-ingress-controller -o=jsonpath='{.status.loadBalancer.ingress[0].ip}')
 envsubst < dnsendpoint.yaml | kubectl --context in-cluster apply -f -
 #+END_SRC
-
-#+RESULTS:
-#+begin_example
-dnsendpoint.externaldns.k8s.io/prow.ii-sandbox.bobymcbobs-qtyp.pair.sharing.io-pair-sharing-io created
-#+end_example
 
 ** Certificate + cluster issuer
 #+BEGIN_SRC yaml :tangle cluster-issuer.yaml
@@ -187,7 +128,7 @@ metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    email: caleb@ii.coop
+    email: ${GIT_AUTHOR_EMAIL}
     privateKeySecretRef:
       name: letsencrypt-prod
     server: https://acme-v02.api.letsencrypt.org/directory
@@ -198,6 +139,9 @@ spec:
       selector:
         dnsNames:
         - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 #+END_SRC
 
 #+BEGIN_SRC yaml :tangle cert.yaml
@@ -210,6 +154,35 @@ spec:
   commonName: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
   - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: distribution
+spec:
+  commonName: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: registry-k8s-io-envoy
+spec:
+  commonName: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -242,7 +215,7 @@ spec:
   chart:
     git: https://github.com/humacs/humacs
     path: chart/humacs
-    ref: eaf562e067faa086d3165aba659fa52b727662d8
+    ref: 79b33fda47287027cb639496d1d05da60f9df745
   releaseName: humacs
   values:
     initContainers:
@@ -251,14 +224,12 @@ spec:
         command:
           - sh
           - -c
-          - chown 1000:1000 -R /home/ii && chown 1000 /var/run/docker.sock /run/containerd/containerd.sock
-        extraVolumeMounts:
+          - chown 1000:1000 -R /home/ii && chown 1000 /run/containerd/containerd.sock
+        volumeMounts:
           - mountPath: /home/ii
             name: home-ii
-        extraVolumes:
-          - name: home-ii
-            persistentVolumeClaim:
-              claimName: humacs-home-ii
+          - name: run-containerd-containerd-sock
+            mountPath: /run/containerd/containerd.sock
     extraEnvVars:
       - name: SHARINGIO_PAIR_USER
         value: ${SHARINGIO_PAIR_USER}
@@ -269,9 +240,9 @@ spec:
       - name: REINIT_HOME_FOLDER
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
-        value: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
-        value: unix:///var/run/containerd/containerd.sock
+        value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
         value: /run/containerd/containerd.sock
       - name: CONTAINERD_NAMESPACE
@@ -285,7 +256,7 @@ spec:
         name: home-ii
       - mountPath: /var/run/host
         name: host
-      - name: var-run-containerd-containerd-sock
+      - name: run-containerd-containerd-sock
         mountPath: /run/containerd/containerd.sock
     extraVolumes:
       - name: home-ii
@@ -294,12 +265,13 @@ spec:
       - hostPath:
           path: /
         name: host
-      - name: var-run-containerd-containerd-sock
+      - name: run-containerd-containerd-sock
         hostPath:
           path: /run/containerd/containerd.sock
     image:
       repository: registry.gitlab.com/humacs/humacs/ii
-      tag: 2021.05.14
+      tag: latest
+      pullPolicy: Always
     options:
       gitEmail: ${GIT_AUTHOR_EMAIL}
       gitName: ${GIT_AUTHOR_NAME}
@@ -376,8 +348,460 @@ envsubst < prow.yaml | kubectl apply -f -
 helmrelease.helm.fluxcd.io/prow created
 #+end_example
 
+** Distribution
+*** Install Distribution (with fs)
+
+Create basic auth htpasswd:
+#+begin_src bash :results silent
+kubectl -n distribution create secret generic distribution-auth --from-literal=htpasswd="$(htpasswd -Bbn distribution Distritest1234!)"
+#+end_src
+
+Configure the Distribution deployment:
+#+begin_src yaml :tangle distribution-fs.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: distribution
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: distribution-config
+data:
+  config.yml: |
+    version: 0.1
+    log:
+      accesslog:
+        disabled: false
+      level: debug
+      fields:
+        service: registry
+        environment: development
+      hooks:
+        - type: mail
+          disabled: true
+          levels:
+            - panic
+          options:
+            smtp:
+              addr: mail.example.com:25
+              username: mailuser
+              password: password
+              insecure: true
+            from: sender@example.com
+            to:
+              - errors@example.com
+    auth:
+        htpasswd:
+            realm: basic-realm
+            path: /etc/docker/registry/htpasswd
+    storage:
+        delete:
+          enabled: true
+        cache:
+            blobdescriptor: redis
+        filesystem:
+            rootdirectory: /var/lib/registry
+        maintenance:
+            uploadpurging:
+                enabled: false
+    http:
+        addr: :5000
+        secret: asecretforlocaldevelopment
+        debug:
+            addr: :5001
+            prometheus:
+                enabled: true
+                path: /metrics
+        headers:
+            X-Content-Type-Options: [nosniff]
+    redis:
+      addr: localhost:6379
+      pool:
+        maxidle: 16
+        maxactive: 64
+        idletimeout: 300s
+      dialtimeout: 10ms
+      readtimeout: 10ms
+      writetimeout: 10ms
+    notifications:
+        events:
+            includereferences: true
+        endpoints:
+            - name: local-5003
+              url: http://localhost:5003/callback
+              headers:
+                 Authorization: [Bearer <an example token>]
+              timeout: 1s
+              threshold: 10
+              backoff: 1s
+              disabled: true
+            - name: local-8083
+              url: http://localhost:8083/callback
+              timeout: 1s
+              threshold: 10
+              backoff: 1s
+              disabled: true
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    proxy:
+      remoteurl: https://k8s.gcr.io
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: distribution-data
+  namespace: distribution
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distribution
+  namespace: distribution
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: distribution
+  template:
+    metadata:
+      labels:
+        app: distribution
+    spec:
+      containers:
+      - name: distribution
+        image: docker.io/registry:2
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 10m
+            memory: 30Mi
+          requests:
+            cpu: 10m
+            memory: 30Mi
+        ports:
+          - containerPort: 5000
+        env:
+          - name: TZ
+            value: "Pacific/Auckland"
+        volumeMounts:
+          - name: distribution-data
+            mountPath: /var/lib/registry
+          - name: distribution-config
+            mountPath: /etc/docker/registry/config.yml
+            subPath: config.yml
+          - name: distribution-auth
+            mountPath: /etc/docker/registry/htpasswd
+            subPath: htpasswd
+        readinessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 1
+          periodSeconds: 20
+      volumes:
+        - name: distribution-data
+          persistentVolumeClaim:
+            claimName: distribution-data
+        - name: distribution-config
+          configMap:
+            name: distribution-config
+        - name: distribution-auth
+          secret:
+            secretName: distribution-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: distribution
+  namespace: distribution
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: distribution
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: distribution
+  namespace: distribution
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  tls:
+    - hosts:
+      - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      secretName: letsencrypt-prod
+  rules:
+  - host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: distribution
+          servicePort: 5000
+#+end_src
+
+Install a basic installation of Distribution:
+#+begin_src bash :results silent
+envsubst < distribution-fs.yaml | kubectl -n distribution apply -f -
+#+end_src
+
+Restart the deployment rollout if needed:
+#+BEGIN_SRC bash :results silent
+kubectl -n distribution rollout restart deployment/distribution
+#+END_SRC
+
+Log into the registry:
+#+begin_src bash :results silent
+echo Distritest1234! | docker login registry.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
+#+end_src
+
+** Envoy
+*** envoy-config.yaml
+#+BEGIN_SRC yaml :tangle ./envoy-config.yaml
+node:
+  id: web_service
+  cluster: web_service
+
+dynamic_resources:
+  lds_config:
+    path: /var/lib/envoy/lds.yaml
+
+static_resources:
+  clusters:
+  - name: web_service
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: web_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: k8s.io
+                port_value: 443
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9003
+#+END_SRC
+
+*** envoy-lds.yaml
+#+BEGIN_SRC yaml :tangle ./envoy-lds.yaml
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 10000
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        stat_prefix: ingress_http
+        route_config:
+          name: local_route
+          virtual_hosts:
+          - name: local_service
+            domains:
+            - "*"
+            routes:
+            - match:
+                prefix: "/"
+              route:
+                cluster: web_service
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                local reg1 = "k8s.gcr.io"
+                local reg2 = "registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+                local reg2WithIP = "192.168.0.18"
+                function envoy_on_request(request_handle)
+                  local reg = reg1
+                  remoteAddr = request_handle:headers():get("x-real-ip")
+                  if remoteAddr == reg2WithIP then
+                    request_handle:logInfo("remoteAddr: "..reg2WithIP)
+                    reg = reg2
+                  end
+                  request_handle:logInfo("REG: "..reg)
+                  request_handle:logInfo("REMOTEADDR: "..remoteAddr)
+                  request_handle:logInfo("Hello")
+                  request_handle:logInfo("My friend")
+                  if request_handle:headers():get(":method") == "GET" then
+                    request_handle:respond(
+                      {
+                        [":status"] = "302",
+                        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
+                        ["Content-Type"] = "text/html; charset=utf-8",
+                        [":authority"] = "web_service"
+                      },
+                      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+                  end
+                end
+          - name: envoy.filters.http.router
+            typed_config: {}
+#+END_SRC
+
+*** Apply configuration
+#+BEGIN_SRC shell :results silent
+kubectl -n registry-k8s-io-envoy create configmap envoy-config --from-file=envoy\.yaml=envoy-config.yaml --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n registry-k8s-io-envoy create configmap envoy-config-lds --from-file=lds\.yaml=envoy-lds.yaml --dry-run=client -o yaml | kubectl apply -f -
+#+END_SRC
+
+*** Deploying Envoy
+#+BEGIN_SRC yaml :tangle ./envoy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: registry-k8s-io-envoy
+  name: registry-k8s-io-envoy
+  namespace: registry-k8s-io-envoy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry-k8s-io-envoy
+  template:
+    metadata:
+      labels:
+        app: registry-k8s-io-envoy
+    spec:
+      containers:
+      - name: envoy
+        command:
+        - /usr/local/bin/envoy
+        - -c
+        - /etc/envoy.yaml
+        - -l
+        - debug
+        resources:
+          limits:
+            cpu: 10m
+            memory: 30Mi
+          requests:
+            cpu: 10m
+            memory: 30Mi
+        image: envoyproxy/envoy:v1.18.2
+        volumeMounts:
+          - name: envoy-config
+            mountPath: /etc/envoy.yaml
+            subPath: envoy.yaml
+          - name: envoy-config-lds
+            mountPath: /var/lib/envoy/
+        ports:
+          - name: http
+            containerPort: 10000
+      volumes:
+      - name: envoy-config
+        configMap:
+          name: envoy-config
+      - name: envoy-config-lds
+        configMap:
+          name: envoy-config-lds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: registry-k8s-io-envoy
+  name: registry-k8s-io-envoy
+  namespace: registry-k8s-io-envoy
+spec:
+  ports:
+  - name: registry-k8s-io
+    port: 10000
+    protocol: TCP
+    targetPort: 10000
+  - name: registry-k8s-io-admin
+    port: 9003
+    protocol: TCP
+    targetPort: 9003
+  selector:
+    app: registry-k8s-io-envoy
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: registry-k8s-io-envoy
+  namespace: registry-k8s-io-envoy
+spec:
+  rules:
+  - host: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    http:
+      paths:
+      - backend:
+          serviceName: registry-k8s-io-envoy
+          servicePort: 10000
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    secretName: letsencrypt-prod
+#+END_SRC
+
+Deploy Envoy
+#+BEGIN_SRC shell :results silent
+envsubst < envoy.yaml | kubectl apply -f -
+#+END_SRC
+
+Restart Envoy
+#+BEGIN_SRC shell :results silent
+kubectl -n registry-k8s-io-envoy rollout restart deployment/registry-k8s-io-envoy
+#+END_SRC
+
+Autoscale Envoy
+#+BEGIN_SRC shell :results silent
+kubectl -n registry-k8s-io-envoy autoscale deployment/registry-k8s-io-envoy --max=30
+#+END_SRC
+
+Delete Envoy
+#+BEGIN_SRC shell :results silent
+kubectl delete -f envoy.yaml
+#+END_SRC
+
 * SSH key forward
 #+BEGIN_SRC tmate :window ssh-key-forward
 NODE_NAME=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.spec.nodeName}')
 gcloud compute ssh --ssh-flag="-aT" $NODE_NAME
+#+END_SRC
+
+* Teardown
+** Delete all the things in cluster
+#+BEGIN_SRC shell :results silent
+kubectl -n default delete -f humacs.yaml
+kubectl delete -f nginx-ingress.yaml
+#+END_SRC
+
+** Destroy the cluster
+#+BEGIN_SRC tmate :window ii-sandbox-terraform :dir .
+cd clusters/projects/k8s-infra-ii-sandbox-${SHARINGIO_PAIR_NAME}
+terraform destroy
 #+END_SRC

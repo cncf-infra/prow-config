@@ -1,0 +1,202 @@
+
+
+# Configure the Distribution deployment:
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: distribution
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: distribution-config
+data:
+  config.yml: |
+    version: 0.1
+    log:
+      accesslog:
+        disabled: false
+      level: debug
+      fields:
+        service: registry
+        environment: development
+      hooks:
+        - type: mail
+          disabled: true
+          levels:
+            - panic
+          options:
+            smtp:
+              addr: mail.example.com:25
+              username: mailuser
+              password: password
+              insecure: true
+            from: sender@example.com
+            to:
+              - errors@example.com
+    auth:
+        htpasswd:
+            realm: basic-realm
+            path: /etc/docker/registry/htpasswd
+    storage:
+        delete:
+          enabled: true
+        cache:
+            blobdescriptor: redis
+        filesystem:
+            rootdirectory: /var/lib/registry
+        maintenance:
+            uploadpurging:
+                enabled: false
+    http:
+        addr: :5000
+        secret: asecretforlocaldevelopment
+        debug:
+            addr: :5001
+            prometheus:
+                enabled: true
+                path: /metrics
+        headers:
+            X-Content-Type-Options: [nosniff]
+    redis:
+      addr: localhost:6379
+      pool:
+        maxidle: 16
+        maxactive: 64
+        idletimeout: 300s
+      dialtimeout: 10ms
+      readtimeout: 10ms
+      writetimeout: 10ms
+    notifications:
+        events:
+            includereferences: true
+        endpoints:
+            - name: local-5003
+              url: http://localhost:5003/callback
+              headers:
+                 Authorization: [Bearer <an example token>]
+              timeout: 1s
+              threshold: 10
+              backoff: 1s
+              disabled: true
+            - name: local-8083
+              url: http://localhost:8083/callback
+              timeout: 1s
+              threshold: 10
+              backoff: 1s
+              disabled: true
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    proxy:
+      remoteurl: https://k8s.gcr.io
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: distribution-data
+  namespace: distribution
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distribution
+  namespace: distribution
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: distribution
+  template:
+    metadata:
+      labels:
+        app: distribution
+    spec:
+      containers:
+      - name: distribution
+        image: docker.io/registry:2
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 10m
+            memory: 30Mi
+          requests:
+            cpu: 10m
+            memory: 30Mi
+        ports:
+          - containerPort: 5000
+        env:
+          - name: TZ
+            value: "Pacific/Auckland"
+        volumeMounts:
+          - name: distribution-data
+            mountPath: /var/lib/registry
+          - name: distribution-config
+            mountPath: /etc/docker/registry/config.yml
+            subPath: config.yml
+          - name: distribution-auth
+            mountPath: /etc/docker/registry/htpasswd
+            subPath: htpasswd
+        readinessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 1
+          periodSeconds: 20
+      volumes:
+        - name: distribution-data
+          persistentVolumeClaim:
+            claimName: distribution-data
+        - name: distribution-config
+          configMap:
+            name: distribution-config
+        - name: distribution-auth
+          secret:
+            secretName: distribution-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: distribution
+  namespace: distribution
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: distribution
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: distribution
+  namespace: distribution
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  tls:
+    - hosts:
+      - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      secretName: letsencrypt-prod
+  rules:
+  - host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: distribution
+          servicePort: 5000

@@ -1,0 +1,58 @@
+# envoy-lds.yaml
+
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 10000
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        stat_prefix: ingress_http
+        route_config:
+          name: local_route
+          virtual_hosts:
+          - name: local_service
+            domains:
+            - "*"
+            routes:
+            - match:
+                prefix: "/"
+              route:
+                cluster: web_service
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                local reg1 = "k8s.gcr.io"
+                local reg2 = "registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+                local reg2WithIP = "192.168.0.18"
+                function envoy_on_request(request_handle)
+                  local reg = reg1
+                  remoteAddr = request_handle:headers():get("x-real-ip")
+                  if remoteAddr == reg2WithIP then
+                    request_handle:logInfo("remoteAddr: "..reg2WithIP)
+                    reg = reg2
+                  end
+                  request_handle:logInfo("REG: "..reg)
+                  request_handle:logInfo("REMOTEADDR: "..remoteAddr)
+                  request_handle:logInfo("Hello")
+                  request_handle:logInfo("My friend")
+                  if request_handle:headers():get(":method") == "GET" then
+                    request_handle:respond(
+                      {
+                        [":status"] = "302",
+                        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
+                        ["Content-Type"] = "text/html; charset=utf-8",
+                        [":authority"] = "web_service"
+                      },
+                      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+                  end
+                end
+          - name: envoy.filters.http.router
+            typed_config: {}

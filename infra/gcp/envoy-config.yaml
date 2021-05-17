@@ -1,0 +1,31 @@
+# envoy-config.yaml
+
+node:
+  id: web_service
+  cluster: web_service
+
+dynamic_resources:
+  lds_config:
+    path: /var/lib/envoy/lds.yaml
+
+static_resources:
+  clusters:
+  - name: web_service
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: web_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: k8s.io
+                port_value: 443
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9003

@@ -11,3 +11,32 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-prod
   secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: distribution
+spec:
+  commonName: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: registry-k8s-io-envoy
+spec:
+  commonName: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod

@@ -19,7 +19,7 @@ spec:
   chart:
     git: https://github.com/humacs/humacs
     path: chart/humacs
-    ref: eaf562e067faa086d3165aba659fa52b727662d8
+    ref: 79b33fda47287027cb639496d1d05da60f9df745
   releaseName: humacs
   values:
     initContainers:
@@ -28,14 +28,12 @@ spec:
         command:
           - sh
           - -c
-          - chown 1000:1000 -R /home/ii && chown 1000 /var/run/docker.sock /run/containerd/containerd.sock
-        extraVolumeMounts:
+          - chown 1000:1000 -R /home/ii && chown 1000 /run/containerd/containerd.sock
+        volumeMounts:
           - mountPath: /home/ii
             name: home-ii
-        extraVolumes:
-          - name: home-ii
-            persistentVolumeClaim:
-              claimName: humacs-home-ii
+          - name: run-containerd-containerd-sock
+            mountPath: /run/containerd/containerd.sock
     extraEnvVars:
       - name: SHARINGIO_PAIR_USER
         value: ${SHARINGIO_PAIR_USER}
@@ -46,17 +44,23 @@ spec:
       - name: REINIT_HOME_FOLDER
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
-        value: prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
-        value: unix:///var/run/containerd/containerd.sock
+        value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
         value: /run/containerd/containerd.sock
+      - name: CONTAINERD_NAMESPACE
+        value: k8s.io
+      - name: K8S_NODE
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
     extraVolumeMounts:
       - mountPath: /home/ii
         name: home-ii
       - mountPath: /var/run/host
         name: host
-      - name: var-run-containerd-containerd-sock
+      - name: run-containerd-containerd-sock
         mountPath: /run/containerd/containerd.sock
     extraVolumes:
       - name: home-ii
@@ -65,12 +69,13 @@ spec:
       - hostPath:
           path: /
         name: host
-      - name: var-run-containerd-containerd-sock
+      - name: run-containerd-containerd-sock
         hostPath:
           path: /run/containerd/containerd.sock
     image:
       repository: registry.gitlab.com/humacs/humacs/ii
-      tag: 2021.05.14
+      tag: latest
+      pullPolicy: Always
     options:
       gitEmail: ${GIT_AUTHOR_EMAIL}
       gitName: ${GIT_AUTHOR_NAME}

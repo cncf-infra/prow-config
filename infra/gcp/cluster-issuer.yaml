@@ -6,7 +6,7 @@ metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    email: caleb@ii.coop
+    email: ${GIT_AUTHOR_EMAIL}
     privateKeySecretRef:
       name: letsencrypt-prod
     server: https://acme-v02.api.letsencrypt.org/directory
@@ -17,3 +17,6 @@ spec:
       selector:
         dnsNames:
         - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
