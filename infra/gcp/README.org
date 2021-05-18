@@ -540,6 +540,40 @@ kubectl -n prow \
 kubectl -n prow rollout restart $(kubectl -n prow get deployments -o=jsonpath='{range .items[*]}{.kind}/{.metadata.name} {end}')
 #+end_src
 
+** Run Prow workloads on the GKE cluster from a Pair instance's Prow
+Get gencred
+#+BEGIN_SRC shell :results silent :dir (concat (getenv "HOME") "/kubernetes/test-infra")
+go install ./gencred
+#+END_SRC
+
+Generate a Kubeconfig for use in Prow
+#+BEGIN_SRC shell
+set -x
+CRED_NEW_CONTEXT=default
+CRED_EXISTING_CONTEXT=gke_k8s-infra-ii-sandbox_us-central1_ii-sandbox-${SHARINGIO_PAIR_NAME}
+CRED_SERVICEACCOUNT=humacs
+CRED_OUTPUT=/tmp/prow-gke-humacs-kubeconfig-admin
+gencred \
+    -n $CRED_NEW_CONTEXT \
+    --context $CRED_EXISTING_CONTEXT \
+    -s humacs \
+    --overwrite \
+    -o $CRED_OUTPUT
+ls -alh $CRED_OUTPUT
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+-rw-r--r-- 1 ii ii 2.8K May 18 14:06 /tmp/prow-gke-humacs-kubeconfig-admin
+#+end_example
+
+TODO: Patch existing Prow HelmRelease
+
+Create Kubeconfig secret for GKE cluster
+#+begin_src shell :results silent
+kubectl -n prow-${SHARINGIO_PAIR_NAME} create secret generic kubeconfig-gke --from-file=config=/tmp/prow-gke-humacs-kubeconfig-admin --dry-run=client -o yaml | kubectl --context in-cluster apply -f -
+#+end_src
+
 ** Distribution
 *** Install Distribution (with fs)
 
@@ -987,7 +1021,7 @@ gcloud compute ssh --ssh-flag="-aT" $NODE_NAME
 
 * Teardown
 ** Delete all the things in cluster
-#+BEGIN_SRC shell :results silent
+#+BEGIN_SRC shell :results silent :async yes
 kubectl -n default delete -f humacs.yaml
 kubectl delete -f nginx-ingress.yaml
 #+END_SRC

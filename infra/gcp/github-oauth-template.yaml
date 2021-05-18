@@ -1,0 +1,7 @@
+# Create the OAuth
+
+
+client_id: ${OAUTH_CLIENT_ID}
+client_secret: ${OAUTH_CLIENT_SECRET}
+redirect_url: https://prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}/github-login/redirect
+final_redirect_url: https://prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}/pr
