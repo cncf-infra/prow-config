@@ -121,7 +121,7 @@ envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-${S
 helm template prow-${SHARINGIO_PAIR_NAME} \
     -n prow-${SHARINGIO_PAIR_NAME} \
     -f <(envsubst < <(cat $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml | yq e '.spec.values' -P -)) \
-    ~/prow-config/charts/prow/ \
+    $GIT_ROOT/charts/prow/ \
       > $FOLDER/prow-rendered-${SHARINGIO_PAIR_NAME}.yaml
 
 kubectl \
