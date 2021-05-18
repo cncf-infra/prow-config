@@ -1,0 +1,24 @@
+# Prow Plugins
+
+
+plugins:
+  "${SHARINGIO_PAIR_USER}/*":
+    plugins:
+      - approve
+      - assign
+      - cat
+      - dog
+      - goose
+      - hold
+      - label
+      - lgtm
+      - lifecycle
+      - owners-label
+      - pony
+      - shrug
+      - size
+      - skip
+      - trigger
+      - verify-owners
+      - wip
+      - yuks

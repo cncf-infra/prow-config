@@ -259,7 +259,7 @@ kubectl -n prow-${SHARINGIO_PAIR_NAME} logs -l app.kubernetes.io/name=prow -f --
 #+END_SRC
 
 Get gencred
-#+BEGIN_SRC shell :results silent :dir (concat (getenv "HOME") "/test-infra")
+#+BEGIN_SRC shell :results silent :dir (concat (getenv "HOME") "/kubernetes/test-infra")
 go install ./gencred
 #+END_SRC
 

@@ -9,7 +9,7 @@ spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
-    ref: a3797509135a7e11abe1225b6cff6c34cfa0e4b3
+    ref: 89fdc661d4ad1b7f5449b5a4923d0396e0a9c38e
   releaseName: prow
   values:
     podNamespace: prow-workloads
@@ -21,6 +21,8 @@ spec:
         name: prow-github-hmac
       cookie:
         name: prow-github-cookie
+      oauthConfig:
+        name: prow-github-oauth-config
 
     ingress:
       certmanager:
