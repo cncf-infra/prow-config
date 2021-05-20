@@ -20,3 +20,4 @@ spec:
         - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}

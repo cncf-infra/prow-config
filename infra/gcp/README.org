@@ -145,6 +145,7 @@ spec:
         - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 #+END_SRC
 
 #+BEGIN_SRC yaml :tangle cert.yaml
@@ -186,6 +187,20 @@ spec:
   dnsNames:
   - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: artifactserver
+spec:
+  commonName: artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -243,7 +258,7 @@ spec:
       - name: REINIT_HOME_FOLDER
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
-        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        value: ${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
         value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
@@ -295,9 +310,14 @@ envsubst < humacs.yaml | kubectl -n default apply -f -
 
 #+RESULTS:
 #+begin_example
-persistentvolumeclaim/humacs-home-ii created
-helmrelease.helm.fluxcd.io/humacs created
+persistentvolumeclaim/humacs-home-ii unchanged
+helmrelease.helm.fluxcd.io/humacs configured
 #+end_example
+
+Get the tmate session
+#+BEGIN_SRC shell :results silent
+kubectl -n default exec -it humacs-0 -- tmate -S /tmp/ii.default.target.iisocket display -p "#{tmate_ssh} # #{tmate_web} $(date) #{client_tty}@#{host}"
+#+END_SRC
 
 ** Prow
 #+BEGIN_SRC yaml :tangle prow.yaml
@@ -796,7 +816,7 @@ kubectl -n distribution rollout restart deployment/distribution
 
 Log into the registry:
 #+begin_src bash :results silent
-echo Distritest1234! | docker login registry.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
+echo Distritest1234! | docker login registry.ii-sandbox.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
 #+end_src
 
 ** Envoy
@@ -866,7 +886,7 @@ resources:
               inline_code: |
                 local reg1 = "k8s.gcr.io"
                 local reg2 = "registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
-                local reg2WithIP = "${SHARINGIO_PAIR_LOAD_BALANCER_IP}"
+                local reg2WithIP = "10.40.2.14"
                 function envoy_on_request(request_handle)
                   local reg = reg1
                   remoteAddr = request_handle:headers():get("x-real-ip")
@@ -876,8 +896,6 @@ resources:
                   end
                   request_handle:logInfo("REG: "..reg)
                   request_handle:logInfo("REMOTEADDR: "..remoteAddr)
-                  request_handle:logInfo("Hello")
-                  request_handle:logInfo("My friend")
                   if request_handle:headers():get(":method") == "GET" then
                     request_handle:respond(
                       {
@@ -1011,6 +1029,121 @@ kubectl -n registry-k8s-io-envoy autoscale deployment/registry-k8s-io-envoy --ma
 Delete Envoy
 #+BEGIN_SRC shell :results silent
 kubectl delete -f envoy.yaml
+#+END_SRC
+
+** ArtifactServer
+#+BEGIN_SRC yaml :tangle artifactserver.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: artifactserver
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artifactserver
+data:
+  config.yaml: |
+    backends:
+      local-distribution:
+        host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        pathPrefix: /
+        conditions:
+          headers:
+            # Humacs Pod ip on ii-sandbox GKE cluster
+            X-Real-Ip: 10.40.2.14
+      k8s.gcr.io:
+        host: k8s.gcr.io
+        pathPrefix: /
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artifactserver
+  namespace: artifactserver
+  labels:
+    app: artifactserver
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: artifactserver
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: artifactserver
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: artifactserver
+          image: justinsb/artifactserver:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+            limits:
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /_/healthz
+              port: 8080
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artifactserver
+  namespace: artifactserver
+  labels:
+    app: artifactserver
+spec:
+  selector:
+    app: artifactserver
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  name: artifactserver
+  namespace: artifactserver
+spec:
+  rules:
+  - host: artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    http:
+      paths:
+      - backend:
+          serviceName: artifactserver
+          servicePort: 8080
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    secretName: letsencrypt-prod
+#+END_SRC
+
+Install ArtifactServer
+#+BEGIN_SRC shell :results silent
+envsubst < artifactserver.yaml | kubectl apply -f -
+#+END_SRC
+
+#+BEGIN_SRC tmate :window logs
+kubectl -n artifactserver logs -l app=artifactserver -f --tail=100 --prefix
 #+END_SRC
 
 * SSH key forward

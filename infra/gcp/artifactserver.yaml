@@ -1,0 +1,104 @@
+# ArtifactServer
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: artifactserver
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artifactserver
+data:
+  config.yaml: |
+    backends:
+      k8s.gcr.io:
+        host: k8s.gcr.io
+        pathPrefix: /
+        conditions:
+          ip: ""
+      local-distribution:
+        host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        pathPrefix: /
+        conditions:
+          ip: 10.40.2.14
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artifactserver
+  namespace: artifactserver
+  labels:
+    app: artifactserver
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: artifactserver
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: artifactserver
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: artifactserver
+          image: justinsb/artifactserver:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+            limits:
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /_/healthz
+              port: 8080
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artifactserver
+  namespace: artifactserver
+  labels:
+    app: artifactserver
+spec:
+  selector:
+    app: artifactserver
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  name: artifactserver
+  namespace: artifactserver
+spec:
+  rules:
+  - host: artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    http:
+      paths:
+      - backend:
+          serviceName: artifactserver
+          servicePort: 8080
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    secretName: letsencrypt-prod

@@ -44,7 +44,7 @@ spec:
       - name: REINIT_HOME_FOLDER
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
-        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        value: ${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
         value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
