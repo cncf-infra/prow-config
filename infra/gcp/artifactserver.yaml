@@ -12,16 +12,16 @@ metadata:
 data:
   config.yaml: |
     backends:
-      k8s.gcr.io:
-        host: k8s.gcr.io
-        pathPrefix: /
-        conditions:
-          ip: ""
       local-distribution:
         host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         pathPrefix: /
         conditions:
-          ip: 10.40.2.14
+          headers:
+            # Humacs Pod ip on ii-sandbox GKE cluster
+            X-Real-Ip: 10.40.2.14
+      k8s.gcr.io:
+        host: k8s.gcr.io
+        pathPrefix: /
 ---
 apiVersion: apps/v1
 kind: Deployment

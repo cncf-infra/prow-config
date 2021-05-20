@@ -618,76 +618,33 @@ data:
     version: 0.1
     log:
       accesslog:
-        disabled: false
+        disabled: true
       level: debug
       fields:
         service: registry
         environment: development
-      hooks:
-        - type: mail
-          disabled: true
-          levels:
-            - panic
-          options:
-            smtp:
-              addr: mail.example.com:25
-              username: mailuser
-              password: password
-              insecure: true
-            from: sender@example.com
-            to:
-              - errors@example.com
     auth:
-        htpasswd:
-            realm: basic-realm
-            path: /etc/docker/registry/htpasswd
+      htpasswd:
+        realm: basic-realm
+        path: /etc/docker/registry/htpasswd
     storage:
-        delete:
-          enabled: true
-        cache:
-            blobdescriptor: redis
-        filesystem:
-            rootdirectory: /var/lib/registry
-        maintenance:
-            uploadpurging:
-                enabled: false
+      delete:
+        enabled: true
+      filesystem:
+        rootdirectory: /var/lib/registry
+      maintenance:
+        uploadpurging:
+          enabled: false
     http:
-        addr: :5000
-        secret: asecretforlocaldevelopment
-        debug:
-            addr: :5001
-            prometheus:
-                enabled: true
-                path: /metrics
+      addr: :5000
+      secret: registry-k8s-io-registry-k8s-io
+      debug:
+        addr: :5001
+        prometheus:
+          enabled: true
+          path: /metrics
         headers:
-            X-Content-Type-Options: [nosniff]
-    redis:
-      addr: localhost:6379
-      pool:
-        maxidle: 16
-        maxactive: 64
-        idletimeout: 300s
-      dialtimeout: 10ms
-      readtimeout: 10ms
-      writetimeout: 10ms
-    notifications:
-        events:
-            includereferences: true
-        endpoints:
-            - name: local-5003
-              url: http://localhost:5003/callback
-              headers:
-                 Authorization: [Bearer <an example token>]
-              timeout: 1s
-              threshold: 10
-              backoff: 1s
-              disabled: true
-            - name: local-8083
-              url: http://localhost:8083/callback
-              timeout: 1s
-              threshold: 10
-              backoff: 1s
-              disabled: true
+          X-Content-Type-Options: [nosniff]
     health:
       storagedriver:
         enabled: true
@@ -725,7 +682,7 @@ spec:
     spec:
       containers:
       - name: distribution
-        image: docker.io/registry:2
+        image: registry:2.7.1
         imagePullPolicy: IfNotPresent
         resources:
           limits:
@@ -803,6 +760,7 @@ spec:
           serviceName: distribution
           servicePort: 5000
 #+end_src
+TODO: ensure that the registry doesn't require authentication to pull from
 
 Install a basic installation of Distribution:
 #+begin_src bash :results silent
@@ -1144,6 +1102,36 @@ envsubst < artifactserver.yaml | kubectl apply -f -
 
 #+BEGIN_SRC tmate :window logs
 kubectl -n artifactserver logs -l app=artifactserver -f --tail=100 --prefix
+#+END_SRC
+
+** ArtifactsServer on Pair
+Configuration for ArtifactsServer
+#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
+backends:
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
+  local-distribution:
+    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    conditions:
+      headers:
+        # Humacs Pod ip on ii-sandbox GKE cluster
+        X-Real-Ip:
+          - 34.72.132.139
+  k8s.gcr.io:
+    host: k8s.gcr.io
+#+END_SRC
+
+Bring up ArtifactsServer based [[https://github.com/kubernetes/k8s.io/issues/2068][this PR]]
+#+BEGIN_SRC tmate :window artifactserver
+cd ~/kubernetes/k8s.io/artifactserver
+git remote add BobyMCbobs https://github.com/ii/k8s.io
+git fetch BobyMCbobs
+git checkout update-artifactserver-with-conditions-and-config-file
+echo "https://artifactserver.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+go run ./cmd/artifactserver --config=<(envsubst < /tmp/artifactserver.yaml)
 #+END_SRC
 
 * SSH key forward
