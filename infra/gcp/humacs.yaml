@@ -83,7 +83,7 @@ spec:
       gitName: ${GIT_AUTHOR_NAME}
       hostDockerSocket: true
       hostTmp: false
-      profile: ""
+      profile: "ii"
       repos:
         - https://github.com/cncf-infra/prow-config
         - https://github.com/kubernetes/test-infra
