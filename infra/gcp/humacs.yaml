@@ -19,7 +19,7 @@ spec:
   chart:
     git: https://github.com/humacs/humacs
     path: chart/humacs
-    ref: 79b33fda47287027cb639496d1d05da60f9df745
+    ref: 5878f1722291e08df707a6444d941eb146905405
   releaseName: humacs
   values:
     initContainers:
@@ -45,6 +45,8 @@ spec:
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
         value: ${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - name: SHARINGIO_PAIR_BASE_DNS_NAME_SVC_ING_RECONCILER_OVERRIDE
+        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
         value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
@@ -80,10 +82,11 @@ spec:
       gitEmail: ${GIT_AUTHOR_EMAIL}
       gitName: ${GIT_AUTHOR_NAME}
       hostDockerSocket: true
-      hostTmp: true
+      hostTmp: false
       profile: ""
       repos:
         - https://github.com/cncf-infra/prow-config
         - https://github.com/kubernetes/test-infra
         - https://github.com/kubernetes/k8s.io
+        - https://github.com/sharingio/.sharing.io
       timezone: Pacific/Auckland

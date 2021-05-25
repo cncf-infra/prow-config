@@ -18,7 +18,7 @@ data:
         conditions:
           headers:
             # Humacs Pod ip on ii-sandbox GKE cluster
-            X-Real-Ip: 10.40.2.14
+            X-Real-Ip: ${HUMACS_POD_IP}
       k8s.gcr.io:
         host: k8s.gcr.io
         pathPrefix: /

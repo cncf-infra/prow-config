@@ -54,3 +54,17 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-prod
   secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: default
+spec:
+  commonName: artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod

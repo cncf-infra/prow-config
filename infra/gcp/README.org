@@ -205,6 +205,20 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-prod
   secretName: letsencrypt-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+  namespace: default
+spec:
+  commonName: artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  dnsNames:
+  - artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: letsencrypt-prod
 #+END_SRC
 
 #+BEGIN_SRC shell :results silent
@@ -233,7 +247,7 @@ spec:
   chart:
     git: https://github.com/humacs/humacs
     path: chart/humacs
-    ref: 79b33fda47287027cb639496d1d05da60f9df745
+    ref: 5878f1722291e08df707a6444d941eb146905405
   releaseName: humacs
   values:
     initContainers:
@@ -259,6 +273,8 @@ spec:
         value: "true"
       - name: SHARINGIO_PAIR_BASE_DNS_NAME
         value: ${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - name: SHARINGIO_PAIR_BASE_DNS_NAME_SVC_ING_RECONCILER_OVERRIDE
+        value: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       - name: CONTAINER_RUNTIME_ENDPOINT
         value: unix:///run/containerd/containerd.sock
       - name: CONTAINER_ADDRESS
@@ -294,12 +310,13 @@ spec:
       gitEmail: ${GIT_AUTHOR_EMAIL}
       gitName: ${GIT_AUTHOR_NAME}
       hostDockerSocket: true
-      hostTmp: true
-      profile: ""
+      hostTmp: false
+      profile: "ii"
       repos:
         - https://github.com/cncf-infra/prow-config
         - https://github.com/kubernetes/test-infra
         - https://github.com/kubernetes/k8s.io
+        - https://github.com/sharingio/.sharing.io
       timezone: Pacific/Auckland
 #+END_SRC
 
@@ -623,10 +640,10 @@ data:
       fields:
         service: registry
         environment: development
-    auth:
-      htpasswd:
-        realm: basic-realm
-        path: /etc/docker/registry/htpasswd
+    # auth:
+    #   htpasswd:
+    #     realm: basic-realm
+    #     path: /etc/docker/registry/htpasswd
     storage:
       delete:
         enabled: true
@@ -843,8 +860,8 @@ resources:
               "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
               inline_code: |
                 local reg1 = "k8s.gcr.io"
-                local reg2 = "registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
-                local reg2WithIP = "10.40.2.14"
+                local reg2 = "registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+                local reg2WithIP = "${HUMACS_POD_IP}"
                 function envoy_on_request(request_handle)
                   local reg = reg1
                   remoteAddr = request_handle:headers():get("x-real-ip")
@@ -871,6 +888,8 @@ resources:
 
 *** Apply configuration
 #+BEGIN_SRC shell :results silent
+export HUMACS_POD_IP=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.status.podIP}')
+
 kubectl -n registry-k8s-io-envoy create configmap envoy-config --from-file=envoy\.yaml=envoy-config.yaml --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n registry-k8s-io-envoy create configmap envoy-config-lds --from-file=lds\.yaml=<(envsubst < envoy-lds.yaml) --dry-run=client -o yaml | kubectl apply -f -
 #+END_SRC
@@ -1009,7 +1028,7 @@ data:
         conditions:
           headers:
             # Humacs Pod ip on ii-sandbox GKE cluster
-            X-Real-Ip: 10.40.2.14
+            X-Real-Ip: ${HUMACS_POD_IP}
       k8s.gcr.io:
         host: k8s.gcr.io
         pathPrefix: /
@@ -1097,6 +1116,7 @@ spec:
 
 Install ArtifactServer
 #+BEGIN_SRC shell :results silent
+export HUMACS_POD_IP=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.status.podIP}')
 envsubst < artifactserver.yaml | kubectl apply -f -
 #+END_SRC
 
@@ -1119,13 +1139,15 @@ backends:
       headers:
         # Humacs Pod ip on ii-sandbox GKE cluster
         X-Real-Ip:
-          - 34.72.132.139
+          - ${HUMACS_POD_IP}
   k8s.gcr.io:
     host: k8s.gcr.io
 #+END_SRC
 
 Bring up ArtifactsServer based [[https://github.com/kubernetes/k8s.io/issues/2068][this PR]]
 #+BEGIN_SRC tmate :window artifactserver
+export HUMACS_POD_IP=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.status.podIP}')
+
 cd ~/kubernetes/k8s.io/artifactserver
 git remote add BobyMCbobs https://github.com/ii/k8s.io
 git fetch BobyMCbobs
@@ -1133,6 +1155,16 @@ git checkout update-artifactserver-with-conditions-and-config-file
 echo "https://artifactserver.${SHARINGIO_PAIR_BASE_DNS_NAME}"
 go run ./cmd/artifactserver --config=<(envsubst < /tmp/artifactserver.yaml)
 #+END_SRC
+
+#+BEGIN_SRC shell
+curl https://artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}/v2/
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+<a href="https://k8s.gcr.io/v2/">Found</a>.
+
+#+end_example
 
 * SSH key forward
 #+BEGIN_SRC tmate :window ssh-key-forward
