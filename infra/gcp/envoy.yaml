@@ -78,7 +78,7 @@ metadata:
   namespace: registry-k8s-io-envoy
 spec:
   rules:
-  - host: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - host: envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     http:
       paths:
       - backend:
@@ -88,5 +88,5 @@ spec:
         pathType: ImplementationSpecific
   tls:
   - hosts:
-    - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    - envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     secretName: letsencrypt-prod

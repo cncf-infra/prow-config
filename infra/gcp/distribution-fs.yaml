@@ -147,10 +147,10 @@ metadata:
 spec:
   tls:
     - hosts:
-      - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       secretName: letsencrypt-prod
   rules:
-  - host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     http:
       paths:
       - path: /

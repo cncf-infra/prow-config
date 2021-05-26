@@ -13,7 +13,7 @@ data:
   config.yaml: |
     backends:
       local-distribution:
-        host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         pathPrefix: /
         conditions:
           headers:

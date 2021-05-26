@@ -142,11 +142,12 @@ spec:
       selector:
         dnsNames:
         - prow.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-        - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-        - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-        - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - envoy-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - reveal-multiplex.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 #+END_SRC
 
 #+BEGIN_SRC yaml :tangle cert.yaml
@@ -170,9 +171,9 @@ metadata:
   name: letsencrypt-prod
   namespace: distribution
 spec:
-  commonName: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  commonName: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -184,24 +185,10 @@ metadata:
   name: letsencrypt-prod
   namespace: registry-k8s-io-envoy
 spec:
-  commonName: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  commonName: envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  issuerRef:
-    kind: ClusterIssuer
-    name: letsencrypt-prod
-  secretName: letsencrypt-prod
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: letsencrypt-prod
-  namespace: artifactserver
-spec:
-  commonName: artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  dnsNames:
-  - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - envoy-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -213,10 +200,10 @@ metadata:
   name: letsencrypt-prod
   namespace: default
 spec:
-  commonName: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
   - artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - reveal-multiplex.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -369,13 +356,13 @@ spec:
     ingress:
       enabled: true
       hosts:
-      - host: www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - host: demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         paths:
         - /
       realIPHeader: X-Real-Ip
       tls:
       - hosts:
-        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         secretName: letsencrypt-prod
     serveFolder: /home/ii/public_html
     vuejsHistoryMode: false
@@ -387,7 +374,7 @@ envsubst < go-http-server.yaml | kubectl apply -f -
 
 #+RESULTS:
 #+begin_example
-helmrelease.helm.fluxcd.io/public-html created
+helmrelease.helm.fluxcd.io/public-html configured
 #+end_example
 
 ** Prow
@@ -820,10 +807,10 @@ metadata:
 spec:
   tls:
     - hosts:
-      - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
       secretName: letsencrypt-prod
   rules:
-  - host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     http:
       paths:
       - path: /
@@ -845,7 +832,7 @@ kubectl -n distribution rollout restart deployment/distribution
 
 Log into the registry:
 #+begin_src bash :results silent
-echo Distritest1234! | docker login registry.ii-sandbox.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
+echo Distritest1234! | docker login distribution.ii-sandbox.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
 #+end_src
 
 ** Envoy
@@ -914,7 +901,7 @@ resources:
               "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
               inline_code: |
                 local reg1 = "k8s.gcr.io"
-                local reg2 = "registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+                local reg2 = "distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}"
                 local reg2WithIP = "${HUMACS_POD_IP}"
                 function envoy_on_request(request_handle)
                   local reg = reg1
@@ -1028,7 +1015,7 @@ metadata:
   namespace: registry-k8s-io-envoy
 spec:
   rules:
-  - host: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - host: envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     http:
       paths:
       - backend:
@@ -1038,7 +1025,7 @@ spec:
         pathType: ImplementationSpecific
   tls:
   - hosts:
-    - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    - envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     secretName: letsencrypt-prod
 #+END_SRC
 
@@ -1077,7 +1064,7 @@ data:
   config.yaml: |
     backends:
       local-distribution:
-        host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         pathPrefix: /
         conditions:
           headers:
@@ -1171,7 +1158,7 @@ spec:
 Install ArtifactServer
 #+BEGIN_SRC shell :results silent
 export HUMACS_POD_IP=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.status.podIP}')
-envsubst < artifactserver.yaml | kubectl apply -f -
+envsubst < artifactserver.yaml | kubectl delete -f -
 #+END_SRC
 
 #+BEGIN_SRC tmate :window logs
@@ -1188,7 +1175,7 @@ backends:
       paths:
         - /kops/
   local-distribution:
-    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     conditions:
       headers:
         # Humacs Pod ip on ii-sandbox GKE cluster

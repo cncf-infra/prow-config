@@ -18,9 +18,9 @@ metadata:
   name: letsencrypt-prod
   namespace: distribution
 spec:
-  commonName: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  commonName: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -32,24 +32,10 @@ metadata:
   name: letsencrypt-prod
   namespace: registry-k8s-io-envoy
 spec:
-  commonName: registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  commonName: envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
-  - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  issuerRef:
-    kind: ClusterIssuer
-    name: letsencrypt-prod
-  secretName: letsencrypt-prod
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: letsencrypt-prod
-  namespace: artifactserver
-spec:
-  commonName: artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  dnsNames:
-  - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - envoy.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - envoy-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -61,10 +47,10 @@ metadata:
   name: letsencrypt-prod
   namespace: default
 spec:
-  commonName: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
   - artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-  - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - reveal-multiplex.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod

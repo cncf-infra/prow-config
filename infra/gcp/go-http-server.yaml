@@ -29,13 +29,13 @@ spec:
     ingress:
       enabled: true
       hosts:
-      - host: www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+      - host: demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         paths:
         - /
       realIPHeader: X-Real-Ip
       tls:
       - hosts:
-        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - demo.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         secretName: letsencrypt-prod
     serveFolder: /home/ii/public_html
     vuejsHistoryMode: false

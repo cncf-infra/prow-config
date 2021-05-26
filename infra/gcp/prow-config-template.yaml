@@ -50,7 +50,7 @@ plank:
         bucket: s3://prow-logs
         path_strategy: explicit
       # secret must be set to RELEASE_NAME-s3-credentials
-      s3_credentials_secret: prow-s3-credentials
+      s3_credentials_secret: prow-${SHARINGIO_PAIR_NAME}-s3-credentials
       utility_images:
         clonerefs: gcr.io/k8s-prow/clonerefs:v20210504-af1ac03335
         entrypoint: gcr.io/k8s-prow/entrypoint:v20210504-af1ac03335
