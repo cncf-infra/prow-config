@@ -23,6 +23,27 @@ envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
 reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
 #+end_SRC
 
+* tmate session
+SSH
+#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
+tmate display -p "#{tmate_ssh_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
+#+end_SRC
+
+Web
+#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
+tmate display -p "#{tmate_web_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC text
+https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
+#+end_SRC
+
 * Envoy implementation
 * Envoy config (1/2)
 #+ATTR_REVEAL: :code_attribs data-line-numbers
@@ -46,7 +67,7 @@ resources:
 (partial configuration)
 
 * Envoy lua http filter (2/2)
-#+ATTR_REVEAL: :code_attribs data-line-numbers='1-3|4|1,5|6|2,3|7|8|10,12,13'
+#+ATTR_REVEAL: :code_attribs data-line-numbers='1-3|4|1,5|6|7|8|10,12,13'
 #+begin_src lua
 local reg1 = "k8s.gcr.io"
 local reg2 = "distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io"
@@ -66,13 +87,6 @@ end
 #+end_src
 
 (log lines ommited)
-
-* Envoy logs :noexport:
-Get Envoy logs:
-#+begin_src tmate :window logs
-kubectl -n registry-k8s-io-envoy \
-    logs -l app=registry-k8s-io-envoy --tail=10 -f
-#+end_src
 
 * See the response from Envoy
 Make a get request to determine which registry the request will be 302'd to:
@@ -132,11 +146,14 @@ The changes are still is progress as of this presentation.
 #+END_NOTES
 
 * Configuration for ArtifactServer
-#+ATTR_REVEAL: :code_attribs data-line-numbers='2-3|4-10|11-15'
+#+ATTR_REVEAL: :code_attribs data-line-numbers='1-6|7-13|14-15'
 #+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
 backends:
-  k8s.gcr.io:
-    host: k8s.gcr.io
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
   local-distribution:
     host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
     conditions:
@@ -144,11 +161,8 @@ backends:
         # Humacs Pod ip on ii-sandbox GKE cluster
         X-Real-Ip:
           - ${CONDITIONAL_IP}
-  kops:
-    host: kubeupv2.s3.amazonaws.com
-    conditions:
-      paths:
-        - /kops/
+  k8s.gcr.io:
+    host: k8s.gcr.io
 #+END_SRC
 (PoC)
 
@@ -188,7 +202,7 @@ echo "https://artifactserver.${SHARINGIO_PAIR_BASE_DNS_NAME}"
 go run ./cmd/artifactserver --config=<(envsubst < /tmp/artifactserver.yaml)
 #+END_SRC
 
-* Make a request
+* Make a request (1/2)
 #+BEGIN_SRC shell :results output verbatim code replace :wrap "SRC html"
 curl -s -i \
   https://artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
@@ -207,29 +221,27 @@ strict-transport-security: max-age=15724800; includeSubDomains
 
 #+end_SRC
 
-* ArtifactServer PR
-Please review [[https://github.com/kubernetes/k8s.io/issues/2068][kubernetes/k8s.io#2068]] 😎
-
-* tmate session
-SSH
-#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
-tmate display -p "#{tmate_ssh_ro}"
-#+end_src
+* Make a request (2/2)
+#+BEGIN_SRC shell :results output verbatim code replace :wrap "SRC html"
+curl -v -L \
+  https://artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/kops/
+#+END_SRC
 
 #+RESULTS:
 #+begin_SRC html
-ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
+404 page not found
 #+end_SRC
 
-Web
-#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
-tmate display -p "#{tmate_web_ro}"
+* ArtifactServer PR
+Please review [[https://github.com/kubernetes/k8s.io/issues/2068][kubernetes/k8s.io#2068]] 😎
+
+* End
+* Envoy logs :noexport:
+Get Envoy logs:
+#+begin_src tmate :window logs
+kubectl -n registry-k8s-io-envoy \
+    logs -l app=registry-k8s-io-envoy --tail=10 -f
 #+end_src
-
-#+RESULTS:
-#+begin_SRC text
-https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
-#+end_SRC
 
 
 * Footnotes
