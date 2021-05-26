@@ -270,6 +270,12 @@ node node_modules/reveal-multiplex
 "/home/ii/public_html/index.html"
 #+end_src
 
+Ensure the presentation is in the web
+#+begin_src shell :results silent
+mv registry-k8s-io-demo_client.html public_html/index.html
+mv registry-k8s-io-demo.html public_html/presenter.html
+#+end_src
+
 ** Setup
 #+begin_src shell
 echo Distritest1234! | nerdctl login envoy.ii-sandbox.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
