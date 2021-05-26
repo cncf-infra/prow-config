@@ -1207,6 +1207,11 @@ curl https://artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}/v2/
 
 #+end_example
 
+* Copy presentation back from the Humacs GKE Pod
+#+BEGIN_SRC shell :results silent
+kubectl -n default cp -c humacs humacs-0:/home/ii/registry-k8s-io-demo.org $(git rev-parse --show-toplevel)/docs/presentations/k8s-infra-wg-2021-05-27/registry-k8s-io-demo.org
+#+END_SRC
+
 * SSH key forward
 #+BEGIN_SRC tmate :window ssh-key-forward
 NODE_NAME=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.spec.nodeName}')
