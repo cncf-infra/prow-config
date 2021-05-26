@@ -1,0 +1,396 @@
+#+TITLE: registry.k8s.io Demo
+#+AUTHOR: Caleb Woodbine <caleb@ii.coop>
+
+* registry.k8s.io Demo
+
+** tmate session
+SSH
+#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
+tmate display -p "#{tmate_ssh_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
+#+end_SRC
+
+Web
+#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
+tmate display -p "#{tmate_web_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC text
+https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
+#+end_SRC
+
+* Implementations
+- Envoy
+- ArtifactServer
+
+* Envoy implementation
+* Envoy lds config
+#+begin_src yaml
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                INLINE LUA
+#+end_src
+(partial configuration)
+
+* Envoy lua http filter (INLINE LUA)
+#+begin_src lua
+local reg1 = "k8s.gcr.io"
+local reg2 = "registry.ii-sandbox"
+local reg2WithIP = "127.0.0.1"
+function envoy_on_request(request_handle)
+  local reg = reg1
+  remoteAddr = request_handle:headers():get("x-real-ip")
+  if remoteAddr == reg2WithIP then; reg = reg2; end
+  if request_handle:headers():get(":method") == "GET" then
+    request_handle:respond(
+      {[":status"] = "302",
+        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
+        ["Content-Type"] = "text/html; charset=utf-8",
+        [":authority"] = "web_service"},
+      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+  end
+end
+#+end_src
+(log lines ommited)
+
+* Envoy logs :noexport:
+Get Envoy logs:
+#+begin_src tmate :window logs
+kubectl -n registry-k8s-io-envoy \
+    logs -l app=registry-k8s-io-envoy --tail=10 -f
+#+end_src
+
+* See the response from Envoy
+Make a get request to determine which registry the request will be 302'd to:
+#+begin_src shell :wrap "SRC html"
+curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_SRC
+
+* What you should expect to see
+From the Pairing environment in GKE
+#+begin_src html
+<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_src
+
+From your computer (or elsewhere)
+#+begin_src html
+<a href="https://k8s.gcr.io/v2/">302</a>.
+#+end_src
+
+* Extra notes for Envoy
+- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
+
+Pull a container image:
+#+begin_src tmate :window envoy-docker-pull
+docker pull \
+    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
+#+end_src
+
+* See more
+Implementation available at:
+- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
+
+* ArtifactServer implementation
+* Configuration for ArtifactServer
+#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
+backends:
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
+  local-distribution:
+    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    conditions:
+      headers:
+        # Humacs Pod ip on ii-sandbox GKE cluster
+        X-Real-Ip:
+          - ${HUMACS_POD_IP}
+  k8s.gcr.io:
+    host: k8s.gcr.io
+#+END_SRC
+#+TITLE: registry.k8s.io Demo
+#+AUTHOR: Caleb Woodbine <caleb@ii.coop>
+
+* registry.k8s.io Demo
+
+** tmate session
+SSH
+#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
+tmate display -p "#{tmate_ssh_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
+#+end_SRC
+
+Web
+#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
+tmate display -p "#{tmate_web_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC text
+https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
+#+end_SRC
+
+* Implementations
+- Envoy
+- ArtifactServer
+
+* Envoy implementation
+* Envoy lds config
+#+begin_src yaml
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                INLINE LUA
+#+end_src
+(partial configuration)
+
+* Envoy lua http filter (INLINE LUA)
+#+begin_src lua
+local reg1 = "k8s.gcr.io"
+local reg2 = "registry.ii-sandbox"
+local reg2WithIP = "127.0.0.1"
+function envoy_on_request(request_handle)
+  local reg = reg1
+  remoteAddr = request_handle:headers():get("x-real-ip")
+  if remoteAddr == reg2WithIP then; reg = reg2; end
+  if request_handle:headers():get(":method") == "GET" then
+    request_handle:respond(
+      {[":status"] = "302",
+        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
+        ["Content-Type"] = "text/html; charset=utf-8",
+        [":authority"] = "web_service"},
+      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+  end
+end
+#+end_src
+(log lines ommited)
+
+* Envoy logs :noexport:
+Get Envoy logs:
+#+begin_src tmate :window logs
+kubectl -n registry-k8s-io-envoy \
+    logs -l app=registry-k8s-io-envoy --tail=10 -f
+#+end_src
+
+* See the response from Envoy
+Make a get request to determine which registry the request will be 302'd to:
+#+begin_src shell :wrap "SRC html"
+curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_SRC
+
+* What you should expect to see
+From the Pairing environment in GKE
+#+begin_src html
+<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_src
+
+From your computer (or elsewhere)
+#+begin_src html
+<a href="https://k8s.gcr.io/v2/">302</a>.
+#+end_src
+
+* Extra notes for Envoy
+- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
+
+Pull a container image:
+#+begin_src tmate :window envoy-docker-pull
+docker pull \
+    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
+#+end_src
+
+* See more
+Implementation available at:
+- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
+
+* ArtifactServer implementation
+* Configuration for ArtifactServer
+#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
+backends:
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
+  local-distribution:
+    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    conditions:
+      headers:
+        # Humacs Pod ip on ii-sandbox GKE cluster
+        X-Real-Ip:
+          - ${HUMACS_POD_IP}
+  k8s.gcr.io:
+    host: k8s.gcr.io
+#+END_SRC
+#+TITLE: registry.k8s.io Demo
+#+AUTHOR: Caleb Woodbine <caleb@ii.coop>
+
+* registry.k8s.io Demo
+
+** tmate session
+SSH
+#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
+tmate display -p "#{tmate_ssh_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
+#+end_SRC
+
+Web
+#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
+tmate display -p "#{tmate_web_ro}"
+#+end_src
+
+#+RESULTS:
+#+begin_SRC text
+https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
+#+end_SRC
+
+* Implementations
+- Envoy
+- ArtifactServer
+
+* Envoy implementation
+* Envoy lds config
+#+begin_src yaml
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                INLINE LUA
+#+end_src
+(partial configuration)
+
+* Envoy lua http filter (INLINE LUA)
+#+begin_src lua
+local reg1 = "k8s.gcr.io"
+local reg2 = "registry.ii-sandbox"
+local reg2WithIP = "127.0.0.1"
+function envoy_on_request(request_handle)
+  local reg = reg1
+  remoteAddr = request_handle:headers():get("x-real-ip")
+  if remoteAddr == reg2WithIP then; reg = reg2; end
+  if request_handle:headers():get(":method") == "GET" then
+    request_handle:respond(
+      {[":status"] = "302",
+        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
+        ["Content-Type"] = "text/html; charset=utf-8",
+        [":authority"] = "web_service"},
+      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+  end
+end
+#+end_src
+(log lines ommited)
+
+* Envoy logs :noexport:
+Get Envoy logs:
+#+begin_src tmate :window logs
+kubectl -n registry-k8s-io-envoy \
+    logs -l app=registry-k8s-io-envoy --tail=10 -f
+#+end_src
+
+* See the response from Envoy
+Make a get request to determine which registry the request will be 302'd to:
+#+begin_src shell :wrap "SRC html"
+curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+end_src
+
+#+RESULTS:
+#+begin_SRC html
+<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_SRC
+
+* What you should expect to see
+From the Pairing environment in GKE
+#+begin_src html
+<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_src
+
+From your computer (or elsewhere)
+#+begin_src html
+<a href="https://k8s.gcr.io/v2/">302</a>.
+#+end_src
+
+* Extra notes for Envoy
+- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
+
+Pull a container image:
+#+begin_src tmate :window envoy-docker-pull
+docker pull \
+    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
+#+end_src
+
+* See more
+Implementation available at:
+- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
+
+* ArtifactServer implementation
+* Configuration for ArtifactServer
+#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
+backends:
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
+  local-distribution:
+    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    conditions:
+      headers:
+        # Humacs Pod ip on ii-sandbox GKE cluster
+        X-Real-Ip:
+          - ${HUMACS_POD_IP}
+  k8s.gcr.io:
+    host: k8s.gcr.io
+#+END_SRC

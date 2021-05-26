@@ -1,0 +1,41 @@
+# go-http-server
+
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: public-html
+  namespace: default
+spec:
+  chart:
+    git: https://gitlab.com/safesurfer/go-http-server
+    path: deployments/go-http-server
+    ref: 1.2.0
+  releaseName: public-html
+  values:
+    extraVolumeMounts:
+    - mountPath: /home/ii
+      name: humacs-home-ii
+    - mountPath: /var/run/host
+      name: host
+    extraVolumes:
+    - name: humacs-home-ii
+      persistentVolumeClaim:
+        claimName: humacs-home-ii
+    - hostPath:
+        path: /
+      name: host
+    image:
+      tag: 1.2.0
+    ingress:
+      enabled: true
+      hosts:
+      - host: www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        paths:
+        - /
+      realIPHeader: X-Real-Ip
+      tls:
+      - hosts:
+        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        secretName: letsencrypt-prod
+    serveFolder: /home/ii/public_html
+    vuejsHistoryMode: false
