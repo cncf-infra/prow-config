@@ -146,6 +146,7 @@ spec:
         - registry-k8s-io.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - registry-k8s-io-admin.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
         - artifacts.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
 #+END_SRC
 
 #+BEGIN_SRC yaml :tangle cert.yaml
@@ -212,9 +213,10 @@ metadata:
   name: letsencrypt-prod
   namespace: default
 spec:
-  commonName: artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  commonName: ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   dnsNames:
   - artifactserver.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+  - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-prod
@@ -335,6 +337,58 @@ Get the tmate session
 #+BEGIN_SRC shell :results silent
 kubectl -n default exec -it humacs-0 -- tmate -S /tmp/ii.default.target.iisocket display -p "#{tmate_ssh} # #{tmate_web} $(date) #{client_tty}@#{host}"
 #+END_SRC
+
+** go-http-server
+#+BEGIN_SRC yaml :tangle ./go-http-server.yaml
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: public-html
+  namespace: default
+spec:
+  chart:
+    git: https://gitlab.com/safesurfer/go-http-server
+    path: deployments/go-http-server
+    ref: 1.2.0
+  releaseName: public-html
+  values:
+    extraVolumeMounts:
+    - mountPath: /home/ii
+      name: humacs-home-ii
+    - mountPath: /var/run/host
+      name: host
+    extraVolumes:
+    - name: humacs-home-ii
+      persistentVolumeClaim:
+        claimName: humacs-home-ii
+    - hostPath:
+        path: /
+      name: host
+    image:
+      tag: 1.2.0
+    ingress:
+      enabled: true
+      hosts:
+      - host: www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        paths:
+        - /
+      realIPHeader: X-Real-Ip
+      tls:
+      - hosts:
+        - www.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+        secretName: letsencrypt-prod
+    serveFolder: /home/ii/public_html
+    vuejsHistoryMode: false
+#+END_SRC
+
+#+BEGIN_SRC shell
+envsubst < go-http-server.yaml | kubectl apply -f -
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+helmrelease.helm.fluxcd.io/public-html created
+#+end_example
 
 ** Prow
 #+BEGIN_SRC yaml :tangle prow.yaml
