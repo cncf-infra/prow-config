@@ -3,7 +3,214 @@
 
 * registry.k8s.io Demo
 
-** tmate session
+* Candidate implementations
+1. [[http://envoyproxy.io/][Envoy]]
+2. [[https://github.com/kubernetes/k8s.io/tree/main/artifactserver][ArtifactServer]]
+
+* The set up
+#+begin_src shell :wrap "SRC shell"
+kubectl get ingress -A \
+  -o=jsonpath='{range .items[*]}{.spec.rules[*].host}{"\n"}{end}' \
+  --sort-by='.spec.rules[*].host'
+#+end_src
+
+#+RESULTS:
+#+begin_SRC shell
+artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+demo.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+#+end_SRC
+
+* Envoy implementation
+* Envoy config (1/2)
+#+ATTR_REVEAL: :code_attribs data-line-numbers
+#+begin_src yaml
+resources:
+- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
+  name: listener_0
+  filter_chains:
+  - filters:
+      name: envoy.http_connection_manager
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.network
+                 .http_connection_manager.HttpConnectionManager
+        http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters
+                       .http.lua.v3.Lua
+              inline_code: INLINE LUA CODE
+#+end_src
+(partial configuration)
+
+* Envoy lua http filter (2/2)
+#+ATTR_REVEAL: :code_attribs data-line-numbers='1-3|4|1,5|6|2,3|7|8|10,12,13'
+#+begin_src lua
+local reg1 = "k8s.gcr.io"
+local reg2 = "distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io"
+local reg2WithIP = "127.0.0.1"
+function envoy_on_request(request_handle)
+  local reg = reg1
+  remoteAddr = request_handle:headers():get("x-real-ip")
+  if remoteAddr == reg2WithIP then; reg = reg2; end
+  if request_handle:headers():get(":method") == "GET" then
+    request_handle:respond(
+      { [":status"] = "302", [":authority"] = "web_service",
+        ["Content-Type"] = "text/html; charset=utf-8",
+        ["location"] = "https://"..reg..request_handle:headers():get(":path")}
+      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
+  end
+end
+#+end_src
+
+(log lines ommited)
+
+* Envoy logs :noexport:
+Get Envoy logs:
+#+begin_src tmate :window logs
+kubectl -n registry-k8s-io-envoy \
+    logs -l app=registry-k8s-io-envoy --tail=10 -f
+#+end_src
+
+* See the response from Envoy
+Make a get request to determine which registry the request will be 302'd to:
+
+#+NAME: response-from-gke
+#+begin_src shell :wrap "SRC html"
+curl -s -i \
+  https://envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+end_src
+
+* What you should expect to see
+From the Pairing environment in GKE
+#+RESULTS: response-from-gke
+#+begin_SRC html
+HTTP/2 302 
+date: Wed, 26 May 2021 07:41:13 GMT
+content-type: text/html; charset=utf-8
+content-length: 83
+location: https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+host: web_service
+strict-transport-security: max-age=15724800; includeSubDomains
+
+<a href="https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+end_SRC
+
+From your computer (or elsewhere)
+#+begin_src html
+HTTP/2 302 
+date: Wed, 26 May 2021 07:39:29 GMT
+content-type: text/html; charset=utf-8
+content-length: 42
+location: https://k8s.gcr.io/v2/
+host: web_service
+strict-transport-security: max-age=15724800; includeSubDomains
+
+<a href="https://k8s.gcr.io/v2/">302</a>.
+#+end_src
+
+* Pulling a container image
+Pull a container image:
+#+begin_src tmate :window envoy-docker-pull
+docker pull \
+    envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
+#+end_src
+
+* See more
+Implementation available at:
+
+[[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
+
+* ArtifactServer implementation
+#+BEGIN_NOTES
+Created by Justin Santa Barbara.
+
+I have a PR available which is to merge these changes.
+The changes are still is progress as of this presentation.
+#+END_NOTES
+
+* Configuration for ArtifactServer
+#+ATTR_REVEAL: :code_attribs data-line-numbers='2-3|4-10|11-15'
+#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
+backends:
+  k8s.gcr.io:
+    host: k8s.gcr.io
+  local-distribution:
+    host: distribution.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
+    conditions:
+      headers:
+        # Humacs Pod ip on ii-sandbox GKE cluster
+        X-Real-Ip:
+          - ${CONDITIONAL_IP}
+  kops:
+    host: kubeupv2.s3.amazonaws.com
+    conditions:
+      paths:
+        - /kops/
+#+END_SRC
+(PoC)
+
+* ArtifactServer logic
+#+ATTR_REVEAL: :code_attribs data-line-numbers='2-4|5-11|12-16'
+#+begin_src go
+for _, v := range s.Backends {
+	if backend == nil {
+		backend = v
+	}
+	for hk, h := range v.Conditions.Headers {
+		for _, hv := range h {
+			if r.Header.Get(hk) == hv {
+				backend = v
+			}
+		}
+	}
+	for _, p := range v.Conditions.Paths {
+		if r.URL.Path == p && p != "" {
+			backend = v
+		}
+	}
+}
+#+end_src
+(PoC)
+
+* Bring up ArtifactServer
+#+ATTR_REVEAL: :code_attribs data-line-numbers
+#+BEGIN_SRC tmate :window artifactserver
+export CONDITIONAL_IP=$(kubectl -n default get pod humacs-0 -o=jsonpath='{.status.podIP}')
+
+cd ~/kubernetes/k8s.io/artifactserver
+git remote add BobyMCbobs https://github.com/ii/k8s.io
+git fetch BobyMCbobs
+git checkout update-artifactserver-with-conditions-and-config-file
+echo "https://artifactserver.${SHARINGIO_PAIR_BASE_DNS_NAME}"
+go run ./cmd/artifactserver --config=<(envsubst < /tmp/artifactserver.yaml)
+#+END_SRC
+
+* Make a request
+#+BEGIN_SRC shell :results output verbatim code replace :wrap "SRC html"
+curl -s -i \
+  https://artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+END_SRC
+
+#+RESULTS:
+#+begin_SRC html
+HTTP/2 302 
+date: Wed, 26 May 2021 09:01:41 GMT
+content-type: text/html; charset=utf-8
+content-length: 86
+location: https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+strict-transport-security: max-age=15724800; includeSubDomains
+
+<a href="https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">Found</a>.
+
+#+end_SRC
+
+* ArtifactServer PR
+Please review [[https://github.com/kubernetes/k8s.io/issues/2068][kubernetes/k8s.io#2068]] 😎
+
+* tmate session
 SSH
 #+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
 tmate display -p "#{tmate_ssh_ro}"
@@ -24,373 +231,113 @@ tmate display -p "#{tmate_web_ro}"
 https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
 #+end_SRC
 
-* Implementations
-- Envoy
-- ArtifactServer
 
-* Envoy implementation
-* Envoy lds config
-#+begin_src yaml
-resources:
-- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
-  name: listener_0
-  filter_chains:
-  - filters:
-      name: envoy.http_connection_manager
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-        http_filters:
-          - name: envoy.filters.http.lua
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
-              inline_code: |
-                INLINE LUA
-#+end_src
-(partial configuration)
-
-* Envoy lua http filter (INLINE LUA)
-#+begin_src lua
-local reg1 = "k8s.gcr.io"
-local reg2 = "registry.ii-sandbox"
-local reg2WithIP = "127.0.0.1"
-function envoy_on_request(request_handle)
-  local reg = reg1
-  remoteAddr = request_handle:headers():get("x-real-ip")
-  if remoteAddr == reg2WithIP then; reg = reg2; end
-  if request_handle:headers():get(":method") == "GET" then
-    request_handle:respond(
-      {[":status"] = "302",
-        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
-        ["Content-Type"] = "text/html; charset=utf-8",
-        [":authority"] = "web_service"},
-      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
-  end
-end
-#+end_src
-(log lines ommited)
-
-* Envoy logs :noexport:
-Get Envoy logs:
-#+begin_src tmate :window logs
-kubectl -n registry-k8s-io-envoy \
-    logs -l app=registry-k8s-io-envoy --tail=10 -f
+* Footnotes
+#+begin_src shell :results silent :dir (concat (getenv "HOME") "/public_html/"))
+git clone https://github.com/hakimel/reveal.js
+cd public_html/reveal.js
+npm i
+npm run build
 #+end_src
 
-* See the response from Envoy
-Make a get request to determine which registry the request will be 302'd to:
-#+begin_src shell :wrap "SRC html"
-curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+#+begin_src tmate :window reveal-multiplex
+cd public_html/reveal.js
+npm install reveal-multiplex
+mkdir -p plugin/multiplex
+ln node_modules/reveal-multiplex/* plugin/multiplex/
+export SHARINGIO_PAIR_SET_HOSTNAME=reveal-multiplex
+node node_modules/reveal-multiplex
 #+end_src
 
-#+RESULTS:
-#+begin_SRC html
-<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
-#+end_SRC
-
-* What you should expect to see
-From the Pairing environment in GKE
-#+begin_src html
-<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
-#+end_src
-
-From your computer (or elsewhere)
-#+begin_src html
-<a href="https://k8s.gcr.io/v2/">302</a>.
-#+end_src
-
-* Extra notes for Envoy
-- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
-
-Pull a container image:
-#+begin_src tmate :window envoy-docker-pull
-docker pull \
-    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
-#+end_src
-
-* See more
-Implementation available at:
-- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
-
-* ArtifactServer implementation
-* Configuration for ArtifactServer
-#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
-backends:
-  kops:
-    host: kubeupv2.s3.amazonaws.com
-    conditions:
-      paths:
-        - /kops/
-  local-distribution:
-    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-    conditions:
-      headers:
-        # Humacs Pod ip on ii-sandbox GKE cluster
-        X-Real-Ip:
-          - ${HUMACS_POD_IP}
-  k8s.gcr.io:
-    host: k8s.gcr.io
+#+BEGIN_SRC elisp
+(org-export-to-file 're-reveal (concat (getenv "HOME") "/public_html/index.html"))
 #+END_SRC
-#+TITLE: registry.k8s.io Demo
-#+AUTHOR: Caleb Woodbine <caleb@ii.coop>
 
-* registry.k8s.io Demo
+#+RESULTS:
+#+begin_src elisp
+"/home/ii/public_html/index.html"
+#+end_src
 
-** tmate session
-SSH
-#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
-tmate display -p "#{tmate_ssh_ro}"
+** Setup
+#+begin_src shell
+echo Distritest1234! | nerdctl login envoy.ii-sandbox.$SHARINGIO_PAIR_BASE_DNS_NAME -u distribution --password-stdin
 #+end_src
 
 #+RESULTS:
-#+begin_SRC html
-ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
-#+end_SRC
+#+begin_example
+Login Succeeded
+#+end_example
 
-Web
-#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
-tmate display -p "#{tmate_web_ro}"
+#+begin_src shell :results silent
+cat << EOF >> $HOME/.bashrc
+alias docker="sudo --preserve-env /usr/local/go/bin/nerdctl"
+EOF
+#+end_src
+
+#+begin_src shell
+mv registry-k8s-io-demo_client.html public_html/index.html ; mv registry-k8s-io-demo.html public_html/presenter.html
 #+end_src
 
 #+RESULTS:
-#+begin_SRC text
-https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
-#+end_SRC
+#+begin_example
+#+end_example
 
-* Implementations
-- Envoy
-- ArtifactServer
-
-* Envoy implementation
-* Envoy lds config
-#+begin_src yaml
-resources:
-- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
-  name: listener_0
-  filter_chains:
-  - filters:
-      name: envoy.http_connection_manager
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-        http_filters:
-          - name: envoy.filters.http.lua
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
-              inline_code: |
-                INLINE LUA
-#+end_src
-(partial configuration)
-
-* Envoy lua http filter (INLINE LUA)
-#+begin_src lua
-local reg1 = "k8s.gcr.io"
-local reg2 = "registry.ii-sandbox"
-local reg2WithIP = "127.0.0.1"
-function envoy_on_request(request_handle)
-  local reg = reg1
-  remoteAddr = request_handle:headers():get("x-real-ip")
-  if remoteAddr == reg2WithIP then; reg = reg2; end
-  if request_handle:headers():get(":method") == "GET" then
-    request_handle:respond(
-      {[":status"] = "302",
-        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
-        ["Content-Type"] = "text/html; charset=utf-8",
-        [":authority"] = "web_service"},
-      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
-  end
-end
-#+end_src
-(log lines ommited)
-
-* Envoy logs :noexport:
-Get Envoy logs:
-#+begin_src tmate :window logs
-kubectl -n registry-k8s-io-envoy \
-    logs -l app=registry-k8s-io-envoy --tail=10 -f
-#+end_src
-
-* See the response from Envoy
-Make a get request to determine which registry the request will be 302'd to:
-#+begin_src shell :wrap "SRC html"
-curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+Obtain a token for reveal_multiplex
+#+begin_src shell :wrap "SRC json"
+curl -s https://reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/token
 #+end_src
 
 #+RESULTS:
-#+begin_SRC html
-<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+#+begin_SRC json
+{"secret":"16220212557349309458","socketId":"9e54e4f78719753d"}
 #+end_SRC
 
-* What you should expect to see
-From the Pairing environment in GKE
-#+begin_src html
-<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
-#+end_src
+** Local vars
+#+REVEAL_ROOT: ./reveal.js
+#+REVEAL_VERSION: 4
+#+NOREVEAL_DEFAULT_FRAG_STYLE: YY
+#+NOREVEAL_EXTRA_CSS: YY
+#+NOREVEAL_EXTRA_JS: YY
+#+REVEAL_HLEVEL: 2
+#+REVEAL_MARGIN: 0.1
+#+REVEAL_WIDTH: 1000
+#+REVEAL_HEIGHT: 600
+#+REVEAL_MAX_SCALE: 3.5
+#+REVEAL_MIN_SCALE: 0.2
+#+REVEAL_PLUGINS: (markdown notes highlight multiplex)
+#+REVEAL_SLIDE_NUMBER: ""
+#+REVEAL_SPEED: 1
+#+REVEAL_THEME: solarized
+#+REVEAL_THEME_OPTIONS: beige|black|blood|league|moon|night|serif|simple|sky|solarized|white
+#+REVEAL_TRANS: fade
+#+REVEAL_TRANS_OPTIONS: none|cube|fade|concave|convex|page|slide|zoom
+#+REVEAL_MULTIPLEX_ID: f8506c39ed886d88
+#+REVEAL_MULTIPLEX_SECRET: 16220179726581585993
+#+REVEAL_MULTIPLEX_URL: https://reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/
+#+REVEAL_MULTIPLEX_SOCKETIO_URL: https://reveal-multiplex.glitch.me/socket.io/socket.io.js
 
-From your computer (or elsewhere)
-#+begin_src html
-<a href="https://k8s.gcr.io/v2/">302</a>.
-#+end_src
+#+OPTIONS: num:nil
+#+OPTIONS: toc:nil
+#+OPTIONS: mathjax:Y
+#+OPTIONS: reveal_single_file:nil
+#+OPTIONS: reveal_control:t
+#+OPTIONS: reveal-progress:t
+#+OPTIONS: reveal_history:nil
+#+OPTIONS: reveal_center:t
+#+OPTIONS: reveal_rolling_links:nil
+#+OPTIONS: reveal_keyboard:t
+#+OPTIONS: reveal_overview:t
 
-* Extra notes for Envoy
-- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
+# Local Variables:
+# no-after-save-hook: (lambda nil (org-export-to-file 're-reveal (concat (getenv "HOME") "/public_html/index.html")))
+# End:
 
-Pull a container image:
-#+begin_src tmate :window envoy-docker-pull
-docker pull \
-    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
-#+end_src
-
-* See more
-Implementation available at:
-- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
-
-* ArtifactServer implementation
-* Configuration for ArtifactServer
-#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
-backends:
-  kops:
-    host: kubeupv2.s3.amazonaws.com
-    conditions:
-      paths:
-        - /kops/
-  local-distribution:
-    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-    conditions:
-      headers:
-        # Humacs Pod ip on ii-sandbox GKE cluster
-        X-Real-Ip:
-          - ${HUMACS_POD_IP}
-  k8s.gcr.io:
-    host: k8s.gcr.io
-#+END_SRC
-#+TITLE: registry.k8s.io Demo
-#+AUTHOR: Caleb Woodbine <caleb@ii.coop>
-
-* registry.k8s.io Demo
-
-** tmate session
-SSH
-#+begin_src shell :results output verbatim code replace :wrap "SRC html" :exports results
-tmate display -p "#{tmate_ssh_ro}"
+#+begin_src elisp
+(setq org-export-output-file-name "public_html/index")
+(org-re-reveal-export-to-html)
 #+end_src
 
 #+RESULTS:
-#+begin_SRC html
-ssh ro-pwdZYHbtbQpVRqckzqsapuywd@sgp1.tmate.io
-#+end_SRC
-
-Web
-#+begin_src shell :results output verbatim code replace :wrap "SRC text" :exports results
-tmate display -p "#{tmate_web_ro}"
+#+begin_src elisp
+"registry-k8s-io-demo.html"
 #+end_src
-
-#+RESULTS:
-#+begin_SRC text
-https://tmate.io/t/ro-pwdZYHbtbQpVRqckzqsapuywd
-#+end_SRC
-
-* Implementations
-- Envoy
-- ArtifactServer
-
-* Envoy implementation
-* Envoy lds config
-#+begin_src yaml
-resources:
-- "@type": type.googleapis.com/envoy.config.listener.v3.Listener
-  name: listener_0
-  filter_chains:
-  - filters:
-      name: envoy.http_connection_manager
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-        http_filters:
-          - name: envoy.filters.http.lua
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
-              inline_code: |
-                INLINE LUA
-#+end_src
-(partial configuration)
-
-* Envoy lua http filter (INLINE LUA)
-#+begin_src lua
-local reg1 = "k8s.gcr.io"
-local reg2 = "registry.ii-sandbox"
-local reg2WithIP = "127.0.0.1"
-function envoy_on_request(request_handle)
-  local reg = reg1
-  remoteAddr = request_handle:headers():get("x-real-ip")
-  if remoteAddr == reg2WithIP then; reg = reg2; end
-  if request_handle:headers():get(":method") == "GET" then
-    request_handle:respond(
-      {[":status"] = "302",
-        ["location"] = "https://"..reg..request_handle:headers():get(":path"),
-        ["Content-Type"] = "text/html; charset=utf-8",
-        [":authority"] = "web_service"},
-      '<a href="'.."https://"..reg..request_handle:headers():get(":path")..'">'.."302".."</a>.\n")
-  end
-end
-#+end_src
-(log lines ommited)
-
-* Envoy logs :noexport:
-Get Envoy logs:
-#+begin_src tmate :window logs
-kubectl -n registry-k8s-io-envoy \
-    logs -l app=registry-k8s-io-envoy --tail=10 -f
-#+end_src
-
-* See the response from Envoy
-Make a get request to determine which registry the request will be 302'd to:
-#+begin_src shell :wrap "SRC html"
-curl https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
-#+end_src
-
-#+RESULTS:
-#+begin_SRC html
-<a href="https://registry.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
-#+end_SRC
-
-* What you should expect to see
-From the Pairing environment in GKE
-#+begin_src html
-<a href="https://registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
-#+end_src
-
-From your computer (or elsewhere)
-#+begin_src html
-<a href="https://k8s.gcr.io/v2/">302</a>.
-#+end_src
-
-* Extra notes for Envoy
-- /registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/ is proxy caching /k8s.gcr.io/ to a local distribution instance.
-
-Pull a container image:
-#+begin_src tmate :window envoy-docker-pull
-docker pull \
-    registry-k8s-io.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
-#+end_src
-
-* See more
-Implementation available at:
-- [[https://ii.coop/blog/rerouting-container-registries-with-envoy/#the-implementation][ii.coop/blog/rerouting-container-registries-with-envoy]]
-
-* ArtifactServer implementation
-* Configuration for ArtifactServer
-#+BEGIN_SRC yaml :tangle /tmp/artifactserver.yaml
-backends:
-  kops:
-    host: kubeupv2.s3.amazonaws.com
-    conditions:
-      paths:
-        - /kops/
-  local-distribution:
-    host: registry.ii-sandbox.${SHARINGIO_PAIR_BASE_DNS_NAME}
-    conditions:
-      headers:
-        # Humacs Pod ip on ii-sandbox GKE cluster
-        X-Real-Ip:
-          - ${HUMACS_POD_IP}
-  k8s.gcr.io:
-    host: k8s.gcr.io
-#+END_SRC
