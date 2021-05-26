@@ -304,14 +304,14 @@ spec:
           path: /run/containerd/containerd.sock
     image:
       repository: registry.gitlab.com/humacs/humacs/ii
-      tag: latest
+      tag: latest-main
       pullPolicy: Always
     options:
       gitEmail: ${GIT_AUTHOR_EMAIL}
       gitName: ${GIT_AUTHOR_NAME}
       hostDockerSocket: true
       hostTmp: false
-      profile: "ii"
+      profile: ""
       repos:
         - https://github.com/cncf-infra/prow-config
         - https://github.com/kubernetes/test-infra
