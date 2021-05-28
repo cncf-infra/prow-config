@@ -1227,6 +1227,6 @@ kubectl delete -f nginx-ingress.yaml
 
 ** Destroy the cluster
 #+BEGIN_SRC tmate :window ii-sandbox-terraform :dir .
-cd clusters/projects/k8s-infra-ii-sandbox-${SHARINGIO_PAIR_NAME}
+cd clusters/projects/k8s-infra-ii-sandbox
 terraform destroy
 #+END_SRC
