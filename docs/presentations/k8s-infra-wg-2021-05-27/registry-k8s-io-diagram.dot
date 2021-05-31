@@ -1,0 +1,11 @@
+digraph G {
+	graph [bb="0,0,182,23",
+		compound=true,
+		label="registry.k8s.io diagram",
+		labelloc=t,
+		lheight=0.21,
+		lp="91,11.5",
+		lwidth=2.31
+	];
+	node [label="\N"];
+}

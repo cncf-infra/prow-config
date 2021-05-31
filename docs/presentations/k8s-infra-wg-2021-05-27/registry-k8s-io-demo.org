@@ -243,8 +243,53 @@ kubectl -n registry-k8s-io-envoy \
     logs -l app=registry-k8s-io-envoy --tail=10 -f
 #+end_src
 
+* Diagram :noexport:
+#+begin_src dot :file registry-k8s-io-diagram.svg
+digraph G {
+    label="registry.k8s.io diagram"
+    labelloc="t"
+    graph[compound=true]
+
+    ExternalDataSources [label="External data sources\n(find ASN data)"]
+    Datastore [label="Datastore\n(a SQL database\nor\nJSON files from a ConfigMap)" shape=rectangle]
+    Implementation [label="Implementation (registry.k8s.io)\n(an Envoy go-WASM or ArtifactServer based implementation)" shape=rectangle]
+    CloudProvider [label="CloudProvider[n] container registry" shape=rectangle style="dotted"]
+    K8sDotGCRDotIO [label="k8s.gcr.io" shape=rectangle]
+    CIP [label="Container Image Promoter" shape=rectangle]
+    ExternalDataSources [label="External Data Sources\n(such as https://bgp.he.net)" shape=rectangle]
+
+    Datastore -> ExternalDataSources [label="periodic fetch"]
+    Implementation -> Datastore [label="match IP to ASN\nASN to cloud provider"]
+    Implementation -> CloudProvider [label="302 redirect\npoint cloud provider at their hosted container registry"]
+    K8sDotGCRDotIO -> CIP [label="Promote an image 1/2"]
+    CloudProvider -> CIP [label="Promote an image 2/2"]
+}
+#+end_src
+
+#+RESULTS:
+#+begin_src dot
+[[file:registry-k8s-io-diagram.svg]]
+#+end_src
+
+#+begin_src shell
+cp registry-k8s-io-diagram.svg $HOME/public_html/
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
 
 * Footnotes
+Remove symlink and recreate /$HOME/public_html/
+#+begin_src shell
+rm $HOME/public_html
+mkdir $HOME/public_html
+#+end_src
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
 #+begin_src shell :results silent :dir (concat (getenv "HOME") "/public_html/"))
 git clone https://github.com/hakimel/reveal.js
 cd public_html/reveal.js
@@ -292,7 +337,7 @@ alias docker="sudo --preserve-env /usr/local/go/bin/nerdctl"
 EOF
 #+end_src
 
-#+begin_src shell
+#+begin_src shell :dir .
 mv registry-k8s-io-demo_client.html public_html/index.html ; mv registry-k8s-io-demo.html public_html/presenter.html
 #+end_src
 
