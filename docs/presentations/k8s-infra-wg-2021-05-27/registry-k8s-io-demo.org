@@ -294,13 +294,13 @@ mkdir $HOME/public_html
 
 #+begin_src shell :results silent :dir (concat (getenv "HOME") "/public_html/"))
 git clone https://github.com/hakimel/reveal.js
-cd public_html/reveal.js
+cd ~/public_html/reveal.js
 npm i
 npm run build
 #+end_src
 
 #+begin_src tmate :window reveal-multiplex
-cd public_html/reveal.js
+cd ~/public_html/reveal.js
 npm install reveal-multiplex
 mkdir -p plugin/multiplex
 ln node_modules/reveal-multiplex/* plugin/multiplex/
@@ -319,8 +319,8 @@ node node_modules/reveal-multiplex
 
 Ensure the presentation is in the web
 #+begin_src shell :results silent
-mv registry-k8s-io-demo_client.html public_html/index.html
-mv registry-k8s-io-demo.html public_html/presenter.html
+mv registry-k8s-io-demo_client.html ~/public_html/index.html
+mv registry-k8s-io-demo.html ~/public_html/presenter.html
 #+end_src
 
 ** Setup
