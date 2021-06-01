@@ -250,19 +250,21 @@ digraph G {
     labelloc="t"
     graph[compound=true]
 
+    IngressTraffic [label="Ingress traffic"]
     ExternalDataSources [label="External data sources\n(find ASN data)"]
     Datastore [label="Datastore\n(a SQL database\nor\nJSON files from a ConfigMap)" shape=rectangle]
-    Implementation [label="Implementation (registry.k8s.io)\n(an Envoy go-WASM or ArtifactServer based implementation)" shape=rectangle]
+    Implementation [label="Implementation (registry.k8s.io)\n(an Envoy go-WASM or ArtifactServer based implementation)" shape=rectangle color="green"]
     CloudProvider [label="CloudProvider[n] container registry" shape=rectangle style="dotted"]
     K8sDotGCRDotIO [label="k8s.gcr.io" shape=rectangle]
     CIP [label="Container Image Promoter" shape=rectangle]
     ExternalDataSources [label="External Data Sources\n(such as https://bgp.he.net)" shape=rectangle]
 
     Datastore -> ExternalDataSources [label="periodic fetch"]
-    Implementation -> Datastore [label="match IP to ASN\nASN to cloud provider"]
+    IngressTraffic -> Implementation
+    Implementation -> Datastore [label="determine closest\ncloud provider from IP"]
     Implementation -> CloudProvider [label="302 redirect\npoint cloud provider at their hosted container registry"]
-    K8sDotGCRDotIO -> CIP [label="Promote an image 1/2"]
-    CloudProvider -> CIP [label="Promote an image 2/2"]
+    K8sDotGCRDotIO -> CIP [label="Promote an image 1/2" dir=both]
+    CIP -> CloudProvider [label="Promote an image 2/2"]
 }
 #+end_src
 
