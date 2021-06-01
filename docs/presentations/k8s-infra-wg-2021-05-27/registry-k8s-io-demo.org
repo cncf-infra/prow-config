@@ -16,11 +16,11 @@ kubectl get ingress -A \
 
 #+RESULTS:
 #+begin_SRC shell
-artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
-demo.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
-distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
-envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
-reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io
+artifactserver.ii-sandbox.bobymcbobs.pair.sharing.io
+demo.ii-sandbox.bobymcbobs.pair.sharing.io
+distribution.ii-sandbox.bobymcbobs.pair.sharing.io
+envoy.ii-sandbox.bobymcbobs.pair.sharing.io
+reveal-multiplex.ii-sandbox.bobymcbobs.pair.sharing.io
 #+end_SRC
 
 * tmate session
@@ -70,7 +70,7 @@ resources:
 #+ATTR_REVEAL: :code_attribs data-line-numbers='1-3|4|1,5|6|7|8|10,12,13'
 #+begin_src lua
 local reg1 = "k8s.gcr.io"
-local reg2 = "distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io"
+local reg2 = "distribution.ii-sandbox.bobymcbobs.pair.sharing.io"
 local reg2WithIP = "127.0.0.1"
 function envoy_on_request(request_handle)
   local reg = reg1
@@ -94,7 +94,7 @@ Make a get request to determine which registry the request will be 302'd to:
 #+NAME: response-from-gke
 #+begin_src shell :wrap "SRC html"
 curl -s -i \
-  https://envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+  https://envoy.ii-sandbox.bobymcbobs.pair.sharing.io/v2/
 #+end_src
 
 * What you should expect to see
@@ -105,11 +105,11 @@ HTTP/2 302
 date: Wed, 26 May 2021 07:41:13 GMT
 content-type: text/html; charset=utf-8
 content-length: 83
-location: https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+location: https://distribution.ii-sandbox.bobymcbobs.pair.sharing.io/v2/
 host: web_service
 strict-transport-security: max-age=15724800; includeSubDomains
 
-<a href="https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">302</a>.
+<a href="https://distribution.ii-sandbox.bobymcbobs.pair.sharing.io/v2/">302</a>.
 #+end_SRC
 
 From your computer (or elsewhere)
@@ -129,7 +129,7 @@ strict-transport-security: max-age=15724800; includeSubDomains
 Pull a container image:
 #+begin_src tmate :window envoy-docker-pull
 docker pull \
-    envoy.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/pause:3.4.1
+    envoy.ii-sandbox.bobymcbobs.pair.sharing.io/pause:3.4.1
 #+end_src
 
 * See more
@@ -205,7 +205,7 @@ go run ./cmd/artifactserver --config=<(envsubst < /tmp/artifactserver.yaml)
 * Make a request (1/2)
 #+BEGIN_SRC shell :results output verbatim code replace :wrap "SRC html"
 curl -s -i \
-  https://artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+  https://artifactserver.ii-sandbox.bobymcbobs.pair.sharing.io/v2/
 #+END_SRC
 
 #+RESULTS:
@@ -214,17 +214,17 @@ HTTP/2 302
 date: Wed, 26 May 2021 09:01:41 GMT
 content-type: text/html; charset=utf-8
 content-length: 86
-location: https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/
+location: https://distribution.ii-sandbox.bobymcbobs.pair.sharing.io/v2/
 strict-transport-security: max-age=15724800; includeSubDomains
 
-<a href="https://distribution.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/v2/">Found</a>.
+<a href="https://distribution.ii-sandbox.bobymcbobs.pair.sharing.io/v2/">Found</a>.
 
 #+end_SRC
 
 * Make a request (2/2)
 #+BEGIN_SRC shell :results output verbatim code replace :wrap "SRC html"
 curl -v -L \
-  https://artifactserver.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/kops/
+  https://artifactserver.ii-sandbox.bobymcbobs.pair.sharing.io/kops/
 #+END_SRC
 
 #+RESULTS:
@@ -349,7 +349,7 @@ mv registry-k8s-io-demo_client.html public_html/index.html ; mv registry-k8s-io-
 
 Obtain a token for reveal_multiplex
 #+begin_src shell :wrap "SRC json"
-curl -s https://reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/token
+curl -s https://reveal-multiplex.ii-sandbox.bobymcbobs.pair.sharing.io/token
 #+end_src
 
 #+RESULTS:
@@ -378,7 +378,7 @@ curl -s https://reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/toke
 #+REVEAL_TRANS_OPTIONS: none|cube|fade|concave|convex|page|slide|zoom
 #+REVEAL_MULTIPLEX_ID: f8506c39ed886d88
 #+REVEAL_MULTIPLEX_SECRET: 16220179726581585993
-#+REVEAL_MULTIPLEX_URL: https://reveal-multiplex.ii-sandbox.bobymcbobs-oitq.pair.sharing.io/
+#+REVEAL_MULTIPLEX_URL: https://reveal-multiplex.ii-sandbox.bobymcbobs.pair.sharing.io/
 #+REVEAL_MULTIPLEX_SOCKETIO_URL: https://reveal-multiplex.glitch.me/socket.io/socket.io.js
 
 #+OPTIONS: num:nil
