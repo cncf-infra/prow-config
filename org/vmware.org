@@ -1,0 +1,21 @@
+#+TITLE: Alibab_asn_lookup
+
+* Look up alibaba_asn in our sources
+#+begin_src shell
+bq query --nouse_legacy_sql 'select distinct asn, name_yaml, company_name, name from k8s-infra-ii-sandbox.etl_staging.all_asn_company_outer_join where lower(company_name) like "%vmware%"'
+#+end_src
+
+#+RESULTS:
+#+begin_example
++--------+-----------+------------------------------------------------+------+
+|  asn   | name_yaml |                  company_name                  | name |
++--------+-----------+------------------------------------------------+------+
+|  55048 | NULL      | VMWARE, US                                     | NULL |
+| 135304 | NULL      | VMWARE-AS-AP VMWare Incorporation, JP          | NULL |
+| 199336 | NULL      | ONECLOUD-DC OneCloud DC Amsterdam VMWare, IE   | NULL |
+| 133306 | NULL      | VMWARE-AS VMware India Software Pvt Ltd, IN    | NULL |
+| 132567 | NULL      | VMWARE-AS-IN VMware India Software Pvt Ltd, IN | NULL |
+| 266720 | NULL      | VMWARE COSTA RICA LIMITADA, CR                 | NULL |
++--------+-----------+------------------------------------------------+------+
+#+end_example
+We have a ans that looks like it belongs to alibaba. Opening pr to add the asn
