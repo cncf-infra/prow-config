@@ -1,0 +1,18 @@
+#+TITLE: Alibab_asn_lookup
+
+* Look up alibaba_asn in our sources
+#+begin_src shell
+bq query --nouse_legacy_sql 'select distinct asn, name_yaml, company_name, name from k8s-infra-ii-sandbox.etl_staging.all_asn_company_outer_join where lower(company_name) like "%alibab%"'
+#+end_src
+
+#+RESULTS:
+#+begin_example
++--------+--------------+-------------------------------------------------------------------+-----------------+
+|  asn   |  name_yaml   |                           company_name                            |      name       |
++--------+--------------+-------------------------------------------------------------------+-----------------+
+| 134963 | NULL         | ASEPL-AS-AP Alibaba.com Singapore E-Commerce Private Limited, SG  | NULL            |
+|  45102 | alibabagroup | CNNIC-ALIBABA-US-NET-AP Alibaba (US) Technology Co., Ltd., CN     | Alibaba         |
+|  37963 | alibabagroup | CNNIC-ALIBABA-CN-NET-AP Hangzhou Alibaba Advertising Co.,Ltd., CN | Alibaba (China) |
++--------+--------------+-------------------------------------------------------------------+-----------------+
+#+end_example
+We have a ans that looks like it belongs to alibaba. Opening pr to add the asn
