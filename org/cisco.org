@@ -1,0 +1,43 @@
+#+TITLE: Alibab_asn_lookup
+
+* Look up alibaba_asn in our sources
+#+begin_src shell
+bq query --nouse_legacy_sql 'select distinct asn, name_yaml, company_name, name from k8s-infra-ii-sandbox.etl_staging.all_asn_company_outer_join where lower(company_name) like "%cisco%"'
+#+end_src
+
+#+RESULTS:
+#+begin_example
++--------+-----------+-------------------------------------------------------------------------------------------------------+------------------------------------------------+
+|  asn   | name_yaml |                                             company_name                                              |                      name                      |
++--------+-----------+-------------------------------------------------------------------------------------------------------+------------------------------------------------+
+|  27654 | NULL      | Universidad Francisco Marroquin, GT                                                                   | NULL                                           |
+|  30215 | NULL      | AS-CISCOHPS-APAC, US                                                                                  | NULL                                           |
+| 269594 | NULL      | FRANCISCO LUIS TEIXEIRA DE MATOS, BR                                                                  | NULL                                           |
+|  28448 | NULL      | FABRICA DE PAPEL SAN FRANCISCO, S.A. DE C.V., MX                                                      | NULL                                           |
+| 271141 | NULL      | FRANCISCO MAYCK SOARES DA SILVA ME, BR                                                                | NULL                                           |
+| 268072 | NULL      | FRANCISCO NICOLAS FUENTES ESPINOSA TELECOMUNICACOE, BR                                                | NULL                                           |
+| 269361 | NULL      | Francisco Washington Kennedy l de Andrade, BR                                                         | NULL                                           |
+| 268598 | NULL      | FRANCISCO FERREIRA BARBOSA FILHO EIRELI, BR                                                           | NULL                                           |
+| 269887 | NULL      | FRANCISCO VILLALBA SANTACRUZ (PLUS.NET), PY                                                           | NULL                                           |
+|  63059 | NULL      | 63059-CISCO-SYSTEMS, US                                                                               | NULL                                           |
+| 267353 | NULL      | Dilei Francisco Colombi ME, BR                                                                        | NULL                                           |
+| 269914 | NULL      | FRANCISCO DARIO DAVID GARCIA AYALA (NETCON), PY                                                       | NULL                                           |
+|  61035 | NULL      | CISCOM, RU                                                                                            | NULL                                           |
+| 269198 | NULL      | FRANCISCO ADSON DE MELO SOARES, BR                                                                    | NULL                                           |
+| 264348 | NULL      | FRANCISCO DE ASSIS BARBOSA DE BRITO GOMES, BR                                                         | NULL                                           |
+|  36519 | NULL      | CISCO-EG-US-XAAS, US                                                                                  | NULL                                           |
+| 266705 | NULL      | GABRIEL FRANCISCO ERBETTA Y MARIANO ANDRES CARRIZO RICHELET SOCIEDAD DE HECHO (TELNET SOLUCIONES), AR | NULL                                           |
+| 266456 | NULL      | Francisco Afonso de Paiva Junior - ME, BR                                                             | NULL                                           |
+| 268760 | NULL      | francisco alipio secundino andrade, BR                                                                | NULL                                           |
+| 269343 | NULL      | CRISTIANO FRANCISCO DE BARROS ME, BR                                                                  | CRISTIANO FRANCISCO DE BARROS                  |
+| 267956 | NULL      | FRANCISCO WESLEY GOMES FERREIRA -ME, BR                                                               | FRANCISCO WESLEY GOMES FERREIRA                |
+| 263709 | NULL      | UNIVERSIDAD SAN FRANCISCO XAVIER DE CHUQUISACA, BO                                                    | UNIVERSIDAD SAN FRANCISCO XAVIER DE CHUQUISACA |
+|    109 | NULL      | CISCOSYSTEMS, US                                                                                      | Cisco Systems, Inc.                            |
+| 268518 | NULL      | FRANCISCO L SILVA DE ARAUJO, BR                                                                       | Portal Starnet                                 |
+|  61943 | NULL      | Francisco Jose Rodrigues Teixeira - ME, BR                                                            | Francisco Jose Rodrigues Teixeira              |
+| 263592 | NULL      | FRANCISCO MARQUES VIEIRA GONCALVES ME, BR                                                             | MarquesInfo.NET                                |
+| 266210 | NULL      | ROBERTA ROSSATTO FRANCISCO - ME, BR                                                                   | ROBERTA ROSSATTO FRANCISCO - ME                |
+| 267351 | NULL      | JOSUEL FRANCISCO DE OLIVEIRA - ME, BR                                                                 | JOSUEL FRANCISCO DE OLIVEIRA                   |
++--------+-----------+-------------------------------------------------------------------------------------------------------+------------------------------------------------+
+#+end_example
+We have a ans that looks like it belongs to alibaba. Opening pr to add the asn
