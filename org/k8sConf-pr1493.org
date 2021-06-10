@@ -1,0 +1,92 @@
+#+TITLE: K8s Conf Pr1493
+
+The label we see: evidence-missing
+The error:
+This conformance request has the correct list of tests present in the junit file but at least one of the tests in e2e.log failed
+Before we do anything lets look at the e2e.log
+One for the failed pr.
+Compared to a passing err.
+The err logs needs to be for the same release.
+
+
+#+begin_src shell :results silent
+curl https://raw.githubusercontent.com/cncf/k8s-conformance/f5ff7454e712aa2fab5b9353c5671c38baf92619/v1.20/vcluster/e2e.log --output /tmp/1491e2e.log
+#+end_src
+#+begin_src shell :results silent
+curl https://raw.githubusercontent.com/alanpeng/k8s-conformance/a35087c06882dfaa37327d9c6c2204a8cd8b46d6/v1.20/Breeze/e2e.log --output /tmp/good_e2e.log
+#+end_src
+
+
+#+begin_src shell
+ls -al /tmp/*.log
+#+end_src
+
+#+RESULTS:
+#+begin_example
+-rw-r--r-- 1 ii ii 1397583 Jun 10 10:26 /tmp/1491e2e.log
+-rw-r--r-- 1 ii ii 1779112 Jun 10 10:27 /tmp/good_e2e.log
+#+end_example
+
+I looked at the files and did not see any obvious reasons for the failure.
+
+* GO-code involved int area where we see the failure
+https://github.com/cncf-infra/prow-config/blob/925f659e06f4186f2607e81838db2f076ca1e3d2/prow/external-plugins/verify-conformance-tests/plugin/plugin.go#L431
+It is set to pass if it finds both in each line
+#+begin_example
+e2eNoTestsFailed := "\"failed\":0"
+	e2eMainTestSuite := "\"Test Suite completed\""
+#+end_example
+Here is the line that passed
+{"msg":"Test Suite completed","total":311,"completed":311,"skipped":5356,"failed":0}
+Line that failed...
+{"msg":"Test Suite completed","total":311,"completed":311,"skipped":5356,"failed":0}
+
+* Time to create pr on cncf-infra using the failed submission so I can watch the logs for the failure
+#+begin_src shell
+cd ~/
+git clone https://github.com/cncf-infra/k8s-conformance.git
+#+end_src
+
+#+begin_src shell
+cd ~/
+git clone https://github.com/loft-sh/k8s-conformance.git k8s-conformance-loft
+#+end_src
+Create test pr
+#+BEGIN_SRC shell :dir (concat (getenv "HOME") "/k8s-conformance")
+git checkout -b ii-bb-testing-vcluster
+cp -r ~/k8s-conformance-loft/v1.20/vcluster v1.20/
+git add v1.20/vcluster
+git commit -m "ii testing Conformance results for v1.20/vcluster"
+git push --set-upstream origin ii-bb-testing-vcluster
+#+end_src
+
+* I can not reproduce the issue
+https://github.com/cncf-infra/k8s-conformance/pull/50
+only has the correct labels:
+- no-failed-tests-v1.20
+- release-documents-checked
+- release-v1.20
+- size/XXL
+- tests-verified-v1.20
+
+* There is another report that I would like to look at here as well:
+https://github.com/cncf-infra/k8s-conformance/pull/51
+#+begin_src shell
+cd ~/
+git clone https://github.com/cybozu-go/k8s-conformance.git k8s-conformance-cke
+#+end_src
+
+#+BEGIN_SRC shell :dir (concat (getenv "HOME") "/k8s-conformance")
+# git checkout -b ii-bb-testing-cke && \
+cp -r ~/k8s-conformance-cybozu/v1.20/cke v1.20/ && \
+git add v1.20/cke && \
+git commit -m "ii testing Conformance results for v1.20/cke" && \
+git push --set-upstream origin ii-bb-testing-cke
+#+end_src
+
+Same labels for this one as well
+- no-failed-tests-v1.20
+- release-documents-checked
+- release-v1.20
+- size/XXL
+- tests-verified-v1.20
