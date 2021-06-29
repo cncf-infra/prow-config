@@ -1,6 +1,6 @@
 log_level: debug
-prowjob_namespace: prow-${SHARINGIO_PAIR_NAME}
-pod_namespace: prow-${SHARINGIO_PAIR_NAME}-workloads
+prowjob_namespace: prow
+pod_namespace: prow-workloads
 managed_webhooks:
   respect_legacy_global_token: true
   org_repo_config:
@@ -8,7 +8,7 @@ managed_webhooks:
       token_created_after: 2020-06-24T00:10:00Z
 in_repo_config:
   enabled:
-    '*': true
+    "*": true
 deck:
   spyglass:
     lenses:
@@ -38,16 +38,16 @@ plank:
     {{if .Spec.Refs}}
       {{if ne .Spec.Refs.Org ""}}{{if ne .Spec.Refs.Org "kubernetes"}}/{{if and (eq .Spec.Refs.Org "kubernetes-sigs") (ne .Spec.Refs.Repo "poseidon")}}sigs.k8s.io{{else}}{{.Spec.Refs.Org}}{{end}}_{{.Spec.Refs.Repo}}{{else if ne .Spec.Refs.Repo "kubernetes"}}/{{.Spec.Refs.Repo}}{{end}}{{end}}{{end}}{{if eq .Spec.Type "presubmit"}}/{{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}{{else if eq .Spec.Type "batch"}}/batch{{end}}/{{.Spec.Job}}/{{.Status.BuildID}}/
   report_templates:
-    '*': '[Full PR test history](https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}). [Your PR dashboard](https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/pr?query=is:pr+state:open+author:{{with index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).'
+    "*": "[Full PR test history](https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}). [Your PR dashboard](https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/pr?query=is:pr+state:open+author:{{with index .Spec.Refs.Pulls 0}}{{.Author}}{{end}})."
   job_url_prefix_config:
-    '*': https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/view/
+    "*": https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/view/
   default_decoration_configs:
-    '*':
+    "*":
       gcs_configuration:
         bucket: s3://prow-logs
         path_strategy: explicit
       # secret must be set to RELEASE_NAME-s3-credentials
-      s3_credentials_secret: prow-${SHARINGIO_PAIR_NAME}-s3-credentials
+      s3_credentials_secret: prow-s3-credentials
       utility_images:
         clonerefs: gcr.io/k8s-prow/clonerefs:v20210504-af1ac03335
         entrypoint: gcr.io/k8s-prow/entrypoint:v20210504-af1ac03335
@@ -55,9 +55,9 @@ plank:
         sidecar: gcr.io/k8s-prow/sidecar:v20210504-af1ac03335
 decorate_all_jobs: true
 periodics:
-  - interval: 10m
+  - interval: 2m
     agent: kubernetes
-    name: echo-test
+    name: echo-test-pre-config
     decorate: true
     spec:
       containers:

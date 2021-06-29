@@ -1,7 +1,15 @@
 #!/bin/bash
-#
+
+PROW_NAMESPACE=prow
+PROW_JOB_NAMESPACE=prow-workloads
+NAMESPACES=(
+    ${PROW_NAMESPACE}
+    ${PROW_JOB_NAMESPACE}
+)
+
 if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
     echo "Error: Running prow-config in Pair requires Kubernetes."
+    exit 1
 fi
 /usr/local/bin/tmate-wait-for-socket.sh
 
@@ -46,14 +54,15 @@ fi
 
 # ensure communication with minio cli to the bucket
 mc alias set \
-    prow-${SHARINGIO_PAIR_NAME} \
-    http://prow-${SHARINGIO_PAIR_NAME}-minio.prow-${SHARINGIO_PAIR_NAME}.svc.cluster.local:9000 \
+    prow \
+    http://prow-minio.${PROW_NAMESPACE}.svc.cluster.local:9000 \
     prow-minio \
     prow-minio
 
-kubectl get ns prow-${SHARINGIO_PAIR_NAME} 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}
-kubectl label ns prow-$SHARINGIO_PAIR_NAME cert-manager-tls=sync --overwrite
-kubectl get ns prow-${SHARINGIO_PAIR_NAME}-workloads 2>&1 > /dev/null || kubectl create ns prow-${SHARINGIO_PAIR_NAME}-workloads
+for NS in ${NAMESPACES[*]}; do
+  kubectl get ns "${NS}" 2>&1 > /dev/null || kubectl create ns "${NS}"
+done
+kubectl label ns "${PROW_NAMESPACE}" cert-manager-tls=sync --overwrite
 
 if [ ! -f $GIT_ROOT/.sharing.io/.oauth-env ]; then
     tmate -F -v -S $TMATE_SOCKET new-window -d -c "$PWD" -n prow-setup $GIT_ROOT/.sharing.io/prepare-env.sh
@@ -68,62 +77,62 @@ fi
 
 export $(cat $FOLDER/.oauth-env | xargs)
 
-kubectl -n prow-${SHARINGIO_PAIR_NAME} get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
+kubectl -n "${PROW_NAMESPACE}" get secrets prow-github-hmac -o=jsonpath='{.data.hmac}' | base64 -d | yq e -P 2> /dev/null > $FOLDER/.hmac-live
 if [ $? -eq 0 ]; then
     mv $FOLDER/.hmac-live $FOLDER/.hmac
 fi
 
 kubectl \
-    -n prow-$SHARINGIO_PAIR_NAME \
+    -n "${PROW_NAMESPACE}" \
     create secret generic prow-github-hmac \
     --from-file=hmac=<(yq e -P < $FOLDER/.hmac) \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
 kubectl \
-    -n prow-$SHARINGIO_PAIR_NAME \
+    -n "${PROW_NAMESPACE}" \
     create secret generic prow-github-cookie \
     --from-literal=secret="$COOKIE" \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
 kubectl \
-    -n prow-$SHARINGIO_PAIR_NAME \
+    -n "${PROW_NAMESPACE}" \
     create secret generic prow-github-oauth \
     --from-literal=oauth="$OAUTH_BOT_TOKEN" \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
 kubectl \
-    -n prow-$SHARINGIO_PAIR_NAME \
+    -n "${PROW_NAMESPACE}" \
     create secret generic prow-github-oauth-config \
     --from-file=secret=<(envsubst < $FOLDER/github-oauth-template.yaml) \
     --dry-run=client -o yaml \
     | kubectl apply -f -
 
-envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml
-kubectl -n prow-${SHARINGIO_PAIR_NAME} \
+envsubst < $FOLDER/prow-config-template.yaml > $FOLDER/prow-config-rendered.yaml
+kubectl -n "${PROW_NAMESPACE}" \
     create configmap prow-config \
-    --from-file=config\.yaml=$FOLDER/prow-config-${SHARINGIO_PAIR_NAME}.yaml \
+    --from-file=config\.yaml=$FOLDER/prow-config-rendered.yaml \
     --dry-run=client \
     -o yaml \
     | kubectl apply -f -
 
-envsubst < $FOLDER/prow-plugins-template.yaml > $FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml
-kubectl -n prow-${SHARINGIO_PAIR_NAME} \
+envsubst < $FOLDER/prow-plugins-template.yaml > $FOLDER/prow-plugins-rendered.yaml
+kubectl -n "${PROW_NAMESPACE}" \
     create configmap prow-plugins \
-    --from-file=plugins\.yaml=$FOLDER/prow-plugins-${SHARINGIO_PAIR_NAME}.yaml \
+    --from-file=plugins\.yaml=$FOLDER/prow-plugins-rendered.yaml \
     --dry-run=client \
     -o yaml \
     | kubectl apply -f -
 
-envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
-helm template prow-${SHARINGIO_PAIR_NAME} \
-    -n prow-${SHARINGIO_PAIR_NAME} \
-    -f <(envsubst < <(cat $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml | yq e '.spec.values' -P -)) \
+envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-rendered.yaml
+helm template prow \
+    -n "${PROW_NAMESPACE}" \
+    -f <(envsubst < <(cat $FOLDER/prow-helmrelease-rendered.yaml | yq e '.spec.values' -P -)) \
     $GIT_ROOT/charts/prow/ \
-      > $FOLDER/prow-rendered-${SHARINGIO_PAIR_NAME}.yaml
+      > $FOLDER/prow-rendered.yaml
 
 kubectl \
-  -n prow-$SHARINGIO_PAIR_NAME \
-  apply -f $FOLDER/prow-helmrelease-${SHARINGIO_PAIR_NAME}.yaml
+  -n "${PROW_NAMESPACE}" \
+  apply -f $FOLDER/prow-helmrelease-rendered.yaml

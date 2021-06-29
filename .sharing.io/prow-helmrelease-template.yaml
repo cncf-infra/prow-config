@@ -1,16 +1,16 @@
 apiVersion: helm.fluxcd.io/v1
 kind: HelmRelease
 metadata:
-  name: prow-${SHARINGIO_PAIR_NAME}
+  name: prow
 spec:
   chart:
     git: https://github.com/cncf-infra/prow-config
     path: charts/prow
-    ref: 5928f3bf17a0d38272255b97e5dfd37e4ca5af79
-  releaseName: prow-${SHARINGIO_PAIR_NAME}
+    ref: 8e300fc
+  releaseName: prow
   values:
     restartAllDeploymentsOnChange: true
-    podNamespace: prow-${SHARINGIO_PAIR_NAME}-workloads
+    podNamespace: prow-workloads
     githubFromSecretRef:
       enabled: true
       oauth:
@@ -39,4 +39,3 @@ spec:
     pluginsFromConfigMap:
       enabled: true
       name: prow-plugins
-
