@@ -1,14 +1,15 @@
 # config-updater
 # update prow cluster's configmaps from the repo with this plugin enabled; assumed to be a single repo
-# config_updater:
-#   maps:
-#     config.yaml:
-#       name: config
-#     plugins.yaml:
-#       name: plugins
-#     jobs/**/*.yaml:
-#       name: job-config
-                                                                                                      
+config_updater:
+  maps:
+    config.yaml:
+      name: config
+    plugins.yaml:
+      name: plugins
+    jobs/**/*.yaml:
+      name: job-config
+      gzip: true
+
 # which plugins should be enabled for which orgs or org/repos
 plugins:
   ${SHARINGIO_PAIR_USER}/prow-config:
@@ -16,6 +17,7 @@ plugins:
       - approve
       - assign
       - cat
+      - config-updater
       - dog
       - goose
       - hold
