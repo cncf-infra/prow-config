@@ -1,10 +1,10 @@
-prowjob_namespace: default
-pod_namespace: test-pods
+prowjob_namespace: prow
+pod_namespace: prow-workloads
 periodics:
-- interval: 1h
-  agent: kubernetes
-  name: echo-test
-  spec:
-    containers:
-    - image: alpine
-      command: ["/bin/date"]
+  - interval: 1h
+    agent: kubernetes
+    name: echo-test
+    spec:
+      containers:
+        - image: alpine
+          command: ["/bin/date"]
