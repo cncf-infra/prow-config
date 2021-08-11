@@ -140,3 +140,5 @@ helm template prow \
 kubectl \
   -n "${PROW_NAMESPACE}" \
   apply -f $FOLDER/prow-helmrelease-rendered.yaml
+
+kubectl -n prow rollout restart $(kubectl -n prow get deployments -o=jsonpath='{range .items[*]}{.kind}/{.metadata.name} {end}') 2> /dev/null
