@@ -130,15 +130,7 @@ kubectl -n "${PROW_NAMESPACE}" \
     -o yaml \
     | kubectl apply -f -
 
-envsubst < $FOLDER/prow-helmrelease-template.yaml > $FOLDER/prow-helmrelease-rendered.yaml
-helm template prow \
-    -n "${PROW_NAMESPACE}" \
-    -f <(envsubst < <(cat $FOLDER/prow-helmrelease-rendered.yaml | yq e '.spec.values' -P -)) \
-    $GIT_ROOT/charts/prow/ \
-      > $FOLDER/prow-rendered.yaml
-
-kubectl \
-  -n "${PROW_NAMESPACE}" \
-  apply -f $FOLDER/prow-helmrelease-rendered.yaml
+envsubst < "${FOLDER}"/prow.yaml \
+    | kubectl apply -f -
 
 kubectl -n prow rollout restart $(kubectl -n prow get deployments -o=jsonpath='{range .items[*]}{.kind}/{.metadata.name} {end}') 2> /dev/null

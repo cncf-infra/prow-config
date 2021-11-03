@@ -1533,7 +1533,7 @@ spec:
         - /hmac
         args:
         - --config-path=/etc/config/config.yaml
-        - --hook-url=https://${HOSTNAME}/hook
+        - --hook-url=https://${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
         - --hmac-token-secret-name=prow-github-hmac
         - --hmac-token-secret-namespace=prow
         - --hmac-token-key=hmac
@@ -1569,7 +1569,7 @@ spec:
             name: prow-config
 ---
 # Source: prow/templates/cronjob-hook-setup.yaml
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: prow-hook-setup
@@ -1601,7 +1601,7 @@ spec:
             - /hmac
             args:
             - --config-path=/etc/config/config.yaml
-            - --hook-url=https://${HOSTNAME}/hook
+            - --hook-url=https://${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
             - --hmac-token-secret-name=prow-github-hmac
             - --hmac-token-secret-namespace=prow
             - --hmac-token-key=hmac
@@ -1637,7 +1637,7 @@ spec:
                 name: prow-config
 ---
 # Source: prow/templates/ingress.yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prow
@@ -1647,17 +1647,23 @@ metadata:
 spec:
   tls:
     - hosts:
-        - "${HOSTNAME}"
+        - "prow.${SHARINGIO_PAIR_BASE_DNS_NAME}"
       secretName: letsencrypt-prod
   rules:
-    - host: "${HOSTNAME}"
+    - host: "prow.${SHARINGIO_PAIR_BASE_DNS_NAME}"
       http:
         paths:
           - path: /
+            pathType: ImplementationSpecific
             backend:
-              serviceName: prow-deck
-              servicePort: 80
+              service:
+                name: prow-deck
+                port:
+                  number: 80
           - path: /hook
+            pathType: ImplementationSpecific
             backend:
-              serviceName: prow-hook
-              servicePort: 8888
+              service:
+                name: prow-hook
+                port:
+                  number: 8888
