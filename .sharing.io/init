@@ -130,6 +130,10 @@ kubectl -n "${PROW_NAMESPACE}" \
     -o yaml \
     | kubectl apply -f -
 
+kubectl apply \
+    --server-side \
+    -f "${GIT_ROOT}"/charts/prow/crds/prowjobs.yaml
+
 envsubst < "${FOLDER}"/prow.yaml \
     | kubectl apply -f -
 
