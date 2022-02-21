@@ -105,7 +105,7 @@ func getRequiredTests(log *logrus.Entry, k8sRelease string) map[string]bool {
 		// TODO check body for 404
 		if err != nil {
 			log.Errorf("Error retrieving conformance tests metadata from : %s", confTestSuiteUrl)
-			log.Errorf("HTTP Reponse was: %+v", resp)
+			log.Errorf("HTTP Response was: %+v", resp)
 			log.Errorf("getRequiredTests : %+v", err)
 		}
 		defer resp.Body.Close()
@@ -239,7 +239,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 				githubClient.CreateComment(ghc, org, repo, prNumber,
 					"This conformance request failed to include all of the required tests for "+releaseVersion)
 
-				githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be mssing was "+missingTests[0])
+				githubClient.CreateComment(ghc, org, repo, prNumber, "The first test found to be missing was "+missingTests[0])
 			}
 		}
 	}
@@ -455,7 +455,7 @@ func checkE2eLogHasZeroTestFailures(log *logrus.Entry, e2eChange github.PullRequ
 	return zeroTestFailures, nil
 }
 
-// TODO Consolodate this and the next function to cerate a map of labels
+// TODO Consolidate this and the next function to cerate a map of labels
 func HasNotVerifiableLabel(prLogger *logrus.Entry, org, repo string, prNumber int, ghc githubClient) (bool, error) {
 	hasNotVerifiableLabel := false
 	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
