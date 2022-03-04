@@ -69,12 +69,15 @@ jobs:
           # check to see if we are on master
           export KO_DOCKER_REPO=$ECR_REGISTRY/$ECR_REPOSITORY
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          if [ -z "${VERSION:-}" ]; then
+            BRANCH="-${VERSION:-}"
+          fi
           ko build \
             --jobs 100 \
             --bare \
             --platform all \
             --push \
-            --tags "latest,${{ steps.slug.outputs.sha8 }}" \
+            --tags "latest${BRANCH:-},${{ steps.slug.outputs.sha8 }}" \
             .
 
       - name: Logout of Amazon ECR
