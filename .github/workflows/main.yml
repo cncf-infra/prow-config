@@ -73,9 +73,7 @@ jobs:
             BRANCH="-${VERSION:-}"
           fi
           ko build \
-            --jobs 100 \
             --bare \
-            --platform all \
             --push \
             --tags "latest${BRANCH:-},${{ steps.slug.outputs.sha8 }}" \
             .
