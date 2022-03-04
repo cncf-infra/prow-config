@@ -58,6 +58,7 @@ jobs:
           ECR_REPOSITORY: verify-conformance-release
         run: |
           set -x
+          cd prow/external-plugins/verify-conformance-release
           IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
           # Change all uppercase to lowercase
@@ -72,7 +73,7 @@ jobs:
             --platform all \
             --push \
             --tags "latest,${{ steps.slug.outputs.sha8 }}" \
-            prow/external-plugins/verify-conformance-release
+            .
 
       - name: Logout of Amazon ECR
         if: always()
