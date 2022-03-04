@@ -61,15 +61,11 @@ jobs:
         run: |
           set -x
           cd prow/external-plugins/verify-conformance-release
-          IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
 
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # check to see if we are on master
-          export KO_DOCKER_REPO=$ECR_REGISTRY/$ECR_REPOSITORY
+          IMAGE_ID=$(echo $ECR_REGISTRY/$ECR_REPOSITORY | tr '[A-Z]' '[a-z]')
+          export KO_DOCKER_REPO="${IMAGE_ID}"
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          if [ -z "${VERSION:-}" ]; then
+          if [ -n "${VERSION:-}" ] && [ ! "${VERSION:-}" = "${{ github.event.repository.default_branch }}" ]; then
             BRANCH="-${VERSION:-}"
           fi
           ko build \
