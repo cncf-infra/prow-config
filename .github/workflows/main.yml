@@ -49,6 +49,7 @@ jobs:
           ko build \
             --bare \
             --push \
+            --platform all \
             --tags "latest${BRANCH:-},${{ steps.slug.outputs.sha8 }}" \
             .
 
