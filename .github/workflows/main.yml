@@ -35,7 +35,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.17.3"
       - uses: imjasonh/setup-ko@v0.4
       - name: Get short SHA
         id: slug
