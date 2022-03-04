@@ -1,5 +1,7 @@
-name:
-  Image build
+name: Image build
+
+on:
+  push
 
   # Run tests for any PRs.
   # pull_request:
