@@ -1,9 +1,5 @@
-name: Docker
-
-on:
-  push:
-    tags:
-      - $ {{ github.sha }}
+name:
+  Image build
 
   # Run tests for any PRs.
   # pull_request:
