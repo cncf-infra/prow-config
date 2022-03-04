@@ -71,7 +71,7 @@ jobs:
             --bare \
             --platform all \
             --push \
-            --tags "latest,${{ steps.slug.outputs.sha8 }}"
+            --tags "latest,${{ steps.slug.outputs.sha8 }}" \
             prow/external-plugins/verify-conformance-release
 
       - name: Logout of Amazon ECR
