@@ -46,12 +46,10 @@ jobs:
           if [ -n "${VERSION:-}" ] && [ ! "${VERSION:-}" = "${{ github.event.repository.default_branch }}" ]; then
             BRANCH="-${VERSION:-}"
           fi
-          # TODO --platforms all, current build error:
-          # ##[error]/home/runner/go/pkg/mod/github.com/!google!cloud!platform/testgrid@v0.0.68/util/gcs/read.go:194:61:
-          # constant 1000000000000000000 overflows int
           ko build \
             --bare \
             --push \
+            --platform linux/amd64,linux/arm64,linux/arm64/v8 \
             --tags "latest${BRANCH:-},${{ steps.slug.outputs.sha8 }}" \
             .
 
