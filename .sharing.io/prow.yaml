@@ -1533,7 +1533,7 @@ spec:
         - /hmac
         args:
         - --config-path=/etc/config/config.yaml
-        - --hook-url=https://${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
+        - --hook-url=https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
         - --hmac-token-secret-name=prow-github-hmac
         - --hmac-token-secret-namespace=prow
         - --hmac-token-key=hmac
@@ -1601,7 +1601,7 @@ spec:
             - /hmac
             args:
             - --config-path=/etc/config/config.yaml
-            - --hook-url=https://${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
+            - --hook-url=https://prow.${SHARINGIO_PAIR_BASE_DNS_NAME}/hook
             - --hmac-token-secret-name=prow-github-hmac
             - --hmac-token-secret-namespace=prow
             - --hmac-token-key=hmac
