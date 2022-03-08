@@ -1,38 +1,12 @@
-name: Docker
+name: Image build
 
 on:
-  push:
-    # Publish `master` as Docker `latest` image.
-    branches:
-      - master
-      - verify-tests
-
-    tags:
-      - $ {{ github.sha }}
+  push
 
   # Run tests for any PRs.
   # pull_request:
 
-env:
-  VERIFY_RELEASE_IMAGE_NAME: verify-conformance-release
-  VERIFY_TESTS_IMAGE_NAME: verify-conformance-tests
-
 jobs:
-  # Run tests.
-  # test:
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - uses: actions/checkout@v2
-
-  #     - name: Ensure verify-conformance-tests image builds
-  #       run: |
-  #         docker build prow/external-plugins/verify-conformance-tests
-
-  #     - name: Ensure verify-conformance-request image builds
-  #       run: |
-  #         docker build prow/external-plugins/verify-conformance-request
-  # Push image to AWS ECR.
   push_verify_release:
     # Ensure test job passes before pushing image.
     # needs: test
@@ -42,10 +16,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: Get short SHA
-        id: slug
-        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.17.3"
+      - uses: imjasonh/setup-ko@v0.4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -58,82 +32,26 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build verify-conformance-release image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: docker build prow/external-plugins/verify-conformance-release --tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME
-
-      - name: Tag, and push verify-conformance-release image to Amazon ECR
+      - name: Build push verify-conformance-release image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: verify-conformance-release
         run: |
           set -x
-          IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
+          cd prow/external-plugins/verify-conformance-release
 
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # check to see if we are on master
+          IMAGE_ID=$(echo $ECR_REGISTRY/$ECR_REPOSITORY | tr '[A-Z]' '[a-z]')
+          export KO_DOCKER_REPO="${IMAGE_ID}"
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          if [ "$VERSION" == "master" ]; then
-            docker tag $ECR_REGISTRY/$VERIFY_RELEASE_IMAGE_NAME $IMAGE_ID:latest
-            docker push $IMAGE_ID:latest
-          else
-            docker tag $VERIFY_RELEASE_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
-            docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
+          if [ -n "${VERSION:-}" ] && [ ! "${VERSION:-}" = "${{ github.event.repository.default_branch }}" ]; then
+            BRANCH="-${VERSION:-}"
           fi
-
-      - name: Logout of Amazon ECR
-        if: always()
-        run: docker logout ${{ steps.login-ecr.outputs.registry }}
-  push_verify_tests:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Get short SHA
-        id: slug
-        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-2
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build verify-conformance-tests image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: docker build prow/external-plugins/verify-conformance-tests --tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME
-
-      - name: Tag, and push verify-conformance-tests image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: verify-conformance-tests
-        run: |
-          set -x
-          IMAGE_ID=$ECR_REGISTRY/$ECR_REPOSITORY
-
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # check to see if we are on master
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          if [ "$VERSION" == "master" ]; then
-            docker tag $ECR_REGISTRY/$VERIFY_TESTS_IMAGE_NAME $IMAGE_ID:latest
-            docker push $IMAGE_ID:latest
-          else
-            docker tag $VERIFY_TESTS_IMAGE_NAME  $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
-            docker push $IMAGE_ID:${{ steps.slug.outputs.sha8 }}
-          fi
+          ko build \
+            --bare \
+            --push \
+            --platform linux/amd64,linux/arm64,linux/arm64/v8 \
+            --tags "latest${BRANCH:-},${{ steps.slug.outputs.sha8 }}" \
+            .
 
       - name: Logout of Amazon ECR
         if: always()
