@@ -22,7 +22,6 @@ data "aws_subnet" "public" {
   ]
 }
 
-
 resource "aws_security_group" "control_plane" {
   count = var.legacy_security_groups ? 1 : 0
 

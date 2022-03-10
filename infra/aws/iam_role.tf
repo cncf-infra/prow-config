@@ -1,8 +1,7 @@
-#Resource to create eks cluster role
 resource "aws_iam_role" "cluster_role" {
   name = "EKS-${var.name}-cluster-role"
 
-assume_role_policy = <<POLICY
+  assume_role_policy = <<POLICY
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -17,7 +16,7 @@ assume_role_policy = <<POLICY
 }
 POLICY
 
-tags = var.tags
+  tags = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
@@ -30,11 +29,8 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSServicePolicy" {
   role       = aws_iam_role.cluster_role.name
 }
 
-
-# Resource to create eks worker node role
-
 resource "aws_iam_role" "managed_workers" {
-  name = "EKS-${var.name}-worker-node-role"
+  name               = "EKS-${var.name}-worker-node-role"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -50,18 +46,22 @@ resource "aws_iam_role" "managed_workers" {
 }
 EOF
 }
+
 resource "aws_iam_role_policy_attachment" "eks-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.managed_workers.name
 }
+
 resource "aws_iam_role_policy_attachment" "eks-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.managed_workers.name
 }
+
 resource "aws_iam_role_policy_attachment" "eks-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.managed_workers.name
 }
+
 resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.managed_workers.name

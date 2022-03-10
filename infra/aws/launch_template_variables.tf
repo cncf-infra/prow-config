@@ -16,7 +16,6 @@ variable "taints" {
   description = "taints that will be added to the kubernetes node"
 }
 
-
 variable "bottlerocket_admin_source" {
   type        = string
   default     = ""

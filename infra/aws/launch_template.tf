@@ -35,7 +35,6 @@ data "aws_ami" "bottlerocket_image" {
   }
 }
 
-
 resource "aws_launch_template" "bottlerocket_lt" {
   name_prefix            = var.name
   update_default_version = true
