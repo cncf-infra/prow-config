@@ -214,3 +214,31 @@ cert-manager-7ddc5b4db-jt5j6               1/1     Running   0          88s
 cert-manager-cainjector-6644dc4975-b2r7n   1/1     Running   0          88s
 cert-manager-webhook-7b887475fb-d4cmz      1/1     Running   0          88s
 #+END_example
+
+* Install Prow
+** Prepare
+#+begin_src shell :results silent
+curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-gcs.yaml
+#+end_src
+
+*** Template
+#+begin_src shell :results silent
+GITHUB_APP_ID='${GITHUB_APP_ID}'
+GITHUB_APP_SECRET='${GITHUB_APP_SECRET}'
+GITHUB_WEBHOOK_HMAC='${GITHUB_WEBHOOK_HMAC}'
+GITHUB_ORG=cncf-infra
+PROW_DOMAIN=prow.cncf.io
+
+sed -i "s/<<insert-downloaded-cert-here>>/${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
+sed -i "s/<<insert-the-app-id-here>>/${GITHUB_APP_ID}/g" ./manifests/prow.yaml
+sed -i "s/<< insert-hmac-token-here >>/${GITHUB_WEBHOOK_HMAC}/g" ./manifests/prow.yaml
+sed -i "s/<< your-domain.com >>/${PROW_DOMAIN}/g" ./manifests/prow.yaml
+sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
+sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
+sed -i 's/          gcs_configuration:\n            bucket: gs://your-bucket-name\n            path_strategy: explicit\n          gcs_credentials_secret: gcs-credentials\n//g' ./manifests/prow.yaml
+#+end_src
+
+** Install
+#+begin_src shell :results silent
+kubectl apply -f ./manifests/prow.yaml
+#+end_src
