@@ -1,4 +1,3 @@
-# -*- ii: apisnoop; -*-
 #+TITLE: prow.cncf.io infrastructure
 
 Terraform configuration for prow.cncf.io
@@ -13,54 +12,23 @@ Terraform configuration for prow.cncf.io
 ** Configure aws cli
 
 Set up the aws cli with your aws account.
-#+begin_src shell
-   aws configure
+#+begin_src tmate :window prow-config
+aws configure
 #+end_src
 
 * Deploying
 ** Init
 
 Initialize terraform with the plugins that are required.
-#+begin_src shell
-  terraform init modules/aws-project
+#+begin_src tmate :window prow-config
+terraform init
 #+end_src
-
-#+RESULTS:
-#+BEGIN_example
-[0m[1mInitializing modules...[0m
-Downloading terraform-aws-modules/eks/aws 12.2.0 for eks...
-- eks in .terraform/modules/eks/terraform-aws-eks-12.2.0
-- eks.node_groups in .terraform/modules/eks/terraform-aws-eks-12.2.0/modules/node_groups
-Downloading terraform-aws-modules/vpc/aws 2.6.0 for vpc...
-- vpc in .terraform/modules/vpc/terraform-aws-vpc-2.6.0
-
-[0m[1mInitializing the backend...[0m
-
-[0m[1mInitializing provider plugins...[0m
-- Checking for available provider plugins...
-- Downloading plugin for provider "aws" (hashicorp/aws) 3.1.0...
-- Downloading plugin for provider "random" (hashicorp/random) 2.3.0...
-- Downloading plugin for provider "local" (hashicorp/local) 1.4.0...
-- Downloading plugin for provider "null" (hashicorp/null) 2.1.2...
-- Downloading plugin for provider "template" (hashicorp/template) 2.1.2...
-- Downloading plugin for provider "kubernetes" (hashicorp/kubernetes) 1.12.0...
-
-[0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
-[0m[32m
-You may now begin working with Terraform. Try running "terraform plan" to see
-any changes that are required for your infrastructure. All Terraform commands
-should now work.
-
-If you ever set or change modules or backend configuration for Terraform,
-rerun this command to reinitialize your working directory. If you forget, other
-commands will detect it and remind you to do so if necessary.[0m
-#+END_example
 
 ** Plan
 
 Using plan, verify that the actions performed will be the correct ones.
-#+begin_src shell
-  terraform plan modules/aws-project
+#+begin_src tmate :window prow-config
+terraform plan
 #+end_src
 
 #+RESULTS:
@@ -883,8 +851,8 @@ can't guarantee that exactly these actions will be performed if
 ** Apply
 
 Create the infrastructure using apply.
-#+begin_src shell
-  terraform apply -auto-approve modules/aws-project
+#+begin_src tmate :window prow-config
+terraform apply -auto-approve modules/aws-project
 #+end_src
 
 #+RESULTS:
@@ -986,8 +954,8 @@ region = ap-southeast-2[0m
 ** Configure kubectl to use the new cluster
 
 Find the cluster name:
-#+begin_src shell
-  aws eks list-clusters
+#+begin_src tmate :window prow-config
+aws eks list-clusters
 #+end_src
 
 #+RESULTS:
@@ -1005,8 +973,8 @@ Find the cluster name:
 #+END_example
 
 Set current context to be the newly created cluster
-#+begin_src shell
-  aws eks --region ap-southeast-2 update-kubeconfig --name prow-LltO5Bjk
+#+begin_src tmate :window prow-config
+aws eks --region ap-southeast-2 update-kubeconfig --name prow-LltO5Bjk
 #+end_src
 
 #+RESULTS:
@@ -1056,8 +1024,8 @@ Configure the user access for the cluster:
           - system:masters
 #+end_src
 
-#+begin_src shell
-  kubectl -n kube-system patch configmap aws-auth --patch "$(cat aws-auth-configmap.yaml)"
+#+begin_src tmate :window prow-config
+kubectl -n kube-system patch configmap aws-auth --patch "$(cat aws-auth-configmap.yaml)"
 #+end_src
 
 #+RESULTS:
@@ -1067,8 +1035,8 @@ configmap/aws-auth patched
 
 * Setup ELB + nginx-ingress
 #+name: add stable helm repo
-#+begin_src shell
-  helm repo add stable https://kubernetes-charts.storage.googleapis.com
+#+begin_src tmate :window prow-config
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
 #+end_src
 
 #+RESULTS: add stable helm repo
@@ -1106,8 +1074,8 @@ configmap/aws-auth patched
 #+end_src
 
 #+name: create nginx-ingress namespace
-#+begin_src shell
-  kubectl create ns nginx-ingress
+#+begin_src tmate :window prow-config
+kubectl create ns nginx-ingress
 #+end_src
 
 #+RESULTS: create nginx-ingress namespace
@@ -1116,8 +1084,8 @@ namespace/nginx-ingress created
 #+END_example
 
 #+name: install nginx-ingress
-#+begin_src shell
-  helm install nginx-ingress -f nginx-ingress-values.yaml --namespace nginx-ingress stable/nginx-ingress
+#+begin_src tmate :window prow-config
+helm install nginx-ingress -f nginx-ingress-values.yaml --namespace nginx-ingress stable/nginx-ingress
 #+end_src
 
 #+RESULTS: install nginx-ingress
@@ -1170,8 +1138,8 @@ If TLS is enabled for the Ingress, a Secret containing the certificate and key m
   type: kubernetes.io/tls
 #+END_example
 
-#+begin_src shell
-  kubectl -n nginx-ingress get pods
+#+begin_src tmate :window prow-config
+kubectl -n nginx-ingress get pods
 #+end_src
 
 #+RESULTS:
@@ -1183,8 +1151,8 @@ nginx-ingress-controller-6fd5487458-fnpmz        1/1     Running   0          54
 nginx-ingress-default-backend-5b967cf596-859wm   1/1     Running   0          54s
 #+END_example
 
-#+BEGIN_SRC shell
-  kubectl -n nginx-ingress get svc
+#+begin_src tmate :window prow-config
+kubectl -n nginx-ingress get svc
 #+END_SRC
 
 #+RESULTS:
@@ -1198,8 +1166,8 @@ nginx-ingress-default-backend      ClusterIP      172.20.102.168   <none>       
 ** Cert-Manager
 
 Download the latest cert-manager manifest:
-#+begin_src shell
-  curl -L -o cert-manager-v0.16.1.yaml https://github.com/jetstack/cert-manager/releases/download/v0.16.1/cert-manager.yaml
+#+begin_src tmate :window prow-config
+curl -L -o cert-manager-v0.16.1.yaml https://github.com/jetstack/cert-manager/releases/download/v0.16.1/cert-manager.yaml
 #+end_src
 
 #+RESULTS:
@@ -1207,8 +1175,8 @@ Download the latest cert-manager manifest:
 #+END_example
 
 Apply:
-#+begin_src shell
-  kubectl apply -f cert-manager-v0.16.1.yaml
+#+begin_src tmate :window prow-config
+kubectl apply -f cert-manager-v0.16.1.yaml
 #+end_src
 
 #+RESULTS:
@@ -1254,8 +1222,8 @@ mutatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook c
 validatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
 #+END_example
 
-#+BEGIN_SRC shell
-  kubectl -n cert-manager get pods
+#+begin_src tmate :window prow-config
+kubectl -n cert-manager get pods
 #+END_SRC
 
 #+RESULTS:
