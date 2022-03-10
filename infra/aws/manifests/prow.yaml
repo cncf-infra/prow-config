@@ -96,14 +96,14 @@ data:
       default_decoration_configs:
         "*":
           gcs_configuration:
-            bucket: gs://your-bucket-name
+            bucket: s3://prow-logs
             path_strategy: explicit
-          gcs_credentials_secret: gcs-credentials
+          s3_credentials_secret: s3-credentials
           utility_images:
-            clonerefs: gcr.io/k8s-prow/clonerefs:v20220309-f9f6d1d28f
-            entrypoint: gcr.io/k8s-prow/entrypoint:v20220309-f9f6d1d28f
-            initupload: gcr.io/k8s-prow/initupload:v20220309-f9f6d1d28f
-            sidecar: gcr.io/k8s-prow/sidecar:v20220309-f9f6d1d28f
+            clonerefs: gcr.io/k8s-prow/clonerefs:v20220310-1636de6255
+            entrypoint: gcr.io/k8s-prow/entrypoint:v20220310-1636de6255
+            initupload: gcr.io/k8s-prow/initupload:v20220310-1636de6255
+            sidecar: gcr.io/k8s-prow/sidecar:v20220310-1636de6255
 
     tide:
       queries:
@@ -154,7 +154,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/k8s-prow/hook:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/hook:v20220310-1636de6255
         imagePullPolicy: Always
         args:
         - --dry-run=false
@@ -222,7 +222,6 @@ spec:
     app: hook
   ports:
   - port: 8888
-  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -244,7 +243,7 @@ spec:
       serviceAccountName: "sinker"
       containers:
       - name: sinker
-        image: gcr.io/k8s-prow/sinker:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/sinker:v20220310-1636de6255
         args:
         - --config-path=/etc/config/config.yaml
         - --dry-run=false
@@ -283,7 +282,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: deck
-        image: gcr.io/k8s-prow/deck:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/deck:v20220310-1636de6255
         args:
         - --config-path=/etc/config/config.yaml
         - --plugin-config=/etc/plugins/plugins.yaml
@@ -292,6 +291,7 @@ spec:
         - --github-endpoint=http://ghproxy
         - --github-endpoint=https://api.github.com
         - --github-graphql-endpoint=http://ghproxy/graphql
+        - --s3-credentials-file=/etc/s3-credentials/service-account.json
         - --spyglass=true
         - --github-app-id=$(GITHUB_APP_ID)
         - --github-app-private-key-path=/etc/github/cert
@@ -314,8 +314,8 @@ spec:
         - name: plugins
           mountPath: /etc/plugins
           readOnly: true
-        - name: gcs-credentials
-          mountPath: /etc/gcs-credentials
+        - name: s3-credentials
+          mountPath: /etc/s3-credentials
           readOnly: true
         livenessProbe:
           httpGet:
@@ -340,9 +340,9 @@ spec:
       - name: plugins
         configMap:
           name: plugins
-      - name: gcs-credentials
+      - name: s3-credentials
         secret:
-          secretName: gcs-credentials
+          secretName: s3-credentials
 ---
 apiVersion: v1
 kind: Service
@@ -355,7 +355,6 @@ spec:
   ports:
   - port: 80
     targetPort: 8080
-  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -380,7 +379,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: horologium
-        image: gcr.io/k8s-prow/horologium:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/horologium:v20220310-1636de6255
         args:
         - --dry-run=false
         - --config-path=/etc/config/config.yaml
@@ -415,16 +414,16 @@ spec:
       serviceAccountName: "tide"
       containers:
       - name: tide
-        image: gcr.io/k8s-prow/tide:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/tide:v20220310-1636de6255
         args:
         - --dry-run=false
         - --config-path=/etc/config/config.yaml
         - --github-endpoint=http://ghproxy
         - --github-endpoint=https://api.github.com
         - --github-graphql-endpoint=http://ghproxy/graphql
-        - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
-        - --status-path=gs://your-bucket-name/tide-status
-        - --history-uri=gs://your-bucket-name/tide-history.json
+        - --s3-credentials-file=/etc/s3-credentials/service-account.json
+        - --status-path=s3://tide/tide-status
+        - --history-uri=s3://tide/tide-history.json
         - --github-app-id=$(GITHUB_APP_ID)
         - --github-app-private-key-path=/etc/github/cert
         env:
@@ -443,8 +442,8 @@ spec:
         - name: config
           mountPath: /etc/config
           readOnly: true
-        - name: gcs-credentials
-          mountPath: /etc/gcs-credentials
+        - name: s3-credentials
+          mountPath: /etc/s3-credentials
           readOnly: true
       volumes:
       - name: github-token
@@ -453,9 +452,9 @@ spec:
       - name: config
         configMap:
           name: config
-      - name: gcs-credentials
+      - name: s3-credentials
         secret:
-          secretName: gcs-credentials
+          secretName: s3-credentials
 ---
 apiVersion: v1
 kind: Service
@@ -468,7 +467,6 @@ spec:
   ports:
   - port: 80
     targetPort: 8888
-  type: NodePort
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -491,14 +489,14 @@ spec:
     http:
       paths:
       - path: /
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: deck
             port:
               number: 80
       - path: /hook
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: hook
@@ -526,7 +524,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: statusreconciler
-        image: gcr.io/k8s-prow/status-reconciler:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/status-reconciler:v20220310-1636de6255
         args:
         - --dry-run=false
         - --continue-on-error=true
@@ -534,8 +532,8 @@ spec:
         - --config-path=/etc/config/config.yaml
         - --github-endpoint=http://ghproxy
         - --github-endpoint=https://api.github.com
-        - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
-        - --status-path=gs://your-bucket-name/status-reconciler-status
+        - --s3-credentials-file=/etc/s3-credentials/service-account.json
+        - --status-path=s3://status-reconciler/status-reconciler-status
         - --github-app-id=$(GITHUB_APP_ID)
         - --github-app-private-key-path=/etc/github/cert
         env:
@@ -554,8 +552,8 @@ spec:
         - name: plugins
           mountPath: /etc/plugins
           readOnly: true
-        - name: gcs-credentials
-          mountPath: /etc/gcs-credentials
+        - name: s3-credentials
+          mountPath: /etc/s3-credentials
           readOnly: true
       volumes:
       - name: github-token
@@ -567,9 +565,9 @@ spec:
       - name: plugins
         configMap:
           name: plugins
-      - name: gcs-credentials
+      - name: s3-credentials
         secret:
-          secretName: gcs-credentials
+          secretName: s3-credentials
 ---
 apiVersion: v1
 kind: Namespace
@@ -918,7 +916,7 @@ spec:
     spec:
       containers:
       - name: ghproxy
-        image: gcr.io/k8s-prow/ghproxy:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/ghproxy:v20220310-1636de6255
         args:
         - --cache-dir=/cache
         - --cache-sizeGB=99
@@ -987,7 +985,7 @@ spec:
             secretKeyRef:
               name: github-token
               key: appid
-        image: gcr.io/k8s-prow/prow-controller-manager:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/prow-controller-manager:v20220310-1636de6255
         volumeMounts:
         - name: github-token
           mountPath: /etc/github
@@ -1122,11 +1120,11 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: crier
-        image: gcr.io/k8s-prow/crier:v20220309-f9f6d1d28f
+        image: gcr.io/k8s-prow/crier:v20220310-1636de6255
         args:
         - --blob-storage-workers=10
         - --config-path=/etc/config/config.yaml
-        - --gcs-credentials-file=/etc/gcs-credentials/service-account.json
+        - --s3-credentials-file=/etc/s3-credentials/service-account.json
         - --github-endpoint=http://ghproxy
         - --github-endpoint=https://api.github.com
         - --github-workers=10
@@ -1146,8 +1144,8 @@ spec:
         - name: github-token
           mountPath: /etc/github
           readOnly: true
-        - name: gcs-credentials
-          mountPath: /etc/gcs-credentials
+        - name: s3-credentials
+          mountPath: /etc/s3-credentials
           readOnly: true
       volumes:
       - name: config
@@ -1156,9 +1154,9 @@ spec:
       - name: github-token
         secret:
           secretName: github-token
-      - name: gcs-credentials
+      - name: s3-credentials
         secret:
-          secretName: gcs-credentials
+          secretName: s3-credentials
 ---
 kind: ServiceAccount
 apiVersion: v1
@@ -1230,3 +1228,121 @@ subjects:
 - kind: ServiceAccount
   name: crier
   namespace: prow
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio
+  namespace: prow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: prow
+  name: s3-credentials
+stringData:
+  service-account.json: |
+    {
+      "region": "minio",
+      "access_key": "minio",
+      "endpoint": "minio.prow.svc.cluster.local",
+      "insecure": true,
+      "s3_force_path_style": true,
+      "secret_key": "MinioiisC00l!!"
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: test-pods
+  name: s3-credentials
+stringData:
+  service-account.json: |
+    {
+      "region": "minio",
+      "access_key": "minio",
+      "endpoint": "minio.prow.svc.cluster.local",
+      "insecure": true,
+      "s3_force_path_style": true,
+      "secret_key": "MinioiisC00l!!"
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: prow
+spec:
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: minio
+      initContainers:
+      - name: bucket-creator
+        image: alpine
+        command:
+        - mkdir
+        - -p
+        - /data/prow-logs
+        - /data/tide
+        - /data/status-reconciler
+        volumeMounts:
+        - name: data
+          mountPath: "/data"
+      containers:
+      - name: minio
+        volumeMounts:
+        - name: data
+          mountPath: "/data"
+        image: minio/minio:latest
+        args:
+        - server
+        - /data
+        env:
+        - name: MINIO_ROOT_USER
+          value: "minio"
+        - name: MINIO_ROOT_PASSWORD
+          value: "MinioiisC00l!!"
+        - name: MINIO_REGION_NAME
+          value: minio
+        ports:
+        - containerPort: 9000
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          periodSeconds: 20
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: prow
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 9000
+    protocol: TCP
+  selector:
+    app: minio

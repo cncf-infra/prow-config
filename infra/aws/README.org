@@ -10,8 +10,7 @@ Terraform configuration for prow.cncf.io
 
 * Initial things
 ** Configure aws cli
-
-Set up the aws cli with your aws account.
+Log into the *cncf-apisnoop* Account (ID) and provide the CLI some security credentials
 #+begin_src tmate :window prow-config
 aws configure
 #+end_src
@@ -218,7 +217,7 @@ cert-manager-webhook-7b887475fb-d4cmz      1/1     Running   0          88s
 * Install Prow
 ** Prepare
 #+begin_src shell :results silent
-curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-gcs.yaml
+curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-s3.yaml
 #+end_src
 
 *** Template
@@ -227,6 +226,8 @@ GITHUB_APP_ID='${GITHUB_APP_ID}'
 GITHUB_APP_SECRET='${GITHUB_APP_SECRET}'
 GITHUB_WEBHOOK_HMAC='${GITHUB_WEBHOOK_HMAC}'
 GITHUB_ORG=cncf-infra
+MINIO_USER=minio
+MINIO_PASSWORD=MinioiisC00l!!
 PROW_DOMAIN=prow.cncf.io
 
 sed -i "s/<<insert-downloaded-cert-here>>/${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
@@ -234,11 +235,16 @@ sed -i "s/<<insert-the-app-id-here>>/${GITHUB_APP_ID}/g" ./manifests/prow.yaml
 sed -i "s/<< insert-hmac-token-here >>/${GITHUB_WEBHOOK_HMAC}/g" ./manifests/prow.yaml
 sed -i "s/<< your-domain.com >>/${PROW_DOMAIN}/g" ./manifests/prow.yaml
 sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
+sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
+sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/prow.yaml
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
 sed -i 's/          gcs_configuration:\n            bucket: gs://your-bucket-name\n            path_strategy: explicit\n          gcs_credentials_secret: gcs-credentials\n//g' ./manifests/prow.yaml
 #+end_src
 
 ** Install
 #+begin_src shell :results silent
-kubectl apply -f ./manifests/prow.yaml
+export \
+    GITHUB_WEBHOOK_HMAC="$(openssl rand -hex 20)"
+
+envsubst < ./manifests/prow.yaml | kubectl apply -f -
 #+end_src
