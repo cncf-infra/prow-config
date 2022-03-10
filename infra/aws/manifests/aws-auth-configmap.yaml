@@ -1,24 +1,27 @@
 # Configure aws auth for EKS cluster
 
-data:
-  mapUsers: |
-    - userarn: arn:aws:iam::928655657136:user/prow.cncf.io
-      username: prow
-      groups:
-        - system:masters
-    - userarn: arn:aws:iam::928655657136:user/bb@ii.coop
-      username: bb
-      groups:
-        - system:masters
-    - userarn: arn:aws:iam::928655657136:user/hh@ii.coop
-      username: hh
-      groups:
-        - system:masters
-    - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
-      username: zz
-      groups:
-        - system:masters
-    - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
-      username: rob
-      groups:
-        - system:masters
+# Configure the user access for the cluster:
+
+
+  data:
+    mapUsers: |
+      - userarn: arn:aws:iam::928655657136:user/prow.cncf.io
+        username: prow
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/bb@ii.coop
+        username: bb
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/hh@ii.coop
+        username: hh
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
+        username: zz
+        groups:
+          - system:masters
+      - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
+        username: rob
+        groups:
+          - system:masters
