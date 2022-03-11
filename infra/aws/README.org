@@ -46,51 +46,13 @@ aws eks list-clusters
 
 Set current context to be the newly created cluster
 #+begin_src tmate :window prow-config
-aws eks --region ap-southeast-2 update-kubeconfig --name prow-LltO5Bjk
+aws eks --region ap-southeast-2 update-kubeconfig --name prow-cncf-io-eks
 #+end_src
 
 Check cluster connectivity:
 #+BEGIN_SRC shell
 kubectl cluster-info
 #+END_SRC
-
-** Configure aws auth for EKS cluster
-
-Configure the user access for the cluster:
-
-#+begin_src yaml :tangle ./manifests/aws-auth-configmap.yaml
-  data:
-    mapUsers: |
-      - userarn: arn:aws:iam::928655657136:user/prow.cncf.io
-        username: prow
-        groups:
-          - system:masters
-      - userarn: arn:aws:iam::928655657136:user/bb@ii.coop
-        username: bb
-        groups:
-          - system:masters
-      - userarn: arn:aws:iam::928655657136:user/hh@ii.coop
-        username: hh
-        groups:
-          - system:masters
-      - userarn: arn:aws:iam::928655657136:user/zz@ii.coop
-        username: zz
-        groups:
-          - system:masters
-      - userarn: arn:aws:iam::928655657136:user/rkielty@rokitds.com
-        username: rob
-        groups:
-          - system:masters
-#+end_src
-
-#+begin_src tmate :window prow-config
-kubectl -n kube-system patch configmap aws-auth --patch "$(cat aws-auth-configmap.yaml)"
-#+end_src
-
-#+RESULTS:
-#+BEGIN_example
-configmap/aws-auth patched
-#+END_example
 
 * Install core services
 ** nginx-ingress
@@ -169,26 +131,9 @@ kubectl apply -f ./manifests/nginx-ingress.yaml
 kubectl -n nginx-ingress get pods
 #+end_src
 
-#+RESULTS:
-#+BEGIN_example
-NAME                                             READY   STATUS    RESTARTS   AGE
-nginx-ingress-controller-6fd5487458-2tghm        1/1     Running   0          38s
-nginx-ingress-controller-6fd5487458-54dsw        1/1     Running   0          38s
-nginx-ingress-controller-6fd5487458-fnpmz        1/1     Running   0          54s
-nginx-ingress-default-backend-5b967cf596-859wm   1/1     Running   0          54s
-#+END_example
-
 #+begin_src shell :results silent
 kubectl -n nginx-ingress get svc
 #+END_SRC
-
-#+RESULTS:
-#+BEGIN_example
-NAME                               TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
-nginx-ingress-controller           LoadBalancer   172.20.185.44    a6db92a5df19741c8a43dc8aa8e486e2-1450765144.ap-southeast-2.elb.amazonaws.com   80:30476/TCP,443:32692/TCP   2m21s
-nginx-ingress-controller-metrics   ClusterIP      172.20.144.145   <none>                                                                         9913/TCP                     2m21s
-nginx-ingress-default-backend      ClusterIP      172.20.102.168   <none>                                                                         80/TCP                       2m21s
-#+END_example
 
 ** Cert-Manager
 *** Prepare
@@ -205,14 +150,6 @@ kubectl apply -f ./manifests/cert-manager.yaml
 #+begin_src tmate :window prow-config
 kubectl -n cert-manager get pods
 #+END_SRC
-
-#+RESULTS:
-#+BEGIN_example
-NAME                                       READY   STATUS    RESTARTS   AGE
-cert-manager-7ddc5b4db-jt5j6               1/1     Running   0          88s
-cert-manager-cainjector-6644dc4975-b2r7n   1/1     Running   0          88s
-cert-manager-webhook-7b887475fb-d4cmz      1/1     Running   0          88s
-#+END_example
 
 * Install Prow
 ** Prepare
@@ -239,7 +176,6 @@ sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/prow.yaml
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
-sed -i 's/          gcs_configuration:\n            bucket: gs://your-bucket-name\n            path_strategy: explicit\n          gcs_credentials_secret: gcs-credentials\n//g' ./manifests/prow.yaml
 #+end_src
 
 ** Install
