@@ -228,7 +228,8 @@ GITHUB_WEBHOOK_HMAC='${GITHUB_WEBHOOK_HMAC}'
 GITHUB_ORG=cncf-infra
 MINIO_USER=minio
 MINIO_PASSWORD=MinioiisC00l!!
-PROW_DOMAIN=prow.cncf.io
+# resolves to prow.cncf.io in the config
+PROW_DOMAIN=cncf.io
 
 sed -i "s/<<insert-downloaded-cert-here>>/${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
 sed -i "s/<<insert-the-app-id-here>>/${GITHUB_APP_ID}/g" ./manifests/prow.yaml
