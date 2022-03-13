@@ -154,6 +154,7 @@ kubectl -n cert-manager get pods
 * Install Prow
 ** Prepare
 #+begin_src shell :results silent
+curl -o ./manifests/prowjob-crd.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/prowjob-crd/prowjob_customresourcedefinition.yaml
 curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-s3.yaml
 #+end_src
 
@@ -183,5 +184,6 @@ sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/
 export \
     GITHUB_WEBHOOK_HMAC="$(openssl rand -hex 20)"
 
+kubectl apply -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
 #+end_src
