@@ -194,7 +194,7 @@ curl -o ./manifests/prowjob-crd.yaml -L https://github.com/kubernetes/test-infra
 curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-s3.yaml
 #+end_src
 
-*** Template
+** Template
 #+begin_src shell :results silent
 GITHUB_APP_ID='${GITHUB_APP_ID}'
 GITHUB_APP_SECRET='${GITHUB_APP_SECRET}'
