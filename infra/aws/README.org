@@ -339,6 +339,21 @@ envsubst < ./manifests/prow.yaml | kubectl apply -f -
 
 * Install verify-conformance plugin
 ** Configure
+#+begin_src yaml :tangle ./manifests/verify-conformance-config.yaml
+external_plugins:
+  cncf/k8s-conformance:
+  - name: verify-conformance-release
+    events:
+      - issue_comment
+      - pull_request
+
+  cncf-infra/k8s-conformance:
+  - name: verify-conformance-release
+    events:
+      - issue_comment
+      - pull_request
+#+end_src
+
 #+begin_src yaml :tangle ./manifests/verify-conformance.yaml
 # Copyright 2022 CNCF
 #
@@ -418,5 +433,5 @@ spec:
 
 ** Install
 #+begin_src shell
-kubectl apply -f ./manifests/verify-conformance.yaml
+kubectl apply -f ./manifests/verify-conformance-config.yaml -f ./manifests/verify-conformance.yaml
 #+end_src
