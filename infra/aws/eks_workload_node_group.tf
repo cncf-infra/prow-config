@@ -15,7 +15,7 @@ resource "aws_eks_node_group" "worker-node-group" {
   node_group_name = local.worker-mng-name
   node_role_arn   = aws_iam_role.managed_workers.arn
   #subnet_ids      = values(var.vpc_config.private_subnet_ids)
-  subnet_ids = concat([data.aws_subnet.private.id])
+  subnet_ids = concat(sort(data.aws_subnets.private.ids))
 
   launch_template {
     name    = aws_launch_template.bottlerocket_lt.name

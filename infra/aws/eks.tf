@@ -2,8 +2,11 @@ data "aws_vpc" "network" {
   id = aws_vpc.eks_network.id
 }
 
-data "aws_subnet" "private" {
-  id = aws_vpc.eks_network.id
+data "aws_subnets" "private" {
+  filter {
+    name   = "tag:vpc-id-and-type"
+    values = ["${aws_vpc.eks_network.id}-private"]
+  }
   tags = {
     "subnet-type" = "private"
   }
@@ -12,8 +15,11 @@ data "aws_subnet" "private" {
   ]
 }
 
-data "aws_subnet" "public" {
-  id = aws_vpc.eks_network.id
+data "aws_subnets" "public" {
+  filter {
+    name   = "tag:vpc-id-and-type"
+    values = ["${aws_vpc.eks_network.id}-private"]
+  }
   tags = {
     "subnet-type" = "public"
   }
@@ -47,7 +53,7 @@ resource "aws_eks_cluster" "cluster" {
   role_arn                  = aws_iam_role.cluster_role.arn
   version                   = var.eks_version
   vpc_config {
-    subnet_ids              = concat([data.aws_subnet.private.id, data.aws_subnet.public.id])
+    subnet_ids              = concat(sort(data.aws_subnets.private.ids), sort(data.aws_subnets.public.ids))
     security_group_ids      = aws_security_group.control_plane.*.id
     endpoint_private_access = "true"
     endpoint_public_access  = "true"
