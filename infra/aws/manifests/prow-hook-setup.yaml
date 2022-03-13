@@ -1,0 +1,111 @@
+# Configure
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/name: prow
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-hook-setupjob
+subjects:
+- kind: ServiceAccount
+  name: prow-hook-setupjob
+  namespace: prow
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: prow-hook-setup
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 200
+      backoffLimit: 4
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: hook
+            app.kubernetes.io/name: prow
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: prow-hook-setupjob
+          containers:
+          - name: prow-hook-setupjob
+            image: "gcr.io/k8s-prow/hmac:v20220310-033172a69b"
+            imagePullPolicy: IfNotPresent
+            command:
+            - /hmac
+            args:
+            - --config-path=/etc/config/config.yaml
+            - --hook-url=https://prow.cncf.io/hook
+            - --hmac-token-secret-name=hmac-token
+            - --hmac-token-secret-namespace=prow
+            - --hmac-token-key=hmac
+            - --github-app-id=$(GITHUB_APP_ID)
+            - --github-app-private-key-path=/etc/github/cert
+            - --github-endpoint=http://ghproxy.prow
+            - --github-endpoint=https://api.github.com
+            - --kubeconfig-context=default
+            - --dry-run=false
+            env:
+              - name: GITHUB_APP_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: github-token
+                    key: appid
+            volumeMounts:
+              - name: github-token
+                mountPath: /etc/github
+                readOnly: true
+              - name: github-secrets-hmac
+                mountPath: /etc/github/hmac
+                subPath: hmac
+                readOnly: true
+              - name: config
+                mountPath: /etc/config
+                readOnly: true
+          volumes:
+            - name: github-token
+              secret:
+                defaultMode: 420
+                secretName: github-token
+            - name: hmac-token
+              secret:
+                defaultMode: 420
+                secretName: hmac-token
+            - name: config
+              configMap:
+                name: config

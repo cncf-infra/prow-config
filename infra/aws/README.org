@@ -15,7 +15,7 @@ Log into the *cncf-apisnoop* Account (ID) and provide the CLI some security cred
 aws configure
 #+end_src
 
-* Deploying
+* Deploying the EKS cluster
 ** Init
 
 Initialize terraform with the plugins that are required.
@@ -151,6 +151,42 @@ kubectl apply -f ./manifests/cert-manager.yaml
 kubectl -n cert-manager get pods
 #+END_SRC
 
+* Certificates
+** Configure
+#+begin_src yaml :tangle ./manifests/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: prow-cncf-io@ii.coop
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: letsencrypt-prod
+spec:
+  secretName: letsencrypt-prod
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - prow.cncf.io
+#+end_src
+
+** Install certs
+#+begin_src shell
+kubectl apply -f ./manifests/certs.yaml
+#+end_src
+
 * Install Prow
 ** Prepare
 #+begin_src shell :results silent
@@ -179,6 +215,119 @@ sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/pro
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
 #+end_src
 
+** Configure
+#+begin_src yaml :tangle ./manifests/prow-hook-setup.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/name: prow
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prow-hook-setupjob
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prow-hook-setupjob
+subjects:
+- kind: ServiceAccount
+  name: prow-hook-setupjob
+  namespace: prow
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: prow-hook-setup
+  namespace: prow
+  labels:
+    app.kubernetes.io/name: prow
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 200
+      backoffLimit: 4
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: hook
+            app.kubernetes.io/name: prow
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: prow-hook-setupjob
+          containers:
+          - name: prow-hook-setupjob
+            image: "gcr.io/k8s-prow/hmac:v20220310-033172a69b"
+            imagePullPolicy: IfNotPresent
+            command:
+            - /hmac
+            args:
+            - --config-path=/etc/config/config.yaml
+            - --hook-url=https://prow.cncf.io/hook
+            - --hmac-token-secret-name=hmac-token
+            - --hmac-token-secret-namespace=prow
+            - --hmac-token-key=hmac
+            - --github-app-id=$(GITHUB_APP_ID)
+            - --github-app-private-key-path=/etc/github/cert
+            - --github-endpoint=http://ghproxy.prow
+            - --github-endpoint=https://api.github.com
+            - --kubeconfig-context=default
+            - --dry-run=false
+            env:
+              - name: GITHUB_APP_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: github-token
+                    key: appid
+            volumeMounts:
+              - name: github-token
+                mountPath: /etc/github
+                readOnly: true
+              - name: github-secrets-hmac
+                mountPath: /etc/github/hmac
+                subPath: hmac
+                readOnly: true
+              - name: config
+                mountPath: /etc/config
+                readOnly: true
+          volumes:
+            - name: github-token
+              secret:
+                defaultMode: 420
+                secretName: github-token
+            - name: hmac-token
+              secret:
+                defaultMode: 420
+                secretName: hmac-token
+            - name: config
+              configMap:
+                name: config
+#+end_src
+
 ** Install
 #+begin_src shell :results silent
 export \
@@ -186,4 +335,88 @@ export \
 
 kubectl apply -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
+#+end_src
+
+* Install verify-conformance plugin
+** Configure
+#+begin_src yaml :tangle ./manifests/verify-conformance.yaml
+# Copyright 2022 CNCF
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: verify-conformance-release
+  namespace: prow
+  labels:
+    app: verify-conformance-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: verify-conformance-release
+  template:
+    metadata:
+      labels:
+        app: verify-conformance-release
+    spec:
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: verify-conformance-release
+          image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release@sha256:a941c3de0da82d079d98ce12e351c99eb6d88bfd570e1d5a7f587d672b7f8ad1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --dry-run=false
+            - --hmac-secret-file=/etc/webhook/hmac
+            - --github-token-path=/etc/github/oauth
+            - --plugin-config=/plugin/vcr.yaml
+            - --update-period=5m
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: hmac
+              mountPath: /etc/webhook
+              readOnly: true
+            - name: oauth
+              mountPath: /etc/github
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: vcr-config
+              mountPath: /plugin/vcr.yaml
+              subPath: vcr.yaml
+              readOnly: true
+      volumes:
+        - name: hmac
+          secret:
+            secretName: hmac-token
+        - name: oauth
+          secret:
+            secretName: prow-github-oauth
+        - name: plugins
+          configMap:
+            name: prow-plugins
+        - name: vcr-config
+          configMap:
+            name: vcr-config
+#+end_src
+
+** Install
+#+begin_src shell
+kubectl apply -f ./manifests/verify-conformance.yaml
 #+end_src
