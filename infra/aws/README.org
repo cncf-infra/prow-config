@@ -24,10 +24,8 @@ if [ ! "$(sha256sum aws-iam-authenticator | awk '{print $1}')" = "$(cat aws-iam-
     exit 1
 fi
 chmod +x ./aws-iam-authenticator
-mkdir -p $HOME/bin
-cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator
-export PATH=$PATH:$HOME/bin
-echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+mv ./aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
+rm aws-iam-authenticator.sha256
 #+end_src
 
 * Deploying the EKS cluster
@@ -251,7 +249,6 @@ export GITHUB_APP_ID="$(kubectl -n prow get secret github-token -o=go-template='
 
 Set the value of GITHUB_APP_SECRET into env
 #+begin_src tmate :window prow-config
-# export GITHUB_APP_SECRET="$(echo -e "${GITHUB_APP_SECRET:-"$(cat /tmp/GITHUB_APP_SECRET.cert | sed 's/^/    /g')"}")"
 export GITHUB_APP_SECRET="$(echo -e "${GITHUB_APP_SECRET:-"$(cat /tmp/GITHUB_APP_SECRET.cert | base64 | tr -d '\n')"}")"
 export GITHUB_APP_ID="$(echo -e "${GITHUB_APP_ID:-"$(cat /tmp/GITHUB_APP_ID.txt | tr -d '\n' | base64)"}")"
 #+end_src
@@ -275,14 +272,7 @@ sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/prow.yaml
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
 sed -i "s/defaultBackend/tls:\n    - hosts:\n        - prow.cncf.io\n      secretName: letsencrypt-prod\n  defaultBackend/g" ./manifests/prow.yaml
-#+end_src
-
-#+begin_src yaml
-spec:
-  tls:
-    - hosts:
-        - prow.cncf.io
-      secretName: letsencrypt-prod
+sed -i "s/interval: 1m/interval: 6h/g" ./manifests/prow.yaml
 #+end_src
 
 ** Configure
@@ -407,6 +397,9 @@ export \
 kubectl apply --server-side -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
 #+end_src
+
+** Finalise
+ensure that the value of ~$GITHUB_WEBHOOK_HMAC~ is set in the GitHub app under Webhook -> Webhook secret
 
 * Install verify-conformance plugin
 ** Configure

@@ -120,7 +120,7 @@ data:
 
     decorate_all_jobs: true
     periodics:
-    - interval: 1m
+    - interval: 6h
       agent: kubernetes
       name: echo-test
       spec:
@@ -478,6 +478,10 @@ metadata:
     # nothing when not using cert-manager.
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  tls:
+    - hosts:
+        - prow.cncf.io
+      secretName: letsencrypt-prod
   tls:
     - hosts:
         - prow.cncf.io
