@@ -269,6 +269,15 @@ sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/prow.yaml
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
+sed -i "s/defaultBackend/tls:\n    - hosts:\n        - prow.cncf.io\n      secretName: letsencrypt-prod\n  defaultBackend/g" ./manifests/prow.yaml
+#+end_src
+
+#+begin_src yaml
+spec:
+  tls:
+    - hosts:
+        - prow.cncf.io
+      secretName: letsencrypt-prod
 #+end_src
 
 ** Configure
@@ -453,9 +462,16 @@ spec:
             - --github-endpoint=https://api.github.com
             - --dry-run=false
             - --hmac-secret-file=/etc/webhook/hmac
-            - --github-token-path=/etc/github/oauth
             - --plugin-config=/plugin/vcr.yaml
             - --update-period=5m
+            - --github-app-id=$(GITHUB_APP_ID)
+            - --github-app-private-key-path=/etc/github/cert
+          env:
+          - name: GITHUB_APP_ID
+            valueFrom:
+              secretKeyRef:
+                name: github-token
+                key: appid
           ports:
             - name: http
               containerPort: 8888
@@ -479,10 +495,10 @@ spec:
             secretName: hmac-token
         - name: oauth
           secret:
-            secretName: prow-github-oauth
+            secretName: github-token
         - name: plugins
           configMap:
-            name: prow-plugins
+            name: plugins
         - name: vcr-config
           configMap:
             name: vcr-config
@@ -490,5 +506,12 @@ spec:
 
 ** Install
 #+begin_src shell
-kubectl apply -f ./manifests/verify-conformance-config.yaml -f ./manifests/verify-conformance.yaml
+kubectl -n prow create configmap vcr-config --from-file=vcr.yaml=./manifests/verify-conformance-config.yaml --dry-run=client -o yaml \
+    | kubectl -n prow apply -f -
+kubectl -n prow apply -f ./manifests/verify-conformance.yaml
 #+end_src
+
+#+RESULTS:
+#+begin_example
+deployment.apps/verify-conformance-release configured
+#+end_example
