@@ -31,6 +31,11 @@ echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
 #+end_src
 
 * Deploying the EKS cluster
+** Make a bucket for tfstate
+#+begin_src shell :results silent
+aws s3 mb s3://prow-cncf-io-tfstate --region ap-southeast-2
+#+end_src
+
 ** Init
 
 Initialize terraform with the plugins that are required.
