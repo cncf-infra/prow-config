@@ -184,9 +184,19 @@ kubectl -n cert-manager get pods
 #+END_SRC
 
 ** linkerd
+*** Configure
+#+begin_src yaml :tangle ./manifests/linkerd-values.yaml
+clusterNetworks: "10.0.0.0/8,100.64.0.0/10,172.16.0.0/12,192.168.0.0/16,10.244.0.0/24"
+#+end_src
+
 *** Install
 #+begin_src tmate :window prow-config
-linkerd install --ha | kubectl apply -f -
+linkerd install -f ./manifests/linkerd-values.yaml --ha | kubectl apply -f -
+#+end_src
+
+*** Upgrade
+#+begin_src tmate :window prow-config
+linkerd upgrade -f ./manifests/linkerd-values.yaml --ha | kubectl apply -f -
 #+end_src
 
 ** linkerd-viz
@@ -565,6 +575,11 @@ If you try this command on a Pair instance and try to access through linkerd.SOM
 ** Restart all Prow components
 #+begin_src shell :results silent
 kubectl -n prow rollout restart deployment
+#+end_src
+
+** Restart all verify-conformance-release
+#+begin_src shell :results silent
+kubectl -n prow rollout restart deployment verify-conformance-release
 #+end_src
 
 ** Removing linkerd
