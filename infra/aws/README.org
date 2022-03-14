@@ -455,7 +455,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance-release
-          image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release@sha256:a941c3de0da82d079d98ce12e351c99eb6d88bfd570e1d5a7f587d672b7f8ad1
+          image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release@sha256:ddaf44b39f9ae8a76fe87412773443586edd8ee7bb72de500a2b5b253654d1c4
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy
@@ -513,5 +513,6 @@ kubectl -n prow apply -f ./manifests/verify-conformance.yaml
 
 #+RESULTS:
 #+begin_example
+configmap/vcr-config configured
 deployment.apps/verify-conformance-release configured
 #+end_example
