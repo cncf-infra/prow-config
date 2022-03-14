@@ -554,6 +554,14 @@ deployment.apps/verify-conformance-release configured
 kubectl get nodes -o=jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels}{"\n"}{end}'
 #+end_src
 
+** Access linkerd viz dashboard
+#+begin_src tmate :window prow-config-linkerd
+linkerd viz dashboard --address 0.0.0.0 --show url
+#+end_src
+
+Requires modifying linkerd-viz/web deployment ~-enforced-host=~ arg to port-forward through Pair.
+If you try this command on a Pair instance and try to access through linkerd.SOMETHING.pair.sharing.io, you'll get a help message.
+
 ** Restart all Prow components
 #+begin_src shell :results silent
 kubectl -n prow rollout restart deployment
