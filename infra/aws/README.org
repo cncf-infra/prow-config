@@ -65,7 +65,7 @@ aws eks --region ap-southeast-2 update-kubeconfig --name prow-cncf-io-eks
 #+end_src
 
 Check cluster connectivity:
-#+BEGIN_SRC shell
+#+BEGIN_SRC tmate :window prow-config
 kubectl cluster-info
 #+END_SRC
 
@@ -190,6 +190,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: letsencrypt-prod
+  namespace: prow
 spec:
   secretName: letsencrypt-prod
   issuerRef:
@@ -204,27 +205,65 @@ spec:
 kubectl apply -f ./manifests/certs.yaml
 #+end_src
 
+#+RESULTS:
+#+begin_example
+clusterissuer.cert-manager.io/letsencrypt-prod created
+certificate.cert-manager.io/letsencrypt-prod created
+#+end_example
+
 * Install Prow
+** Notes
+- a GitHub app must be created according to https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#github-app
+
 ** Prepare
+Download the resources
 #+begin_src shell :results silent
 curl -o ./manifests/prowjob-crd.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/prowjob-crd/prowjob_customresourcedefinition.yaml
 curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-s3.yaml
 #+end_src
 
-** Template
+Create the namespace
 #+begin_src shell :results silent
-GITHUB_APP_ID='${GITHUB_APP_ID}'
-GITHUB_APP_SECRET='${GITHUB_APP_SECRET}'
-GITHUB_WEBHOOK_HMAC='${GITHUB_WEBHOOK_HMAC}'
+kubectl create namespace prow --dry-run=client -o yaml \
+    | kubectl apply -f -
+#+end_src
+
+Prepare the environment for env config
+#+begin_src tmate :window prow-config
+export GITHUB_APP_SECRET="$(kubectl -n prow get secret github-token -o=go-template='{{.data.cert | base64decode }}' || true)" ; \
+export GITHUB_APP_ID="$(kubectl -n prow get secret github-token -o=go-template='{{.data.appid | base64decode }}' || true)" ; \
+(
+    [ -z "${GITHUB_APP_ID}" ] && \
+    read -p 'GITHUB_APP_ID: ' GITHUB_APP_ID && \
+    echo "${GITHUB_APP_ID}" > /tmp/GITHUB_APP_ID.txt
+) && \
+(
+    [ -z "${GITHUB_APP_SECRET}" ] && \
+    echo "Past content of GITHUB_APP_SECRET and C-c to exit" && \
+    cat > /tmp/GITHUB_APP_SECRET.cert
+)
+#+end_src
+
+Set the value of GITHUB_APP_SECRET into env
+#+begin_src tmate :window prow-config
+# export GITHUB_APP_SECRET="$(echo -e "${GITHUB_APP_SECRET:-"$(cat /tmp/GITHUB_APP_SECRET.cert | sed 's/^/    /g')"}")"
+export GITHUB_APP_SECRET="$(echo -e "${GITHUB_APP_SECRET:-"$(cat /tmp/GITHUB_APP_SECRET.cert | base64 | tr -d '\n')"}")"
+export GITHUB_APP_ID="$(echo -e "${GITHUB_APP_ID:-"$(cat /tmp/GITHUB_APP_ID.txt | tr -d '\n' | base64)"}")"
+#+end_src
+
+** Template
+#+begin_src tmate :window prow-config
 GITHUB_ORG=cncf-infra
 MINIO_USER=minio
-MINIO_PASSWORD=MinioiisC00l!!
+MINIO_PASSWORD='MinioiisC00l!!'
 # resolves to prow.cncf.io in the config
 PROW_DOMAIN=cncf.io
 
-sed -i "s/<<insert-downloaded-cert-here>>/${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
-sed -i "s/<<insert-the-app-id-here>>/${GITHUB_APP_ID}/g" ./manifests/prow.yaml
-sed -i "s/<< insert-hmac-token-here >>/${GITHUB_WEBHOOK_HMAC}/g" ./manifests/prow.yaml
+# sed -i "s/cert:/cert: |\n   /g" ./manifests/prow.yaml
+sed -i -z 's,github-token\nstringData,github-token\ndata,g' ./manifests/prow.yaml
+sed -i "s/<<insert-downloaded-cert-here>>/\${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
+sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID}\"/g" ./manifests/prow.yaml
+sed -i "s/<< insert-hmac-token-here >>/\"\${GITHUB_WEBHOOK_HMAC}\"/g" ./manifests/prow.yaml
 sed -i "s/<< your-domain.com >>/${PROW_DOMAIN}/g" ./manifests/prow.yaml
 sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
@@ -346,11 +385,12 @@ spec:
 #+end_src
 
 ** Install
-#+begin_src shell :results silent
+#+begin_src tmate :window prow-config
+GITHUB_WEBHOOK_HMAC="$(kubectl -n prow get secret hmac-token -o=go-template='{{.data.hmac | base64decode }}' || true)"
 export \
-    GITHUB_WEBHOOK_HMAC="$(openssl rand -hex 20)"
+    GITHUB_WEBHOOK_HMAC="${GITHUB_WEBHOOK_HMAC:-$(openssl rand -hex 20)}"
 
-kubectl apply -f ./manifests/prowjob-crd.yaml
+kubectl apply --server-side -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
 #+end_src
 
