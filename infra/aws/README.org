@@ -7,6 +7,7 @@ Terraform configuration for prow.cncf.io
 - [[https://aws.amazon.com/cli/][aws cli]]
 - [[https://kubernetes.io/docs/tasks/tools/install-kubectl/][kubectl]]
 - [[https://helm.sh/docs/intro/install/][helm]]
+- [[https://github.com/linkerd/linkerd2][linkerd-cli]]
 
 * Initial things
 ** Configure aws cli
@@ -16,7 +17,7 @@ aws configure
 #+end_src
 
 ** Install aws-iam-authenticator
-#+begin_src shell
+#+begin_src shell :results silent
 curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
 curl -o aws-iam-authenticator.sha256 https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator.sha256
 if [ ! "$(sha256sum aws-iam-authenticator | awk '{print $1}')" = "$(cat aws-iam-authenticator.sha256 | awk '{print $1}')" ]; then
@@ -26,6 +27,17 @@ fi
 chmod +x ./aws-iam-authenticator
 mv ./aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 rm aws-iam-authenticator.sha256
+#+end_src
+
+** Install linkerd-cli
+#+begin_src shell :results silent
+curl -o /usr/local/bin/linkerd -L https://github.com/linkerd/linkerd2/releases/download/edge-22.3.2/linkerd2-cli-edge-22.3.2-linux-amd64
+curl -o /tmp/linkerd.sha256sum -L https://github.com/linkerd/linkerd2/releases/download/edge-22.3.2/linkerd2-cli-edge-22.3.2-linux-amd64.sha256
+if [ ! "$(sha256sum /usr/local/bin/linkerd | awk '{print $1}')" = "$(cat /tmp/linkerd.sha256sum | awk '{print $1}')" ]; then
+    echo "bad linkerd"
+    exit 1
+fi
+chmod +x /usr/local/bin/linkerd
 #+end_src
 
 * Deploying the EKS cluster
@@ -171,6 +183,18 @@ kubectl apply -f ./manifests/cert-manager.yaml
 kubectl -n cert-manager get pods
 #+END_SRC
 
+** linkerd
+*** Install
+#+begin_src tmate :window prow-config
+linkerd install --ha | kubectl apply -f -
+#+end_src
+
+** linkerd-viz
+*** Install
+#+begin_src tmate :window prow-config
+linkerd viz install --ha | kubectl apply -f -
+#+end_src
+
 * Certificates
 ** Configure
 #+begin_src yaml :tangle ./manifests/certs.yaml
@@ -225,10 +249,19 @@ curl -o ./manifests/prowjob-crd.yaml -L https://github.com/kubernetes/test-infra
 curl -o ./manifests/prow.yaml -L https://github.com/kubernetes/test-infra/raw/master/config/prow/cluster/starter/starter-s3.yaml
 #+end_src
 
+Define the namespace
+#+begin_src yaml :tangle ./manifests/prow-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prow
+  annotations:
+    linkerd.io/inject: enabled
+#+end_src
+
 Create the namespace
 #+begin_src shell :results silent
-kubectl create namespace prow --dry-run=client -o yaml \
-    | kubectl apply -f -
+kubectl apply -f ./manifests/prow-namespace.yaml
 #+end_src
 
 Prepare the environment for env config
@@ -514,3 +547,22 @@ kubectl -n prow apply -f ./manifests/verify-conformance.yaml
 configmap/vcr-config configured
 deployment.apps/verify-conformance-release configured
 #+end_example
+
+* Maintainance
+** Get node info
+#+begin_src tmate :window prow-config
+kubectl get nodes -o=jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels}{"\n"}{end}'
+#+end_src
+
+** Restart all Prow components
+#+begin_src shell :results silent
+kubectl -n prow rollout restart deployment
+#+end_src
+
+** Removing linkerd
+If for some reason we are not wanting to use linkerd, it can be removed with the following commands
+#+begin_src tmate :window prow-config
+kubectl annotate ns prow linkerd.io/inject=disabled --overwrite
+linkerd viz uninstall | kubectl delete -f -
+linkerd uninstall | kubectl delete -f -
+#+end_src
