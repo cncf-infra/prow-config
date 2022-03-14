@@ -15,6 +15,21 @@ Log into the *cncf-apisnoop* Account (ID) and provide the CLI some security cred
 aws configure
 #+end_src
 
+** Install aws-iam-authenticator
+#+begin_src shell
+curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
+curl -o aws-iam-authenticator.sha256 https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator.sha256
+if [ ! "$(sha256sum aws-iam-authenticator | awk '{print $1}')" = "$(cat aws-iam-authenticator.sha256 | awk '{print $1}')" ]; then
+    echo "bad aws-iam-authenticator"
+    exit 1
+fi
+chmod +x ./aws-iam-authenticator
+mkdir -p $HOME/bin
+cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator
+export PATH=$PATH:$HOME/bin
+echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+#+end_src
+
 * Deploying the EKS cluster
 ** Init
 
@@ -41,7 +56,7 @@ terraform apply -auto-approve
 
 Find the cluster name:
 #+begin_src tmate :window prow-config
-aws eks list-clusters
+aws eks list-clusters --region ap-southeast-2
 #+end_src
 
 Set current context to be the newly created cluster
