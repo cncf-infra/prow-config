@@ -66,6 +66,13 @@ resource "aws_eks_cluster" "cluster" {
     aws_nat_gateway.eks_network_nat_gateway
   ]
 
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_encryption.arn
+    }
+    resources = ["secrets"]
+  }
+
   provisioner "local-exec" {
     command     = "until curl --output /dev/null --insecure --silent ${self.endpoint}/healthz; do sleep 1; done"
     working_dir = path.module
