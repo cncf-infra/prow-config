@@ -57,6 +57,11 @@ metadata:
   name: config
 data:
   config.yaml: |
+    managed_webhooks:
+      respect_legacy_global_token: true
+      org_repo_config:
+        cncf-infra:
+          token_created_after: 2020-06-24T00:10:00Z
     prowjob_namespace: prow
     pod_namespace: test-pods
 
@@ -478,6 +483,10 @@ metadata:
     # nothing when not using cert-manager.
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  tls:
+    - hosts:
+        - prow.cncf.io
+      secretName: letsencrypt-prod
   tls:
     - hosts:
         - prow.cncf.io

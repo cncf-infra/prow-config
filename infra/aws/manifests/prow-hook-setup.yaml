@@ -49,11 +49,11 @@ metadata:
   labels:
     app.kubernetes.io/name: prow
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/3 * * * *"
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 200
-      backoffLimit: 4
+      backoffLimit: 10
       template:
         metadata:
           labels:
@@ -67,7 +67,7 @@ spec:
             image: "gcr.io/k8s-prow/hmac:v20220310-033172a69b"
             imagePullPolicy: IfNotPresent
             command:
-            - /hmac
+            - hmac
             args:
             - --config-path=/etc/config/config.yaml
             - --hook-url=https://prow.cncf.io/hook
@@ -90,9 +90,8 @@ spec:
               - name: github-token
                 mountPath: /etc/github
                 readOnly: true
-              - name: github-secrets-hmac
-                mountPath: /etc/github/hmac
-                subPath: hmac
+              - name: hmac-token
+                mountPath: /etc/webhook
                 readOnly: true
               - name: config
                 mountPath: /etc/config

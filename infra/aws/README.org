@@ -21,7 +21,7 @@ aws configure
 curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
 curl -o aws-iam-authenticator.sha256 https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator.sha256
 if [ ! "$(sha256sum aws-iam-authenticator | awk '{print $1}')" = "$(cat aws-iam-authenticator.sha256 | awk '{print $1}')" ]; then
-    echo "bad aws-iam-authenticator"
+    echo "bad aws-iam-authenticator" > /dev/stderr
     exit 1
 fi
 chmod +x ./aws-iam-authenticator
@@ -34,7 +34,7 @@ rm aws-iam-authenticator.sha256
 curl -o /usr/local/bin/linkerd -L https://github.com/linkerd/linkerd2/releases/download/edge-22.3.2/linkerd2-cli-edge-22.3.2-linux-amd64
 curl -o /tmp/linkerd.sha256sum -L https://github.com/linkerd/linkerd2/releases/download/edge-22.3.2/linkerd2-cli-edge-22.3.2-linux-amd64.sha256
 if [ ! "$(sha256sum /usr/local/bin/linkerd | awk '{print $1}')" = "$(cat /tmp/linkerd.sha256sum | awk '{print $1}')" ]; then
-    echo "bad linkerd"
+    echo "bad linkerd" > /dev/stderr
     exit 1
 fi
 chmod +x /usr/local/bin/linkerd
@@ -251,6 +251,8 @@ certificate.cert-manager.io/letsencrypt-prod created
 * Install Prow
 ** Notes
 - a GitHub app must be created according to https://github.com/kubernetes/test-infra/blob/master/prow/getting_started_deploy.md#github-app
+- the GitHub app is found at
+  https://github.com/organizations/cncf-infra/settings/apps/prow-cncf-io
 
 ** Prepare
 Download the resources
@@ -304,7 +306,7 @@ MINIO_PASSWORD='MinioiisC00l!!'
 # resolves to prow.cncf.io in the config
 PROW_DOMAIN=cncf.io
 
-# sed -i "s/cert:/cert: |\n   /g" ./manifests/prow.yaml
+# TODO patch better
 sed -i -z 's,github-token\nstringData,github-token\ndata,g' ./manifests/prow.yaml
 sed -i "s/<<insert-downloaded-cert-here>>/\${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
 sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID}\"/g" ./manifests/prow.yaml
@@ -316,6 +318,7 @@ sed -i "s/<<CHANGE_ME_MINIO_ROOT_PASSWORD>>/${MINIO_PASSWORD}/g" ./manifests/pro
 sed -i "s/cert-manager.io\/cluster-issuer: letsencrypt-staging/cert-manager.io\/cluster-issuer: letsencrypt-prod/g" ./manifests/prow.yaml
 sed -i "s/defaultBackend/tls:\n    - hosts:\n        - prow.cncf.io\n      secretName: letsencrypt-prod\n  defaultBackend/g" ./manifests/prow.yaml
 sed -i "s/interval: 1m/interval: 6h/g" ./manifests/prow.yaml
+sed -i "s/prowjob_namespace: prow/managed_webhooks:\n      respect_legacy_global_token: true\n      org_repo_config:\n        cncf-infra:\n          token_created_after: 2020-06-24T00:10:00Z\n    prowjob_namespace: prow/" ./manifests/prow.yaml
 #+end_src
 
 ** Configure
@@ -369,11 +372,11 @@ metadata:
   labels:
     app.kubernetes.io/name: prow
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/3 * * * *"
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 200
-      backoffLimit: 4
+      backoffLimit: 10
       template:
         metadata:
           labels:
@@ -387,7 +390,7 @@ spec:
             image: "gcr.io/k8s-prow/hmac:v20220310-033172a69b"
             imagePullPolicy: IfNotPresent
             command:
-            - /hmac
+            - hmac
             args:
             - --config-path=/etc/config/config.yaml
             - --hook-url=https://prow.cncf.io/hook
@@ -410,9 +413,8 @@ spec:
               - name: github-token
                 mountPath: /etc/github
                 readOnly: true
-              - name: github-secrets-hmac
-                mountPath: /etc/github/hmac
-                subPath: hmac
+              - name: hmac-token
+                mountPath: /etc/webhook
                 readOnly: true
               - name: config
                 mountPath: /etc/config
@@ -439,6 +441,7 @@ export \
 
 kubectl apply --server-side -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
+kubectl apply -f ./manifests/prow-hook-setup.yaml
 #+end_src
 
 ** Finalise
@@ -580,6 +583,11 @@ kubectl -n prow rollout restart deployment
 ** Restart all verify-conformance-release
 #+begin_src shell :results silent
 kubectl -n prow rollout restart deployment verify-conformance-release
+#+end_src
+
+** List all Pods (excluding test-pods namespace)
+#+begin_src tmate :window prow-config
+kubectl get pods -A --field-selector=metadata.namespace!=test-pods
 #+end_src
 
 ** Removing linkerd
