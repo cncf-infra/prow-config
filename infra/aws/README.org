@@ -67,7 +67,7 @@ Create the infrastructure using apply.
 terraform apply -auto-approve
 #+end_src
 
-** Configure kubectl to use the new cluster
+* Access
 
 Find the cluster name:
 #+begin_src tmate :window prow-config
@@ -159,11 +159,11 @@ kubectl apply -f ./manifests/nginx-ingress.yaml
 
 *** Observe
 
-#+begin_src shell :results silent
+#+begin_src tmate :window prow-config
 kubectl -n nginx-ingress get pods
 #+end_src
 
-#+begin_src shell :results silent
+#+begin_src tmate :window prow-config
 kubectl -n nginx-ingress get svc
 #+END_SRC
 
@@ -558,7 +558,7 @@ kubectl -n prow apply -f ./manifests/verify-conformance.yaml
 #+RESULTS:
 #+begin_example
 configmap/vcr-config configured
-deployment.apps/verify-conformance-release configured
+deployment.apps/verify-conformance-release unchanged
 #+end_example
 
 * Maintainance
