@@ -305,12 +305,14 @@ MINIO_USER=minio
 MINIO_PASSWORD='MinioiisC00l!!'
 # resolves to prow.cncf.io in the config
 PROW_DOMAIN=cncf.io
+export GITHUB_APP_SECRET_B64="$(echo "$GITHUB_APP_SECRET" | base64 | tr -d '\n')"
+export GITHUB_APP_ID_B64="$(echo "$GITHUB_APP_ID" | base64 | tr -d '\n')"
 
 # TODO patch better
 sed -i -z 's,github-token\nstringData,github-token\ndata,g' ./manifests/prow.yaml
-sed -i "s/<<insert-downloaded-cert-here>>/\${GITHUB_APP_SECRET}/g" ./manifests/prow.yaml
-sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID}\"/g" ./manifests/prow.yaml
-sed -i "s/<< insert-hmac-token-here >>/\"\${GITHUB_WEBHOOK_HMAC}\"/g" ./manifests/prow.yaml
+sed -i "s/<<insert-downloaded-cert-here>>/\"\${GITHUB_APP_SECRET_B64}\"/g" ./manifests/prow.yaml
+sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID_B64}\"/g" ./manifests/prow.yaml
+sed -i "s/hmac: << insert-hmac-token-here >>/hmac: \|\n\${GITHUB_WEBHOOK_HMAC}/g" ./manifests/prow.yaml
 sed -i "s/<< your-domain.com >>/${PROW_DOMAIN}/g" ./manifests/prow.yaml
 sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
 sed -i "s/<<CHANGE_ME_MINIO_ROOT_USER>>/${MINIO_USER}/g" ./manifests/prow.yaml
@@ -369,6 +371,8 @@ kind: CronJob
 metadata:
   name: prow-hook-setup
   namespace: prow
+  annotations:
+    linkerd.io/inject: disabled
   labels:
     app.kubernetes.io/name: prow
 spec:
@@ -382,6 +386,8 @@ spec:
           labels:
             app.kubernetes.io/component: hook
             app.kubernetes.io/name: prow
+          annotations:
+            linkerd.io/inject: disabled
         spec:
           restartPolicy: OnFailure
           serviceAccountName: prow-hook-setupjob
@@ -435,9 +441,9 @@ spec:
 
 ** Install
 #+begin_src tmate :window prow-config
-GITHUB_WEBHOOK_HMAC="$(kubectl -n prow get secret hmac-token -o=go-template='{{.data.hmac | base64decode }}' || true)"
+GITHUB_WEBHOOK_HMAC="$(kubectl -n prow get secret hmac-token -o=go-template='{{.data.hmac | base64decode }}' | sed 's/^/    /g' || true)"
 export \
-    GITHUB_WEBHOOK_HMAC="${GITHUB_WEBHOOK_HMAC:-$(openssl rand -hex 20)}"
+    GITHUB_WEBHOOK_HMAC="${GITHUB_WEBHOOK_HMAC:-    $(openssl rand -hex 20)}"
 
 kubectl apply --server-side -f ./manifests/prowjob-crd.yaml
 envsubst < ./manifests/prow.yaml | kubectl apply -f -
