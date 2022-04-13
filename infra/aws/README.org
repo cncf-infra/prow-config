@@ -278,8 +278,8 @@ kubectl apply -f ./manifests/prow-namespace.yaml
 
 Prepare the environment for env config
 #+begin_src tmate :window prow-config
-export GITHUB_APP_SECRET="$(kubectl -n prow get secret github-token -o=go-template='{{.data.cert | base64decode }}' || true)" ; \
-export GITHUB_APP_ID="$(kubectl -n prow get secret github-token -o=go-template='{{.data.appid | base64decode }}' || true)" ; \
+export GITHUB_APP_SECRET="$(kubectl -n prow get secret github-token -o=go-template='{{ .data.cert }}' || true)" ; \
+export GITHUB_APP_ID="$(kubectl -n prow get secret github-token -o=go-template='{{ .data.appid }}' || true)" ; \
 (
     [ -z "${GITHUB_APP_ID}" ] && \
     read -p 'GITHUB_APP_ID: ' GITHUB_APP_ID && \
@@ -305,13 +305,11 @@ MINIO_USER=minio
 MINIO_PASSWORD='MinioiisC00l!!'
 # resolves to prow.cncf.io in the config
 PROW_DOMAIN=cncf.io
-export GITHUB_APP_SECRET_B64="$(echo "$GITHUB_APP_SECRET" | base64 | tr -d '\n')"
-export GITHUB_APP_ID_B64="$(echo "$GITHUB_APP_ID" | base64 | tr -d '\n')"
 
 # TODO patch better
 sed -i -z 's,github-token\nstringData,github-token\ndata,g' ./manifests/prow.yaml
-sed -i "s/<<insert-downloaded-cert-here>>/\"\${GITHUB_APP_SECRET_B64}\"/g" ./manifests/prow.yaml
-sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID_B64}\"/g" ./manifests/prow.yaml
+sed -i "s/<<insert-downloaded-cert-here>>/\"\${GITHUB_APP_SECRET}\"/g" ./manifests/prow.yaml
+sed -i "s/<<insert-the-app-id-here>>/\"\${GITHUB_APP_ID}\"/g" ./manifests/prow.yaml
 sed -i "s/hmac: << insert-hmac-token-here >>/hmac: \|\n\${GITHUB_WEBHOOK_HMAC}/g" ./manifests/prow.yaml
 sed -i "s/<< your-domain.com >>/${PROW_DOMAIN}/g" ./manifests/prow.yaml
 sed -i "s/<< your_github_org >>/${GITHUB_ORG}/g" ./manifests/prow.yaml
@@ -555,7 +553,7 @@ spec:
 #+end_src
 
 ** Install
-#+begin_src shell
+#+begin_src tmate :window prow-config
 kubectl -n prow create configmap vcr-config --from-file=vcr.yaml=./manifests/verify-conformance-config.yaml --dry-run=client -o yaml \
     | kubectl -n prow apply -f -
 kubectl -n prow apply -f ./manifests/verify-conformance.yaml

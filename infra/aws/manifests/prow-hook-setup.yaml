@@ -46,6 +46,8 @@ kind: CronJob
 metadata:
   name: prow-hook-setup
   namespace: prow
+  annotations:
+    linkerd.io/inject: disabled
   labels:
     app.kubernetes.io/name: prow
 spec:
@@ -59,6 +61,8 @@ spec:
           labels:
             app.kubernetes.io/component: hook
             app.kubernetes.io/name: prow
+          annotations:
+            linkerd.io/inject: disabled
         spec:
           restartPolicy: OnFailure
           serviceAccountName: prow-hook-setupjob

@@ -38,8 +38,8 @@ metadata:
   namespace: prow
   name: github-token
 data:
-  cert: "${GITHUB_APP_SECRET_B64}"
-  appid: "${GITHUB_APP_ID_B64}"
+  cert: "${GITHUB_APP_SECRET}"
+  appid: "${GITHUB_APP_ID}"
 ---
 apiVersion: v1
 kind: Secret
