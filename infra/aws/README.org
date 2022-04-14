@@ -566,6 +566,16 @@ deployment.apps/verify-conformance-release unchanged
 #+end_example
 
 * Maintainance
+** View all of the logs with less
+#+begin_src tmate :window prow-config
+kubectl -n prow logs -l app=verify-conformance-release --tail=-1 | less
+#+end_src
+
+** Follow the logs
+#+begin_src tmate :window prow-config
+kubectl -n prow logs -l app=verify-conformance-release --tail=100 -f
+#+end_src
+
 ** Get node info
 #+begin_src tmate :window prow-config
 kubectl get nodes -o=jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels}{"\n"}{end}'
