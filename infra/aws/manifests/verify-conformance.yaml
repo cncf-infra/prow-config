@@ -32,7 +32,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance-release
-          image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release@sha256:771074c38812106328b8514875ba656839dbef640921bd259f469b766678165a
+          image: 928655657136.dkr.ecr.ap-southeast-2.amazonaws.com/verify-conformance-release@sha256:59b4b41a12ca21726d14162efaa3748607a08eadd91de4e6da40c0e215aec6ce
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy
