@@ -1644,8 +1644,6 @@ metadata:
   namespace: prow
   labels:
     app.kubernetes.io/name: prow
-  annotations:
-    kubernetes.io/ingress.class: $SHARINGIO_PAIR_INSTANCE_INGRESS_CLASS_NAME
 spec:
   ingressClassName: $SHARINGIO_PAIR_INSTANCE_INGRESS_CLASS_NAME
   tls:
