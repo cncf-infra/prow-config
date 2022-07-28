@@ -1,6 +1,7 @@
 package suite
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -64,9 +65,51 @@ func TestNewPRSuite(t *testing.T) {
 	}
 }
 
+type testSuiteCase struct {
+	Name            string
+	PullRequest     *PullRequest
+	PRSuiteOptions  PRSuiteOptions
+	ExpectedComment string
+	ExpectedLabels  []string
+}
+
 func TestNewTestSuite(t *testing.T) {
-	s := NewPRSuite(&PullRequest{}).NewTestSuite(PRSuiteOptions{})
-	if s.Name != "how-are-the-prs" {
-		t.Fatalf("Unknown name")
+	prSuiteOptionsDefault := PRSuiteOptions{
+		Paths: []string{"../../kodata/features/"},
+	}
+	cases := []testSuiteCase{
+		{
+			PullRequest:     &PullRequest{},
+			PRSuiteOptions:  prSuiteOptionsDefault,
+			ExpectedComment: ``,
+			ExpectedLabels:  []string{"conformance-product-submission", "release-documents-checked"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			s := NewPRSuite(c.PullRequest)
+			s.NewTestSuite(c.PRSuiteOptions).Run()
+			comment, labels, _ := s.GetLabelsAndCommentsFromSuiteResultsBuffer()
+			if comment != c.ExpectedComment {
+				fmt.Println(comment)
+				t.Fatalf("Comment '%v' expected to match '%v'", comment, c.ExpectedComment)
+			}
+			missingLabels := []string{}
+			for _, l := range labels {
+				found := false
+				for _, lr := range c.ExpectedLabels {
+					if l == lr {
+						found = true
+					}
+				}
+				if found != true {
+					missingLabels = append(missingLabels, l)
+				}
+			}
+			if len(missingLabels) > 0 {
+				t.Fatalf("Labels missing from PR: %v", missingLabels)
+			}
+		})
 	}
 }
