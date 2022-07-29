@@ -72,6 +72,10 @@ type testSuiteCase struct {
 	ExpectedLabels  []string
 }
 
+var (
+	completePullRequest = &PullRequest{}
+)
+
 func TestNewTestSuite(t *testing.T) {
 	prSuiteOptions := PRSuiteOptions{
 		Paths: []string{"../../kodata/features/"},
@@ -117,6 +121,23 @@ func TestNewTestSuite(t *testing.T) {
 `,
 			ExpectedLabels: []string{"conformance-product-submission", "release-documents-checked", "missing-file-README.md", "missing-file-PRODUCT.yaml", "missing-file-e2e.log", "missing-file-junit_01.xml", "not-verifiable"},
 		},
+		// {
+		// 	Name:            "",
+		// 	PullRequest:     &PullRequest{},
+		// 	ExpectedComment: ``,
+		// 	ExpectedLabels:  []string{},
+		// },
+
+		// Scenarios
+		// - empty files or missing
+		//   - README.md
+		//   - PRODUCT.yaml
+		//   - e2e.log
+		//   - junit_01.xml
+		// - complete PR
+		// - PRODUCT.yaml contains empty fields
+		// - e2e.log does not contain
+		// -
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
