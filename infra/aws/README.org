@@ -503,7 +503,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance-release
-          image: ghcr.io/cncf-infra/verify-conformance@sha256:042ceac9a992f27eb418dbf88caa1aac1766ca77bfbd54392f806aa78084957c
+          image: ghcr.io/cncf-infra/verify-conformance@sha256:f6a047ccbc3981c974763a7727ffc0fc26077f6358e139e132936b15fb4d0adc
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy
