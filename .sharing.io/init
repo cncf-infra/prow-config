@@ -17,6 +17,10 @@ if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/namespace ]; then
 fi
 /usr/local/bin/tmate-wait-for-socket.sh
 
+# EKS cluster kubectl exec calls require kubectl ~v1.21
+curl -o /usr/local/bin/kubectl.v1.21.14 -L https://dl.k8s.io/v1.21.14/bin/linux/amd64/kubectl
+chmod +x /usr/local/bin/kubectl.v1.21.14
+
 GIT_ROOT=$(git rev-parse --show-toplevel)
 GIT_UPSTREAM_URL=$(gh api repos/:owner/:repo --jq '.' | jq -r '.ssh_url' 2>&1)
 GIT_BRANCH_CURRENT=$(git branch --show-current)
