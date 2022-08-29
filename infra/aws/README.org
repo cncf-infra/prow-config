@@ -461,11 +461,11 @@ external_plugins:
       - issue_comment
       - pull_request
 
-  # cncf-infra/k8s-conformance:
-  # - name: verify-conformance-release
-  #   events:
-  #     - issue_comment
-  #     - pull_request
+  cncf-infra/k8s-conformance:
+  - name: verify-conformance-release
+    events:
+      - issue_comment
+      - pull_request
 #+end_src
 
 #+begin_src yaml :tangle ./manifests/verify-conformance.yaml
@@ -503,7 +503,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance-release
-          image: ghcr.io/cncf-infra/verify-conformance@sha256:b0b3eec54364a35bc831b79c26e250859cfa5308fedca62aea4d68ca0dd5fd98
+          image:  ghcr.io/cncf-infra/verify-conformance@sha256:648c8df0e891bb271df1c618d9a78fd010210e86ae03600a3546b2733ba07ff4
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy
