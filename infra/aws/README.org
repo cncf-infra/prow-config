@@ -452,118 +452,12 @@ kubectl apply -f ./manifests/prow-hook-setup.yaml
 ensure that the value of ~$GITHUB_WEBHOOK_HMAC~ is set in the GitHub app under Webhook -> Webhook secret
 
 * Install verify-conformance plugin
-** Configure
-#+begin_src yaml :tangle ./manifests/verify-conformance-config.yaml
-external_plugins:
-  cncf/k8s-conformance:
-  - name: verify-conformance-release
-    events:
-      - issue_comment
-      - pull_request
+This plugin is now managed and automated over [[https://github.com/cncf-infra/verify-conformance][here]].
 
-  cncf-infra/k8s-conformance:
-  - name: verify-conformance-release
-    events:
-      - issue_comment
-      - pull_request
+Apply RBAC used for CI
+#+begin_src shell
+kubectl -n prow apply -f ./manifests/verify-conformance-rbac.yaml
 #+end_src
-
-#+begin_src yaml :tangle ./manifests/verify-conformance.yaml
-# Copyright 2022 CNCF
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: verify-conformance-release
-  namespace: prow
-  labels:
-    app: verify-conformance-release
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: verify-conformance-release
-  template:
-    metadata:
-      labels:
-        app: verify-conformance-release
-    spec:
-      terminationGracePeriodSeconds: 180
-      containers:
-        - name: verify-conformance-release
-          image: ghcr.io/cncf-infra/verify-conformance@sha256:05756eda771296d09dbee1db7a2dd0660cb2c422b51121c9812fdf740a71de8c
-          imagePullPolicy: IfNotPresent
-          args:
-            - --github-endpoint=http://prow-ghproxy
-            - --github-endpoint=https://api.github.com
-            - --dry-run=false
-            - --hmac-secret-file=/etc/webhook/hmac
-            - --plugin-config=/plugin/vcr.yaml
-            - --update-period=5m
-            - --github-app-id=$(GITHUB_APP_ID)
-            - --github-app-private-key-path=/etc/github/cert
-          env:
-          - name: GITHUB_APP_ID
-            valueFrom:
-              secretKeyRef:
-                name: github-token
-                key: appid
-          ports:
-            - name: http
-              containerPort: 8888
-          volumeMounts:
-            - name: hmac
-              mountPath: /etc/webhook
-              readOnly: true
-            - name: oauth
-              mountPath: /etc/github
-              readOnly: true
-            - name: plugins
-              mountPath: /etc/plugins
-              readOnly: true
-            - name: vcr-config
-              mountPath: /plugin/vcr.yaml
-              subPath: vcr.yaml
-              readOnly: true
-      volumes:
-        - name: hmac
-          secret:
-            secretName: hmac-token
-        - name: oauth
-          secret:
-            secretName: github-token
-        - name: plugins
-          configMap:
-            name: plugins
-        - name: vcr-config
-          configMap:
-            name: vcr-config
-#+end_src
-
-** Install
-#+begin_src tmate :window prow-config
-kubectl -n prow create configmap vcr-config --from-file=vcr.yaml=./manifests/verify-conformance-config.yaml --dry-run=client -o yaml \
-    | kubectl -n prow apply -f -
-kubectl -n prow apply -f ./manifests/verify-conformance.yaml
-#+end_src
-
-#+RESULTS:
-#+begin_example
-configmap/vcr-config configured
-deployment.apps/verify-conformance-release unchanged
-#+end_example
 
 * Maintainance
 ** View all of the logs with less
